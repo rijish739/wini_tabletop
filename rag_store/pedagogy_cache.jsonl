@@ -1,0 +1,748 @@
+{"chunk_id": "jemh101::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_003::chunk_000", "tags": {"pedagogical_role": "historical_note", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh101::page_003::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_003::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh101::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_004::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_004::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_005::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_006::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_006::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh101::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh101::page_007::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_009::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh102::page_001::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh102::page_002::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh102::page_004::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "tabular", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_004::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_006::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_008::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_009::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["verbal", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_010::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_011::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_012::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_012::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_013::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "evaluate"}}
+{"chunk_id": "jemh102::page_014::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_014::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh103::page_001::chunk_000", "tags": {"pedagogical_role": "application", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_002::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["tabular", "symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["graphical", "tabular", "symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_004::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 5, "representations": ["verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal", "graphical", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_006::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_006::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "verbal", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_007::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_008::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_009::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_010::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_010::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh103::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_011::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_012::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_012::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh103::page_013::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh103::page_013::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_014::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_014::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_001::chunk_001", "tags": {"pedagogical_role": "historical_note", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh104::page_002::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh104::page_002::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_002::chunk_002", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_003::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh104::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh104::page_004::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_005::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_005::chunk_002", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_007::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_008::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh104::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_009::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_010::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_010::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh104::page_011::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh105::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_003::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_004::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_004::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_005::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_007::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 3, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_008::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_008::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_009::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_009::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_010::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_012::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_012::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_013::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_014::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_014::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_015::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_015::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_016::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_016::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_017::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_017::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_018::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_018::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_019::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_019::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_020::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_020::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_021::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_021::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_021::chunk_002", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_022::chunk_000", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_023::chunk_000", "tags": {"pedagogical_role": "challenge", "difficulty": 8, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_023::chunk_001", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_024::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh106::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_004::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_004::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_006::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_007::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "evaluate"}}
+{"chunk_id": "jemh106::page_009::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "verbal", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_009::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_012::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_013::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_013::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh106::page_014::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_014::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_015::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_015::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_016::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_016::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_017::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 8, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_018::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_018::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_019::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_020::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_021::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_022::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_023::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_024::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_025::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_025::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh106::page_026::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "remember"}}
+{"chunk_id": "jemh107::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_004::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_004::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "algebraic", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_007::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_007::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["symbolic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_008::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_008::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_009::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_009::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_011::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_012::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_012::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_013::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_013::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_014::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_001::chunk_000", "tags": {"pedagogical_role": "application", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_003::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_004::chunk_000", "tags": {"pedagogical_role": "historical_note", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_004::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_009::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_009::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_010::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_011::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "verbal", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_012::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_012::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_013::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["tabular", "symbolic", "verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_014::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_015::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_016::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_016::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_017::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_017::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_018::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh108::page_019::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_019::chunk_001", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh108::page_020::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh109::page_001::chunk_000", "tags": {"pedagogical_role": "application", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh109::page_002::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal", "graphical", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh109::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh109::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "graphical", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh109::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh109::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh109::page_009::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_009::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_010::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_010::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh109::page_011::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh110::page_001::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "graphical", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_002::chunk_000", "tags": {"pedagogical_role": "application", "difficulty": 3, "representations": ["verbal", "graphical", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_002::chunk_002", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh110::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_003::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_004::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_005::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_007::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh110::page_009::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_009::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh110::page_010::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh111::page_001::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh111::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh111::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh111::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh111::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh111::page_005::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_005::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_006::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh111::page_006::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_007::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh112::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_004::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_006::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_007::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_007::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_009::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_010::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh112::page_010::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_002::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh113::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_003::chunk_002", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_004::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_006::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_009::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "tabular", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_011::chunk_000", "tags": {"pedagogical_role": "application", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_011::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_012::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_012::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_013::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_013::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_014::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_014::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_015::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "verbal", "tabular", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_015::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "evaluate"}}
+{"chunk_id": "jemh113::page_016::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_016::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_017::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_018::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_019::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_020::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_021::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_021::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_022::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["tabular", "verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_023::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_023::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_024::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_024::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["tabular", "verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_025::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_026::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["tabular", "symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_027::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_027::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_028::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["tabular", "verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_029::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["tabular", "verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_030::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["tabular", "verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_031::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh114::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh114::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_002::chunk_002", "tags": {"pedagogical_role": "definition", "difficulty": 1, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh114::page_003::chunk_000", "tags": {"pedagogical_role": "historical_note", "difficulty": 2, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh114::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_004::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_004::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_006::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_007::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_007::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh114::page_009::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_011::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_011::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_012::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_013::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh114::page_013::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_014::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_014::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_014::chunk_002", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_015::chunk_000", "tags": {"pedagogical_role": "challenge", "difficulty": 8, "representations": ["verbal", "symbolic", "diagrammatic", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh114::page_015::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_016::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_016::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1a1::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_002::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_003::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_003::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_004::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_004::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 2, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_005::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_006::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_006::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_007::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_008::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_009::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_010::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_010::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_011::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_011::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_012::chunk_000", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_012::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_013::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_013::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_014::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_014::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_015::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_015::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_016::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_016::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_017::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_017::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_018::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_018::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_019::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_019::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_020::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_020::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_021::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_001::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_001::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_002::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_002::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_003::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_004::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 5, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_005::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_006::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "tabular", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a2::page_007::chunk_001", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_007::chunk_002", "tags": {"pedagogical_role": "historical_note", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_008::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_008::chunk_001", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a2::page_009::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_010::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_010::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_010::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_011::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_011::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_001::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_002::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_002::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["symbolic", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_003::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_003::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_004::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_004::chunk_001", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_005::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_006::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1an::page_006::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_007::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_008::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_009::chunk_000", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_010::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_010::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_011::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1an::page_012::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_013::chunk_000", "tags": {"pedagogical_role": "practice", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_013::chunk_001", "tags": {"pedagogical_role": "application", "difficulty": 8, "representations": ["symbolic", "verbal"], "bloom_level": "create"}}
+{"chunk_id": "jemh1ps::page_001::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_002::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_002::chunk_001", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_002::chunk_002", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_003::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_003::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_003::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_004::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_005::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_006::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_007::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_007::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_007::chunk_002", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_008::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_008::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_008::chunk_002", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_009::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_009::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_010::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_010::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_011::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal", "tabular"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_012::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal", "tabular"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_013::chunk_000", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal", "tabular"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_014::chunk_000", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_014::chunk_001", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_003::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_005::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh101::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh101::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh101::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 8, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh101::page_009::summary", "tags": {"pedagogical_role": "summary", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_001::summary", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh102::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_009::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["graphical", "verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_010::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh102::page_011::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_012::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 8, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh102::page_013::summary", "tags": {"pedagogical_role": "definition", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh102::page_014::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh103::page_001::summary", "tags": {"pedagogical_role": "application", "difficulty": 3, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "graphical", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_004::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["graphical", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_005::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "tabular", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_006::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "verbal", "graphical", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["algebraic", "verbal", "graphical"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh103::page_010::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_011::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_012::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh103::page_013::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh103::page_014::summary", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "graphical", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh104::page_001::summary", "tags": {"pedagogical_role": "application", "difficulty": 5, "representations": ["verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_002::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh104::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_006::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["algebraic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_007::summary", "tags": {"pedagogical_role": "application", "difficulty": 7, "representations": ["verbal", "algebraic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["symbolic", "verbal", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh104::page_009::summary", "tags": {"pedagogical_role": "application", "difficulty": 8, "representations": ["verbal", "algebraic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_010::summary", "tags": {"pedagogical_role": "summary", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh104::page_011::summary", "tags": {"pedagogical_role": "historical_note", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh105::page_001::summary", "tags": {"pedagogical_role": "application", "difficulty": 3, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "diagrammatic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_003::summary", "tags": {"pedagogical_role": "definition", "difficulty": 2, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh105::page_004::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_007::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_009::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_010::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_011::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_012::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_013::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_014::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_015::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_016::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh105::page_017::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_018::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_019::summary", "tags": {"pedagogical_role": "application", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_020::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_021::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh105::page_022::summary", "tags": {"pedagogical_role": "application", "difficulty": 8, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_023::summary", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh105::page_024::summary", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_006::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_009::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_010::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_011::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_012::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_013::summary", "tags": {"pedagogical_role": "definition", "difficulty": 5, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_014::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_015::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_016::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_017::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_018::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh106::page_019::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_020::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_021::summary", "tags": {"pedagogical_role": "application", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_022::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_023::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh106::page_024::summary", "tags": {"pedagogical_role": "challenge", "difficulty": 9, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh106::page_025::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh106::page_026::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh107::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "symbolic", "graphical"], "bloom_level": "remember"}}
+{"chunk_id": "jemh107::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_003::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_005::summary", "tags": {"pedagogical_role": "application", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal", "graphical"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_007::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "diagrammatic", "algebraic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh107::page_009::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["symbolic", "algebraic", "diagrammatic", "verbal"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh107::page_010::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_011::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_012::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_013::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh107::page_014::summary", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal", "symbolic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_001::summary", "tags": {"pedagogical_role": "application", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_002::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_003::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["symbolic", "verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh108::page_004::summary", "tags": {"pedagogical_role": "historical_note", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_006::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh108::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_009::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_010::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_011::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_012::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_013::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["tabular", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_014::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_015::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_016::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh108::page_017::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_018::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh108::page_019::summary", "tags": {"pedagogical_role": "challenge", "difficulty": 7, "representations": ["symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh108::page_020::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["symbolic", "verbal", "algebraic", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh109::page_001::summary", "tags": {"pedagogical_role": "application", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh109::page_002::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh109::page_003::summary", "tags": {"pedagogical_role": "application", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_004::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_005::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_006::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_009::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_010::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh109::page_011::summary", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_002::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_003::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh110::page_006::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh110::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_009::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh110::page_010::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["verbal", "diagrammatic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh111::page_001::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh111::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh111::page_003::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_004::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_005::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_006::summary", "tags": {"pedagogical_role": "application", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh111::page_007::summary", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh112::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "diagrammatic", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh112::page_003::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_004::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_005::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh112::page_006::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "diagrammatic", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh112::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh112::page_010::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "tabular", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_002::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 4, "representations": ["symbolic", "verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_010::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_011::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_012::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_013::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_014::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_015::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_016::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_017::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_018::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_019::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_020::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_021::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_022::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh113::page_023::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_024::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_025::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["verbal", "symbolic", "tabular", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_026::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["verbal", "symbolic", "tabular", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh113::page_027::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic"], "bloom_level": "evaluate"}}
+{"chunk_id": "jemh113::page_028::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "tabular", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_029::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_030::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["tabular", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh113::page_031::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_001::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_004::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_006::summary", "tags": {"pedagogical_role": "definition", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_007::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 5, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh114::page_010::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_011::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_012::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "tabular", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_013::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_014::summary", "tags": {"pedagogical_role": "practice", "difficulty": 8, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_015::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh114::page_016::summary", "tags": {"pedagogical_role": "summary", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_002::summary", "tags": {"pedagogical_role": "definition", "difficulty": 3, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1a1::page_003::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_005::summary", "tags": {"pedagogical_role": "definition", "difficulty": 4, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 7, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_010::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_011::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "create"}}
+{"chunk_id": "jemh1a1::page_012::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_013::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_014::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_015::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_016::summary", "tags": {"pedagogical_role": "practice", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a1::page_017::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 6, "representations": ["verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a1::page_018::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_019::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 8, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_020::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 9, "representations": ["verbal", "symbolic", "diagrammatic"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a1::page_021::summary", "tags": {"pedagogical_role": "practice", "difficulty": 7, "representations": ["verbal", "symbolic", "algebraic", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_001::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_002::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "graphical", "tabular"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_003::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "diagrammatic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_005::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "tabular"], "bloom_level": "analyze"}}
+{"chunk_id": "jemh1a2::page_006::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 6, "representations": ["verbal", "symbolic", "tabular"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1a2::page_008::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["verbal", "algebraic"], "bloom_level": "evaluate"}}
+{"chunk_id": "jemh1a2::page_010::summary", "tags": {"pedagogical_role": "application", "difficulty": 6, "representations": ["verbal", "algebraic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1a2::page_011::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 3, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_001::summary", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["symbolic", "algebraic", "graphical"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_002::summary", "tags": {"pedagogical_role": "practice", "difficulty": 5, "representations": ["algebraic", "graphical", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_003::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["algebraic", "verbal"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_004::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["algebraic", "verbal", "symbolic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_005::summary", "tags": {"pedagogical_role": "practice", "difficulty": 6, "representations": ["algebraic", "symbolic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_006::summary", "tags": {"pedagogical_role": "summary", "difficulty": 5, "representations": ["symbolic", "diagrammatic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_007::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_008::summary", "tags": {"pedagogical_role": "summary", "difficulty": 2, "representations": ["symbolic", "algebraic"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1an::page_009::summary", "tags": {"pedagogical_role": "worked_example", "difficulty": 7, "representations": ["symbolic", "algebraic", "verbal", "diagrammatic"], "bloom_level": "apply"}}
+{"chunk_id": "jemh1an::page_010::summary", "tags": {"pedagogical_role": "summary", "difficulty": 3, "representations": ["tabular", "symbolic", "algebraic", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_011::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["symbolic", "tabular", "verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_012::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "symbolic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1an::page_013::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 5, "representations": ["verbal", "symbolic", "diagrammatic", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_001::summary", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_002::summary", "tags": {"pedagogical_role": "historical_note", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_003::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_004::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_005::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_006::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_007::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_008::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_009::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_010::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 1, "representations": ["verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_011::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 4, "representations": ["verbal", "graphical", "algebraic"], "bloom_level": "understand"}}
+{"chunk_id": "jemh1ps::page_012::summary", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["tabular", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_013::summary", "tags": {"pedagogical_role": "summary", "difficulty": 1, "representations": ["tabular", "verbal"], "bloom_level": "remember"}}
+{"chunk_id": "jemh1ps::page_014::summary", "tags": {"pedagogical_role": "explanation", "difficulty": 2, "representations": ["verbal"], "bloom_level": "understand"}}

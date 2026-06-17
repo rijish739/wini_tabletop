@@ -1,0 +1,802 @@
+[
+  {
+    "student_utterance": "this diagram is so confusing, can you show it another way?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, diagrammatic, representation_shift",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "i dont get this part, pls explain in simpler words",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, question",
+    "hope_signals": "Moderate load_risk",
+    "target_policy_action": "EXPLAIN",
+    "category": 1
+  },
+  {
+    "student_utterance": "can you show this with numbers instead of symbols, its hard to visualize",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, representation_shift",
+    "hope_signals": "Moderate load_risk, High ki_score opportunity",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "what if we draw it, will it make more sense?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "question, diagrammatic, representation_shift",
+    "hope_signals": "High productive_struggle",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 1
+  },
+  {
+    "student_utterance": "this formula looks so big, is there a small example to understand?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, request_hint",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 1
+  },
+  {
+    "student_utterance": "this whole HCF LCM relation thing, can you draw it for me?",
+    "concept_id": "jemh101__hcf_lcm_product_relation",
+    "miniLM_labels": "confusion, diagrammatic, representation_shift",
+    "hope_signals": "Moderate load_risk, High ki_score opportunity",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "the quadratic formula, how did it come, can you show steps?",
+    "concept_id": "jemh104__quadratic_formula",
+    "miniLM_labels": "question, procedural_focus, algebraic",
+    "hope_signals": "Partial mastery",
+    "target_policy_action": "EXPLAIN",
+    "category": 1
+  },
+  {
+    "student_utterance": "AP sum of n terms formula, can you show me with blocks how it works?",
+    "concept_id": "jemh105__sum_n_terms_formula",
+    "miniLM_labels": "confusion, physical, representation_shift",
+    "hope_signals": "High load_risk, High ki_score opportunity",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 1
+  },
+  {
+    "student_utterance": "why these two triangles are similar, i need to see it differently",
+    "concept_id": "jemh106__triangle_similarity_criteria_intro",
+    "miniLM_labels": "confusion, representation_shift",
+    "hope_signals": "Moderate load_risk",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "that secant and tangent line thing, can we do it with a circle drawing, i'm confused",
+    "concept_id": "jemh110__lines_and_circles_definitions",
+    "miniLM_labels": "confusion, diagrammatic, question",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "angle of elevation and depression, always get them mixed up, can you show with a real-life drawing?",
+    "concept_id": "jemh109__angle_of_elevation",
+    "miniLM_labels": "confusion, diagrammatic, representation_shift",
+    "hope_signals": "Recurring error, High load_risk",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 1
+  },
+  {
+    "student_utterance": "mean median mode formulas are too much, can you show me a simple table instead of just the formula?",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "cognitive_overload, representation_shift, request_representation",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 1
+  },
+  {
+    "student_utterance": "this proof by contradiction method, is it like in detective movies, when they prove someone innocent by finding the real culprit?",
+    "concept_id": "jemh101__proof_by_contradiction_method",
+    "miniLM_labels": "verbal_analogy,transfer_attempt,curiosity",
+    "hope_signals": "High ki_score",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 2
+  },
+  {
+    "student_utterance": "that quadratic formula, is it kinda like a universal key for all quadratic problems, always works?",
+    "concept_id": "jemh104__quadratic_formula",
+    "miniLM_labels": "verbal_analogy,curiosity,abstraction_attempt",
+    "hope_signals": "Moderate kt_score",
+    "target_policy_action": "EXPLAIN",
+    "category": 2
+  },
+  {
+    "student_utterance": "BPT theorem, can we use it to measure the height of big buildings or something without climbing them?",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "transfer_attempt,curiosity,example_request",
+    "hope_signals": "High kt_score",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 2
+  },
+  {
+    "student_utterance": "sin square theta plus cos square theta is 1, this identity is like a constant law of nature right, always true?",
+    "concept_id": "jemh108__pythagorean_trig_identities",
+    "miniLM_labels": "curiosity,abstraction_attempt,question",
+    "hope_signals": "High ct_score",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 2
+  },
+  {
+    "student_utterance": "the mean of grouped data, is it similar to how our teacher calculates average marks for the whole class, or is it different?",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "transfer_attempt,verbal_analogy,question",
+    "hope_signals": "Moderate kt_score",
+    "target_policy_action": "ANALOGOUS_EXAMPLE",
+    "category": 2
+  },
+  {
+    "student_utterance": "the theorem about equal tangents from an external point, is there any real-life use for this, like in making gears or something?",
+    "concept_id": "jemh110__equal_tangent_lengths",
+    "miniLM_labels": "transfer_attempt,example_request,curiosity",
+    "hope_signals": "High kt_score",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 2
+  },
+  {
+    "student_utterance": "can we use this whole calculation thing in physics, like for velocity or acceleration?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "curiosity,transfer_attempt,question",
+    "hope_signals": "High kt_score",
+    "target_policy_action": "ANALOGOUS_EXAMPLE",
+    "category": 2
+  },
+  {
+    "student_utterance": "is this topic like what they use to map out roads or draw city plans?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "verbal_analogy,transfer_attempt,question",
+    "hope_signals": "Moderate kt_score",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 2
+  },
+  {
+    "student_utterance": "this concept, will it be useful if I want to build a game in the future or anything with computers?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "curiosity,transfer_attempt",
+    "hope_signals": "High kt_score",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 2
+  },
+  {
+    "student_utterance": "what if the numbers were negative, would the formula still apply the same way, or does it change?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "abstraction_attempt,question",
+    "hope_signals": "High ct_score",
+    "target_policy_action": "EXPLAIN",
+    "category": 2
+  },
+  {
+    "student_utterance": "how is this problem different from that one with the train crossing the bridge, feels similar?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "self_monitoring,question,transfer_attempt",
+    "hope_signals": "Moderate ct_score",
+    "target_policy_action": "ANALOGOUS_EXAMPLE",
+    "category": 2
+  },
+  {
+    "student_utterance": "this is just too much to remember, i give up now",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "frustration,disengagement,cognitive_overload,low_confidence",
+    "hope_signals": "High load_risk,Low productive_struggle",
+    "target_policy_action": "ENCOURAGE",
+    "category": 3
+  },
+  {
+    "student_utterance": "just tell me the answer, i cant solve it pls, i promise i wont tell anyone",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "shortcut_seeking,frustration,hint_dependency",
+    "hope_signals": "Low productive_struggle,High load_risk",
+    "target_policy_action": "METACOGNITIVE_REFLECT",
+    "category": 3
+  },
+  {
+    "student_utterance": "can we move on already? this topic is so boring, nothing new only",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "disengagement,frustration,topic_shift",
+    "hope_signals": "Surface engagement,Low productive_struggle",
+    "target_policy_action": "ENCOURAGE",
+    "category": 3
+  },
+  {
+    "student_utterance": "why are we even learning this useless stuff, is it coming in boards for sure, or just optional?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "skepticism,disengagement,shortcut_seeking",
+    "hope_signals": "Surface engagement,Low productive_struggle",
+    "target_policy_action": "SOCRATIC_COUNTEREXAMPLE",
+    "category": 3
+  },
+  {
+    "student_utterance": "i dont think i will ever get this, its too hard for me, my brain is not working",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "low_confidence,frustration,cognitive_overload",
+    "hope_signals": "High load_risk,Low productive_struggle",
+    "target_policy_action": "ENCOURAGE",
+    "category": 3
+  },
+  {
+    "student_utterance": "all these sin cos tan identities are making my head spin, why do we need so many ways to write same thing, cant just use one?",
+    "concept_id": "jemh108__pythagorean_trig_identities",
+    "miniLM_labels": "frustration,cognitive_overload,confusion",
+    "hope_signals": "High load_risk,Moderate ct_score",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 3
+  },
+  {
+    "student_utterance": "this proof that root 2 is irrational, is it really important for exam or just timepass for smart kids?",
+    "concept_id": "jemh101__proving_irrationality_root_n",
+    "miniLM_labels": "shortcut_seeking,skepticism,disengagement",
+    "hope_signals": "Low productive_struggle,Surface engagement",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 3
+  },
+  {
+    "student_utterance": "i just use the quadratic formula for all sums, why do i need to factorise also, its longer na for the same answer?",
+    "concept_id": "jemh104__quadratic_formula",
+    "miniLM_labels": "shortcut_seeking,procedural_focus,skepticism",
+    "hope_signals": "Low productive_struggle,High confidence",
+    "target_policy_action": "MISCONCEPTION_PROBE",
+    "category": 3
+  },
+  {
+    "student_utterance": "this mean of grouped data, why cant we just add everything and divide like normal, why so complicated tables and formulas?",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "confusion,procedural_focus,frustration",
+    "hope_signals": "Moderate load_risk,Low productive_struggle",
+    "target_policy_action": "EXPLAIN",
+    "category": 3
+  },
+  {
+    "student_utterance": "bpt theorem n all, can you just give me the question and i will solve it, no need for proof now, its exam time na",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "shortcut_seeking,procedural_focus,topic_shift",
+    "hope_signals": "Surface engagement,High load_risk",
+    "target_policy_action": "METACOGNITIVE_REFLECT",
+    "category": 3
+  },
+  {
+    "student_utterance": "consistent inconsistent dependent, i always get them mixed up, is there a simple trick to remember all these types of lines?",
+    "concept_id": "jemh103__system_classification",
+    "miniLM_labels": "confusion,request_hint,low_confidence",
+    "hope_signals": "Moderate load_risk,Moderate ct_score",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 3
+  },
+  {
+    "student_utterance": "ok i get it, can we do problems now?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "ready_for_next,topic_shift",
+    "hope_signals": "Mastery threshold met,High confidence",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 4
+  },
+  {
+    "student_utterance": "i dont remember how to find LCM of large numbers only, how will i do HCF part?",
+    "concept_id": "jemh101__prime_factorization_hcf_lcm",
+    "miniLM_labels": "confusion,prerequisite_weakness,low_confidence",
+    "hope_signals": "Prerequisite weakness,High load_risk",
+    "target_policy_action": "BRIDGE_RECAP",
+    "category": 4
+  },
+  {
+    "student_utterance": "i know how to find zeroes of a quadratic, its easy, can we go to sum and product relation?",
+    "concept_id": "jemh102__quadratic_coefficients",
+    "miniLM_labels": "ready_for_next,topic_shift,high_confidence",
+    "hope_signals": "High confidence,Mastery threshold met",
+    "target_policy_action": "QUIZ",
+    "category": 4
+  },
+  {
+    "student_utterance": "this is too fast, i need to think about the last step please",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "cognitive_overload,self_monitoring",
+    "hope_signals": "High load_risk,Low productive_struggle",
+    "target_policy_action": "ENCOURAGE",
+    "category": 4
+  },
+  {
+    "student_utterance": "sir, before coordinate geometry, i forgot that number line plotting part, should i revise that first?",
+    "concept_id": "jemh107__cartesian_coordinate_system",
+    "miniLM_labels": "self_monitoring,prerequisite_awareness,question",
+    "hope_signals": "Prerequisite awareness",
+    "target_policy_action": "REVIEW",
+    "category": 4
+  },
+  {
+    "student_utterance": "i think i got the concept of AP sum now, can we try some difficult sums?",
+    "concept_id": "jemh105__sum_n_terms_formula",
+    "miniLM_labels": "ready_for_next,curiosity",
+    "hope_signals": "Mastery threshold met,High productive_struggle",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 4
+  },
+  {
+    "student_utterance": "what is a right angle triangle only? i keep forgetting, how to do trig then?",
+    "concept_id": "jemh108__intro_trigonometry",
+    "miniLM_labels": "confusion,prerequisite_weakness,low_confidence",
+    "hope_signals": "Prerequisite weakness,High load_risk",
+    "target_policy_action": "BRIDGE_RECAP",
+    "category": 4
+  },
+  {
+    "student_utterance": "can we please move on from this topic, i already know this from 9th",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "topic_shift,ready_for_next,high_confidence",
+    "hope_signals": "Mastery threshold met,High confidence",
+    "target_policy_action": "QUIZ",
+    "category": 4
+  },
+  {
+    "student_utterance": "i understand what is a secant and tangent, but what about the theorems related to them?",
+    "concept_id": "jemh110__tangent_radius_perpendicularity",
+    "miniLM_labels": "ready_for_next,topic_shift,curiosity",
+    "hope_signals": "High confidence,Partial mastery",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 4
+  },
+  {
+    "student_utterance": "what is a class interval again? i think i forgot from earlier class, now for grouped frequency i am stuck",
+    "concept_id": "jemh113__grouped_frequency_distribution",
+    "miniLM_labels": "confusion,prerequisite_weakness,self_monitoring",
+    "hope_signals": "Prerequisite weakness,High load_risk",
+    "target_policy_action": "BRIDGE_RECAP",
+    "category": 4
+  },
+  {
+    "student_utterance": "wait, for BPT, is it AD/DB = AE/EC or AD/AB = AE/AC? i always get confused here",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "confusion,low_confidence,self_monitoring",
+    "hope_signals": "Low confidence,Active misconception check",
+    "target_policy_action": "REVIEW",
+    "category": 4
+  },
+  {
+    "student_utterance": "i dont think i can ever pass math, this is too much for me",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "low_confidence,anxiety,frustration",
+    "hope_signals": "High load_risk,Low confidence",
+    "target_policy_action": "ENCOURAGE",
+    "category": 5
+  },
+  {
+    "student_utterance": "i always mess up the signs in quadratic formula, will i ever get it right for the exam?",
+    "concept_id": "jemh104__quadratic_formula",
+    "miniLM_labels": "low_confidence,anxiety,confusion,recurring_error",
+    "hope_signals": "Low confidence,High load_risk,Recurring error",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 5
+  },
+  {
+    "student_utterance": "my brain is just blank right now, i cant focus on anything",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "cognitive_overload,disengagement,low_confidence",
+    "hope_signals": "High load_risk,Low confidence",
+    "target_policy_action": "ENCOURAGE",
+    "category": 5
+  },
+  {
+    "student_utterance": "all these trig identities are confusing me, how will i remember which one to use where? i'll fail for sure",
+    "concept_id": "jemh108__pythagorean_trig_identities",
+    "miniLM_labels": "confusion,low_confidence,anxiety,cognitive_overload",
+    "hope_signals": "High load_risk,Low confidence",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 5
+  },
+  {
+    "student_utterance": "i feel so dumb, i thought i knew this but now i dont",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "low_confidence,self_monitoring,anxiety",
+    "hope_signals": "Low confidence,High load_risk",
+    "target_policy_action": "METACOGNITIVE_REFLECT",
+    "category": 5
+  },
+  {
+    "student_utterance": "BPT proof always messes me up, i never draw the parallel lines correctly, exam main kya karunga",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "confusion,low_confidence,anxiety,procedural_focus",
+    "hope_signals": "Low confidence,High load_risk,Recurring error",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 5
+  },
+  {
+    "student_utterance": "i cant even add numbers properly in this mean question, how will i score marks in stats?",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "low_confidence,frustration,anxiety,procedural_focus",
+    "hope_signals": "Low confidence,High load_risk",
+    "target_policy_action": "ISOMORPHIC_PRACTICE",
+    "category": 5
+  },
+  {
+    "student_utterance": "i am just guessing everything, i dont know anything for real",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "low_confidence,disengagement,anxiety",
+    "hope_signals": "Low confidence,High load_risk",
+    "target_policy_action": "ENCOURAGE",
+    "category": 5
+  },
+  {
+    "student_utterance": "proving root 2 irrational is impossible, i always forget one step or the other, it's too much logic for me",
+    "concept_id": "jemh101__proving_irrationality_root_n",
+    "miniLM_labels": "low_confidence,frustration,cognitive_overload,procedural_focus",
+    "hope_signals": "Low confidence,High load_risk,Recurring error",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 5
+  },
+  {
+    "student_utterance": "consistent, inconsistent, dependent, independent... my head is spinning with these words, i'm definitely getting this wrong on test",
+    "concept_id": "jemh103__system_classification",
+    "miniLM_labels": "confusion,low_confidence,cognitive_overload,anxiety",
+    "hope_signals": "High load_risk,Low confidence,Recurring misconception",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 5
+  },
+  {
+    "student_utterance": "i can draw the circle and tangent but explaining why it's 90 degrees always confuses me, it seems too simple but I never get the proof right",
+    "concept_id": "jemh110__tangent_radius_perpendicularity",
+    "miniLM_labels": "low_confidence,confusion,procedural_focus,anxiety",
+    "hope_signals": "Low confidence,High load_risk,Recurring error",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 5
+  },
+  {
+    "student_utterance": "this ques is too long for boards, just tell the final answer i dont have time for all these steps",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "procedural_focus,shortcut_seeking,anxiety",
+    "hope_signals": "Low productive_struggle,Moderate load_risk",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 6
+  },
+  {
+    "student_utterance": "Quadratic formula is like a magic key, just plug in values right? no need to understand derivation for boards na?",
+    "concept_id": "jemh104__quadratic_formula",
+    "miniLM_labels": "procedural_focus,question,anxiety",
+    "hope_signals": "Surface engagement,Low ct_score",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 6
+  },
+  {
+    "student_utterance": "the nth term of AP, just give me the formula, i know how to put values, it always works",
+    "concept_id": "jemh105__nth_term_formula",
+    "miniLM_labels": "procedural_focus,ready_for_next",
+    "hope_signals": "Low productive_struggle,Surface engagement",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 6
+  },
+  {
+    "student_utterance": "is this topic important for board exams? or just extra knowledge types?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "anxiety,question,topic_shift",
+    "hope_signals": "Low productive_struggle,Moderate load_risk",
+    "target_policy_action": "ENCOURAGE",
+    "category": 6
+  },
+  {
+    "student_utterance": "sin square plus cos square is 1... i just rote learn this na for exams, no need to know why?",
+    "concept_id": "jemh108__pythagorean_trig_identities",
+    "miniLM_labels": "procedural_focus,question,anxiety",
+    "hope_signals": "Low ki_score,Surface engagement",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 6
+  },
+  {
+    "student_utterance": "can u just show me the steps for this type of problem, i'll just copy it for exam",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "hint_dependency,procedural_focus,shortcut_seeking",
+    "hope_signals": "Low productive_struggle,Moderate load_risk",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 6
+  },
+  {
+    "student_utterance": "the mean of grouped data formula, is direct method good enough for all questions or do we always have to do assumed mean?",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "procedural_focus,question,anxiety",
+    "hope_signals": "Surface engagement,Low ct_score",
+    "target_policy_action": "EXPLAIN",
+    "category": 6
+  },
+  {
+    "student_utterance": "BPT proof always messes me up, can you just tell me the main points i should write to get marks, i forget the proper construction",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "procedural_focus,shortcut_seeking,anxiety",
+    "hope_signals": "Low productive_struggle,Moderate load_risk",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 6
+  },
+  {
+    "student_utterance": "what part of this explanation will actually get me marks in the exam, the steps or the understanding?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "anxiety,question,procedural_focus",
+    "hope_signals": "Low productive_struggle,Low ki_score",
+    "target_policy_action": "METACOGNITIVE_REFLECT",
+    "category": 6
+  },
+  {
+    "student_utterance": "i hate proofs by contradiction, can't we just solve it directly? this indirect method is too much for me for boards",
+    "concept_id": "jemh101__proof_by_contradiction_method",
+    "miniLM_labels": "procedural_focus,frustration,anxiety",
+    "hope_signals": "High load_risk,Low productive_struggle",
+    "target_policy_action": "EXPLAIN",
+    "category": 6
+  },
+  {
+    "student_utterance": "ok done with this, what is the next step to do now? just tell me",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "ready_for_next,hint_dependency,procedural_focus",
+    "hope_signals": "Surface engagement,Low productive_struggle",
+    "target_policy_action": "TRANSFER_PROBLEM",
+    "category": 6
+  },
+  {
+    "student_utterance": "My tutor says sum of zeroes is always minus b/a, but in school, mam wrote b/a for one question, which one is correct?",
+    "concept_id": "jemh102__quadratic_coefficients",
+    "miniLM_labels": "conflict, confusion, skepticism",
+    "hope_signals": "Active misconception check",
+    "target_policy_action": "MISCONCEPTION_PROBE",
+    "category": 7
+  },
+  {
+    "student_utterance": "Is this chapter even important for practical life? My dad says all this is useless math.",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "skepticism, disengagement, question",
+    "hope_signals": "Moderate ct_score",
+    "target_policy_action": "ENCOURAGE",
+    "category": 7
+  },
+  {
+    "student_utterance": "Sir, in my tuition they taught a different way to prove root 2 irrational, is your method also correct or theirs?",
+    "concept_id": "jemh101__proof_by_contradiction_method",
+    "miniLM_labels": "conflict, skepticism, question",
+    "hope_signals": "High ki_score opportunity",
+    "target_policy_action": "EXPLAIN",
+    "category": 7
+  },
+  {
+    "student_utterance": "The answer in the textbook for this problem is totally different, did I do something wrong or is the book having mistake?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "skepticism, confusion, self_correction",
+    "hope_signals": "Moderate load_risk",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 7
+  },
+  {
+    "student_utterance": "sin square theta plus cos square theta is 1 always right? but my friend says sometimes it's wrong, how can that be?",
+    "concept_id": "jemh108__pythagorean_trig_identities",
+    "miniLM_labels": "conflict, skepticism, misconception_clue",
+    "hope_signals": "Active misconception",
+    "target_policy_action": "SOCRATIC_COUNTEREXAMPLE",
+    "category": 7
+  },
+  {
+    "student_utterance": "Teacher said this concept is very hard for 10th standard but I found it easy, am I missing something important here?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "skepticism, low_confidence, self_monitoring",
+    "hope_signals": "High confidence",
+    "target_policy_action": "MISCONCEPTION_PROBE",
+    "category": 7
+  },
+  {
+    "student_utterance": "How can a tangent be perpendicular to radius always? My sir said it's just a convention, not a real proof for class 10, is that true?",
+    "concept_id": "jemh110__tangent_radius_perpendicularity",
+    "miniLM_labels": "skepticism, confusion, conflict",
+    "hope_signals": "Active misconception check",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 7
+  },
+  {
+    "student_utterance": "Why are we doing this, my cousin who just passed 10th said this topic never comes in boards, he didn't study this.",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "skepticism, disengagement, question",
+    "hope_signals": "Low productive_struggle",
+    "target_policy_action": "ENCOURAGE",
+    "category": 7
+  },
+  {
+    "student_utterance": "Teacher always tells to check discriminant first, but my coaching sir says just use formula directly, same thing only. Is it really necessary to check first?",
+    "concept_id": "jemh104__discriminant_nature_of_roots",
+    "miniLM_labels": "conflict, skepticism, procedural_focus",
+    "hope_signals": "High ki_score opportunity",
+    "target_policy_action": "EXPLAIN",
+    "category": 7
+  },
+  {
+    "student_utterance": "Consistent, inconsistent... my tuition teacher uses graphical method only, but in school they want us to use coefficient ratios. Both give same answer right?",
+    "concept_id": "jemh103__system_classification",
+    "miniLM_labels": "conflict, skepticism, procedural_focus",
+    "hope_signals": "Moderate ct_score",
+    "target_policy_action": "EXPLAIN",
+    "category": 7
+  },
+  {
+    "student_utterance": "BPT is only for parallel lines, na? My friend says it can be used for any triangle but I don't think so, he must be wrong.",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "skepticism, misconception_clue, question",
+    "hope_signals": "Active misconception",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 7
+  },
+  {
+    "student_utterance": "this whole thing is just not clicking today, my brain feels foggy",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, low_confidence, cognitive_overload",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "ENCOURAGE",
+    "category": 8
+  },
+  {
+    "student_utterance": "i don't know what is happening, everything looks wrong here",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, low_confidence, frustration",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "MISCONCEPTION_PROBE",
+    "category": 8
+  },
+  {
+    "student_utterance": "something is off with my calculation but i cant find it",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, self_correction, low_confidence",
+    "hope_signals": "Moderate load_risk",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 8
+  },
+  {
+    "student_utterance": "my steps are all mixed up, i dont know which formula to use",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "confusion, cognitive_overload, low_confidence",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "BRIDGE_RECAP",
+    "category": 8
+  },
+  {
+    "student_utterance": "it just feels wrong, i cant trust my own answer",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "low_confidence, skepticism, frustration",
+    "hope_signals": "Moderate ct_score, Low confidence",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 8
+  },
+  {
+    "student_utterance": "that U shape graph is always confusing, i can never tell if it opens up or down from the equation, something is weird with it",
+    "concept_id": "jemh102__quadratic_zero_geometry",
+    "miniLM_labels": "confusion, graphical, low_confidence",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "VISUAL_ANALOGY",
+    "category": 8
+  },
+  {
+    "student_utterance": "all these sin cos tan things, the ratios get totally jumbled in my head, i cant figure out which side is which for the angle, very confusing",
+    "concept_id": "jemh108__fundamental_trig_ratios",
+    "miniLM_labels": "confusion, low_confidence, procedural_focus",
+    "hope_signals": "Moderate load_risk, Active misconception",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 8
+  },
+  {
+    "student_utterance": "i started the proof okay, but then midway it just went all hazy, i lost the track of contradiction, don't know what to do now",
+    "concept_id": "jemh101__proof_by_contradiction_method",
+    "miniLM_labels": "cognitive_overload, confusion, low_confidence",
+    "hope_signals": "High load_risk",
+    "target_policy_action": "MISCONCEPTION_PROBE",
+    "category": 8
+  },
+  {
+    "student_utterance": "consistent, inconsistent, dependent... these words confuse me so much, i don't know how to relate them to the lines in the graph",
+    "concept_id": "jemh103__system_classification",
+    "miniLM_labels": "confusion, cognitive_overload, low_confidence, diagrammatic",
+    "hope_signals": "High load_risk, Recurring error",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 8
+  },
+  {
+    "student_utterance": "the formula for mean in grouped data looks so complex, i don't understand why all these xis and fis are there, seems unnecessary",
+    "concept_id": "jemh113__mean_grouped_data",
+    "miniLM_labels": "confusion, cognitive_overload, skepticism",
+    "hope_signals": "Moderate load_risk, Moderate ct_score",
+    "target_policy_action": "EXPLAIN",
+    "category": 8
+  },
+  {
+    "student_utterance": "BPT is not making sense, the lines look parallel but then the ratios... something is wrong with my understanding of it",
+    "concept_id": "jemh106__basic_proportionality_theorem",
+    "miniLM_labels": "confusion, skepticism, diagrammatic, low_confidence",
+    "hope_signals": "Active misconception, High load_risk",
+    "target_policy_action": "SOCRATIC_Q",
+    "category": 8
+  },
+  {
+    "student_utterance": "Can we make this cylinder cone shape with paper or clay? I can't imagine how it looks from inside.",
+    "concept_id": "jemh112__surface_area_combined_solids",
+    "miniLM_labels": "request_representation,physical,graphical,confusion",
+    "hope_signals": "High ki_score,Moderate load_risk",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "I can't see the U shape, can we like bend a wire to form the parabola? How does it make sense?",
+    "concept_id": "jemh102__quadratic_zero_geometry",
+    "miniLM_labels": "request_representation,physical,graphical,confusion",
+    "hope_signals": "High ki_score,Low productive_struggle",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "How is the area of sector found? Can we cut a pizza or something to understand it better?",
+    "concept_id": "jemh111__area_of_sector",
+    "miniLM_labels": "request_representation,physical,curiosity",
+    "hope_signals": "High ki_score",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "Proof by contradiction is so confusing. Can we use physical objects to like show 'if this is true, then this can't be true' or something?",
+    "concept_id": "jemh101__proof_by_contradiction_method",
+    "miniLM_labels": "request_representation,physical,confusion,transfer_attempt",
+    "hope_signals": "Moderate load_risk,High ki_score",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "Similar figures means same shape but different size, right? Can we take like two photos, one small and one big, and see if they are similar?",
+    "concept_id": "jemh106__similar_figures",
+    "miniLM_labels": "request_representation,physical,curiosity,transfer_attempt",
+    "hope_signals": "High ki_score,High ct_score",
+    "target_policy_action": "ANALOGOUS_EXAMPLE",
+    "category": 9
+  },
+  {
+    "student_utterance": "Plotting lines on graph paper with a ruler and pencil, then seeing where they cross, makes more sense. Can we do that for this sum?",
+    "concept_id": "jemh103__graphical_method_solving",
+    "miniLM_labels": "request_representation,physical,graphical,procedural_focus",
+    "hope_signals": "High ki_score",
+    "target_policy_action": "WORKED_EXAMPLE",
+    "category": 9
+  },
+  {
+    "student_utterance": "What is the probability of getting heads? Can I flip a coin or roll a dice to see how many times heads comes? That will make it clear.",
+    "concept_id": "jemh114__theoretical_probability_formula",
+    "miniLM_labels": "request_representation,physical,environmental_feedback,curiosity",
+    "hope_signals": "High ki_score,Low productive_struggle",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "This problem seems too theoretical. Can we build a model of it with blocks or something?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "request_representation,physical,abstraction_attempt",
+    "hope_signals": "High ki_score,Low productive_struggle",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "I need to touch and feel it to understand. Is there some way to make this concept physical?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "request_representation,physical,curiosity",
+    "hope_signals": "High ki_score",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "Can we use actual materials to like show what this means? I learn better by doing.",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "request_representation,physical,self_monitoring",
+    "hope_signals": "High ki_score",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  },
+  {
+    "student_utterance": "This is just too many numbers and formulas, can we see it happening in real life, like what would it look like if I did it myself?",
+    "concept_id": "INHERIT_CURRENT_CONCEPT",
+    "miniLM_labels": "request_representation,physical,cognitive_overload,environmental_feedback",
+    "hope_signals": "High load_risk,Low productive_struggle",
+    "target_policy_action": "REPRESENTATION_TRANSLATION",
+    "category": 9
+  }
+]

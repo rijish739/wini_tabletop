@@ -1,0 +1,4972 @@
+[
+  {
+    "student_utterance": "🤔 Sir, confused. Is 'a', 'A', 'b' an AP same as Arithmetic Mean? 🤔",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sob, stuck on this. Can you explain AP and mean pls?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How would we find the middle term in an AP of 5, A, 12?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we calculate A when a and b are numbers in AP, sir?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u pls explain AP and mean?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do I find the middle term of 3 AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "In AP, A is the mean between a and b, right?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How to find the arithmetic mean if a and b are given?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can u explain AP and common difference?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How is the mean of three numbers in AP found?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can we use this to find the missing term in an AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Is this used in daily life more than the mean of three numbers?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain AM as 'Middle term'?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I find the arithmetic mean if the numbers are in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what's the arithmetic mean in simple terms?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain how to find the mean in an AP sequence?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do I calculate the middle term in an AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How is the arithmetic mean calculated in three AP terms?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, what's the arithmetic mean in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could you give an example to show how to find the arithmetic mean in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "The arithmetic mean in AP is the middle term, right?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how can I check if my arithmetic mean is correct?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Is the arithmetic mean the same as the middle term in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is A always in the middle of a and b?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "A, a, 2A in AP, but what's common diff here?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How to find the common difference in an AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "A is the middle term. Right? Sir.",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, is A just the middle term?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I want to know how A is connected to common difference, sir.",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is AM the middle term in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, is AM same as mean?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What if a and b are same? Is mean still (a+b)/2?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can mean always be between a and b?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How many APs can we form from three terms?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What if a and b are negatives, does mean change?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How is AP related to mean? Can you give an example?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do u find the middle term of three numbers in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, how to find the middle term of three numbers in AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, confused, A is the middle term? Can you explain?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "So, A is the mean of a and b, right?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how does A connect to common difference?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, what if one of the numbers is negative? Sir? 😕",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, how is A the middle term in three AP numbers?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me a real-life example of finding arithmetic mean?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you walk me through finding A in AP when we know the difference?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do you know if a number is an arithmetic mean?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Pls, how do you check if a number is arithmetic mean in an AP?",
+    "concept_id": "jemh105__arithmetic_mean",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I find the points that trisect a line segment? sir?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how to apply the section formula for trisection? pls.",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain what trisection means in math? na",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, do we use the same section formula for all ratios, or just 1:2 and 2:1?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of finding trisection points on a coordinate plane?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, if I know the endpoints, can I find the trisection points easily?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls help, I'm stuck on the section formula for trisection. What do I do next?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you find the coordinates of the trisection points using the section formula?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can we use this concept in real-life problems, like dividing a road into equal sections? pls.",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How do we trisection a line segment? Sir?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain the section formula for dividing into three equal parts?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of finding the coordinates of the trisection points?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, how to find the coordinates of a trisection point?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you solve problems related to trisection?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me an easy way to understand trisection?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Are there any real-life applications of trisection?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you clarify when to use the section formula?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Trisecting a segment, sir? Can you explain what section formula is?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I find points that trisect a segment?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example with coordinates?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, can you help me with the section formula for a trisection?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you suggest a real-life application of trisecting a segment?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What if the segment is on the x-axis?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do the section formula changes if the segment is divided into three equal parts?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Na, sir, can you explain what trisection is in simple terms? 🤔",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can't understand how to use section formula for trisection. 🤔",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do I find points dividing a line segment into 1:2 and 2:1 parts? 🤔",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, could you show me a real-life example of trisection? 💡",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, how do I calculate the coordinates of these points? ❓",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you check if my answer for the coordinates of the first point is right? 🙏",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, what’s the section formula again? 🤔",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how can I remember which ratio is 1:2 and which is 2:1? 🤔",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you give me a practice problem on trisection? 🤓",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we trisection a line segment?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can u explain the section formula?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between section formula and trisection?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How to find the points that divide a line segment into three equal parts?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, how does the ratio 1:2 work?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Why do we use coordinates?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "What if the segment is not on a coordinate plane?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na sir, confused about trisection. Can you explain it briefly?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, I'm trying to find the section formula for trisection. How do I do it?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm not sure how to apply the section formula for a trisection. Can you help?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, how do I divide a line segment into three equal parts using the section formula?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, what's the section formula for a trisection of a line segment?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I find the coordinates of the points that trisect a line segment?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm trying to solve a problem with trisection, but I keep getting stuck. Help!",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain a real-life scenario where trisection might be used, please?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I need a quick check on my understanding of the section formula for trisection. Any feedback?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can't understand the section formula for trisection, sir. Can you explain pls?",
+    "concept_id": "jemh107__trisection_of_segment",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we calculate the angle of depression?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of depression, what's that?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between angle of depression and angle of elevation?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Solve: a ladder is leaning against a wall, at what angle of depression is the top of the ladder from the ground?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How is angle of depression used in real-life?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Solve a problem: observer on a tower looking at a boat in the water, angle 30°, how high is the tower?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why is angle of depression important in surveying?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what's an angle of depression? Is it the same as an angle of elevation? I'm a bit confused.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you find the angle of depression in problems? I have one, but I'm not sure how to start.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I know it's the angle between the horizontal and the line of sight. But how do you measure it when you can't see the object directly?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain with an example, pls? An observer looking down at a tree, the angle between horizontal and line of sight.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "I understand it's the angle between the horizontal and the line of sight. But how do you use trigonometry for this?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do you solve for the angle of depression when you know one side of a right triangle?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got a question with an angle of depression. But I'm not sure if I'm doing it right. Can you check my work pls?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I want to know how to find the angle of depression from a height. Can you walk me through it step by step, pls?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, I'm curious. Why is the angle of depression always less than 90 degrees? I can't see how it can be greater.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How can we find the height of a building using the angle of depression? I want to know the method, pls.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of Depression, sir? Is that the angle between the horizontal and the line of sight when looking down at an object?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Na, how do we find it? Like, if I'm 20m away, and the height is 15m, what's the angle of depression?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain this with a right triangle, sir? Like, how the horizontal level and line of sight form it?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we use trig ratios for this angle, sir? I get it for angles, but not this one.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "I'm not sure, sir. If I know the height and distance, can I find the angle of depression?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Why is it always the angle between the horizontal and line of sight, sir? Can't it be the other way around?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I see it's the angle between observer and object, sir. So it's the same as the angle of elevation, right?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we measure it in real life, sir? Like in a situation where I have the height and distance to an object.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is the angle of depression always positive, sir? I thought it could be negative too, but I'm not sure.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the angle of depression of the sun at noon, sir? I heard it's 0 degrees, but I'm not sure.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we find the angle of depression? Pls explain!",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of depression is the angle right? 🤔",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of an angle of depression? Na.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, angle of depression vs angle of elevation. Sir.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the line of sight in this situation? 🤔",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of depression is the angle formed with the horizontal, right? 😊",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How is the angle of depression related to trigonometry? 🤔",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the formula for the angle of depression? 🤔",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Do you think we can solve a problem with this angle of depression? 😊",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, what's the angle of depression? Can we use Trigonometric Ratios to solve it? 😅",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls explain how we find angle of depression in real-life situations. I'm confused.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of depression is like an angle between line of sight and horizontal, right? 🤔",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you please clarify it with a right triangle, sir? I'm still a bit lost.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we calculate the angle of depression if we know the height of an object and the distance to it?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Angle of depression is when you look down, sir. Can you make it more visual for me?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how does angle of depression relate to height and distance in real-life problems?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can we use trigonometry to find the angle of depression? Can you show me an example?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Pls, how do we use angle of depression to solve problems in heights and distances? I'm stuck.",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Na, can u explain what angle of depression is? Sir?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can u draw an example pls? What's the relation btw line of sight and horizontal level?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got confused, how's angle of depression different from angle of elevation?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What trigonometric ratios come into play here? Sir?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how is the angle of depression used in real life?",
+    "concept_id": "jemh109__angle_of_depression",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do we know if a statement is true or false? Sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can we use deductive reasoning to find out?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What if a statement is ambiguous? How do we handle that?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between a hypothesis and a premise?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is a mathematical proposition always true or false?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How can we negate a statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can we use quantifiers in a statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you give an example of a true statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is there a real-life example of a mathematical proposition?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what's the difference b/w statement & proposition?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u explain why '2+2=4' is a true statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, is it always true or false in maths?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do u negate a statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can u give an example of ambiguous statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, can u clarify on deductive reasoning?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How to check if a statement is true or false?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u give an example of a false statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is '7 is an odd number' a true statement? sir",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you explain true and false statements?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Is 'x+2=5' a true statement? what if x=3?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can x=3 make 'x+2=5' a true statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "'x+2=5' is a true statement if x=3, right?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "True or false: the sum of two odd numbers is odd.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "'x+2=5' is true if x=3, isn't it?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you know if a statement is true or false? explain.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "'x+2=5' is true if x=3, correct?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "'x+2=5' is a true statement if x=3, isn't it?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can a statement be true if it doesn't make sense? Pls explain, sir.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between a true and a false statement, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is a statement like a hypothesis, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are the rules to check if a statement is true, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can we use deductive reasoning on a statement, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Is a statement ambiguous if it's true under certain conditions, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can we negate a statement, sir?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Statement, sir. How do I identify true or false ones? pls explain.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What is the difference between a true and false statement? Pls.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Ambiguous statements, sir. Can you give an example? Na.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "True or False? 5 is greater than 3, sir. How to check? Pls.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Negation of a statement, sir. Can you show me how to negate this one: All birds can fly. Na.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Statement, sir. Can you explain deductive reasoning? Why is it important?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I know if a statement is true or false? Please, sir.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Quantifiers in statements, sir. Can you give an example of a statement with a quantifier? Na.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Hypothesis, sir. Can you give me an example of a hypothesis as a statement?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Statement, sir. How do we check if a statement is true or false? Please, help.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, can someone explain what makes a statement True? I don't get it.",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm still confused about what makes a statement False. Can you help?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is a statement like a hypothesis, or is it more like a true or false question?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can someone clarify what an ambiguous statement is, pls?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Hey, how do we use deductive reasoning to find out if a statement is true or false?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could someone walk me through how to negate a statement, please?",
+    "concept_id": "jemh1a1__mathematical_statement",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, can't grasp how premises lead to conclusion. Help pls.",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can't find how to prove theorems using axioms.",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Premises, hypothesis, conclusion, what's the order?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I know if I've got the right conclusion?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Deductive reasoning, axioms, theorems... what's next?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can someone explain axioms and theorems to me?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Premises, hypothesis, conclusion. Got it, right?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, can you show me how to use deductive reasoning?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I get premises and conclusions, but what’s a hypothesis?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Premises, hypotheses, conclusions. What do these mean in proofs?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of a conclusion derived from premises? 😊",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What’s the difference between premises and hypotheses? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we know if a conclusion is right based on premises? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Why are premises so important in deducing conclusions? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you explain what axioms and theorems have to do with deductions? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you prove something using deductive reasoning? 🔗",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are conjectures in deductive reasoning? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How is deductive reasoning used in real life? 😊",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do I prove this conjecture using deductive reasoning, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of deduction, pls?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Deductive reasoning sounds tricky, can you explain it in simple terms?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between a hypothesis and a conclusion, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you walk me through the steps of deductive reasoning?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why do we need to use premises in deduction?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can we use deductive reasoning to solve problems like the ones in our textbook?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's an axiom in deduction, and why are they important?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused about how to apply deductive reasoning to these real-life situations, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me check if my proof follows deductive reasoning properly?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Na, how do I prove something using deductive reasoning, sir? Pls explain!",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How's the difference between a hypothesis and a conclusion, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me how to deductive reasoning works in everyday life, pls?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm a bit confused, can you clarify premises, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How's the proof of a theorem in deductive reasoning, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is deductive reasoning just a fancy name for proof, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we know a conclusion is true if the premises are true, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of deductive reasoning in my math class, please?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got stuck on the proof. Can you help me with this, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the step-by-step process for deductive reasoning, sir?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can't understand how to prove theorems from axioms. Can you explain?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sry, can u make it more clear about hypotheses?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we know we're not missing any premises?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u give me a real-life example of deductive reasoning?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How does deductive reasoning differ from induction?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between a conclusion and a hypothesis?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do we know a conclusion is definitely true if the premises are true?",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what's a proof? And how does it relate to deductions? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we prove something using deductive reasoning? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can u explain premises and how they lead to conclusions? 😐",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you know if your conclusion is true if you started with false premises? 🤔",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are some examples of deductive reasoning in real life? 😊",
+    "concept_id": "jemh1a1__deductive_reasoning",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Na, sir, confused about how to negate 'p' with a quantifier. Can you explain, please?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I get 'p' but what's '~p'? How does it flip the truth value?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can you give examples of negation with a quantifier?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you negate 'all dogs are mammals'? What's the opposite truth?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you help me with a practice problem on negation?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between p and its negation in logical terms?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, can you clarify when we use negation in real life?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Na, sir, confused. What if a statement is true, how does it negate?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you explain negation with examples? Like p, then what’s ~p?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How do we find the negation of a statement? Can you give an example?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, my head's spinning. How's the negation of a statement different from its opposite?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me how to negate a universal statement like 'All birds can fly'?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How do we negate a negation? If we negate a negation, do we get the original statement?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, can you explain the opposite truth value with an example please?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, is negation just flipping a statement like a mirror image?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How does negation apply to real-life situations like weather forecasting?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can't understand negation, sir. Can you explain?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Negation of a statement, sir. What does it mean?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Opposite truth value of a statement, what's that?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How to find the negation of a statement?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Negation of p is ~p, right?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can you give an example of negation?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can negation be used in quantifiers?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls help, I'm still confused about negation.",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I negate a quantifier? 🤔",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is negation the same for all types of statements?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can someone help me with truth value of negation?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we know if negation is true or false?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Is~p the same as saying opposite truth value?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "In real life, how often do we use negation?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How does negation help in proving contradiction?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na sir, what's negation exactly? 'p' to its opposite?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between p and ~p's truth values?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is negation just flipping the truth value of any statement?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what does 'the negation of a quantified statement' mean? Can you give an example?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you know which truth value to use after negating a statement?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could you show me an example of negation in real life, please?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why is negation important in logic, sir? Can you give an example of its use?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm a bit confused about the negation of a quantified statement. Can you make it clearer?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is there a shortcut to remember the negation of p as ~p?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, what's the negation of 'p'? Can you give me an example?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm a bit confused. Can you explain negation with a statement?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you negate a quantified statement like 'All dogs are friendly'?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me an example of negation, please?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you explain the negation of 'There exists a number greater than 10'?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you find the opposite of 'p' using negation?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Pls, explain to me how to negate a statement with a quantifier, like 'All cats are mammals'?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can you explain what negation is using a real-life example?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you negate the statement 'For every x, x^2 is positive'?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, Sir, can't understand negation. What is it?",
+    "concept_id": "jemh1a1__negation_of_statements",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "So sir, what's the difference between if-then and converse?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do I find the truth value of a conditional statement?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of a conditional statement and its converse?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm confused, if-then and converse mean the same thing right?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the point of conditional statements if they can be true or false?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "I need help understanding how to determine the truth value of a conditional. Can you explain?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If I have a true conditional, does its converse have to be true too?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "So sir, how do you know if a conditional statement is logically correct?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What makes a conditional statement and its converse different?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me a real-life example of conditional reasoning?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, if P implies Q, then what's the converse? Pls explain!",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got mixed up with the converse. Can you give me an example, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "My brain hurts with if-then statements. How do I remember which is which, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P, then Q. But if Q, then P? It feels the same, right? Sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me with these practice problems? I'm still confused about the converse.",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I need to understand how to identify the converse quickly. Can you help, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P, then Q. But what if P is false and Q is true? Can you walk me through the truth value, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me solve this real-life problem using if-then statements and their converses?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, can u explain if P then Q is the conditional statement? What's the converse then? I'm kinda confused.",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I write if Q then P as a conditional statement? Can you help?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "If I have P then Q, what does its converse look like?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, if P implies Q, does that mean Q can't happen without P?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the truth value of both conditional and its converse? Can you show me?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example where the conditional and its converse are both false?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can I remember the difference between conditional and its converse?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P then Q is true, what does its converse mean?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is there any real-life scenario where the truth value of a conditional and its converse differ?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm not sure how to spot if it's a conditional statement or not. Can u plz help?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I find the converse of a given if-then statement? I'm stuck!",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P then Q, is P the hypothesis or the conclusion?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can u explain what 'implies' means in a conditional statement?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can I check if my converse is correct? I'm confused.",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P then Q, when is its converse true? I'm confused.",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do I know if a conditional statement is true or false?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If I have an if-then statement, how do I find its converse?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, how do I write a conditional statement if I'm not sure what P and Q are? 🤔",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sry, sir, I'm confused. Can u explain what converse is in a simple way pls?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "If-then, what's the difference between converse and converse of converse? 😕",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, if I have a true conditional statement, do I always have a true converse? 🤔",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I check if my conditional statement is valid or not, sir? 🤔",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, how do I practice writing conditional statements and their converses? 🤔",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u help me understand the truth value of conditional statements pls? 😕",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How do you write a conditional statement, sir? Na?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain truth value again, pls?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "If P and Q are true, what happens to the converse, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you prove if the converse of an if-then statement is true, na?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between conditional and converse, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you give me an example of if-then statement and converse, pls?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can you check if the converse is true, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the significance of truth value in conditional and converse, sir?",
+    "concept_id": "jemh1a1__conditional_converse",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "So sir, what’s this problem formulation again? Can you explain?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I start when there’s a real-world problem? Pls.",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I’m confused on how to define the problem. Can you guide?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can someone explain to me how to simplify a problem?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Simplified, what are the variables and equations in a problem definition?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me how to translate a real-world problem into math?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I need help understanding the real-world problem. How do I approach it?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of problem formulation?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are the steps involved in problem formulation?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I define the problem and translate it into math? Need a quick rundown.",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain what mathematical modelling is, sir? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Please, sir, how do I formulate a real-world problem? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could you help me with a problem definition, please? 😔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you simplify a real-world problem to mathematical terms? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Could you teach me how to translate a problem into equations, please? 🙏",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do you handle assumptions when defining a problem? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me with variables and equations in this problem? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Could you guide me on translating real-world data into probabilities? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I know when to simplify a problem, sir? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could you check if my formulation looks right? 😊",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I formulate a problem using variables and equations? ❓",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, how do you simplify a real-world problem? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you walk me through the process of formulating a problem? 🙋",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you help me understand how to translate a problem into mathematical terms? 🙈",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What's the difference between assumptions and simplification in problem formulation? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you decide which variables and equations to use for a problem? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I tried to formulate a problem but got stuck. Can you check my work? 🙈",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do you determine what data to use in real-world problem formulation? 🤔",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of how you translate a real-life issue into a mathematical model? 💬",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you define a problem in mathematical terms, sir?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain mathematical modelling in simple terms?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Simplifying a problem, what are assumptions we make?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you turn a real-world problem into a math problem?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me with problem formulation?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What variables and equations would I use for this?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Assumptions are important, right? Can you give an example?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Formulating a problem, what's the first step?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "\"Real-world\" problem, can you give an example?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, sir, what does it mean by formulating a problem? Can you explain?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, how do I turn this real-world scenario into a mathematical model?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, can you give an example of problem definition?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Na, how can simplification help in solving complex real-life problems?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you clarify, what's the role of variables and equations?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, do we need to make any assumptions in this process?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, can you check if my formulation is correct?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, is there a step-by-step guide on how to formulate a problem?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na, how does one choose which data to use and what equations?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you suggest some resources on mathematical modelling for me?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Ok sir, can you explain what 'Problem definition' means?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what do you mean by 'Variables'?",
+    "concept_id": "jemh1a2__problem_formulation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm confused, how do I solve this? Could you explain probability a bit more? pls",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got stuck with this algebra one, any tips on solving these?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm not sure how to set up these ratios, can you help?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What’s the step-by-step process for solving proportions?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we apply algebra in solving problems like this?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you show me how to use these techniques in real-life situations?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "What’s the difference between using algebra and ratios here?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of a real-world problem solved using this method?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I’m not sure how to solve this algebra problem. Can you explain, pls?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, how do you deal with ratios in these problems?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I’m confused about the steps in solving these probability questions.",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you show me how to use algebra techniques in solving these?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can I check if I’m solving these right with these techniques?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls, how do you use proportions in these types of problems?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of solving a problem using ratios?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Hey sir, what's a solution in maths?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I don't get how to use ratios to solve problems, help pls.",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain how algebra helps solve these?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What's the difference between solving a problem and finding a solution?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Sir, how does solving the problem help in maths?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you walk me through using proportions to solve?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, how do I solve using these techniques?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are some examples of solving problems using ratios?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How does solving the problem use algebra?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you check my solution please?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we use ratios to solve the problem, sir?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain algebra in solving problems, pls?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused about probability, could you simplify it, sir?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why do we need to use algebra to solve this, not just ratios?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How does solving the problem involve using all these techniques?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you help me with a real-life example using ratios, please?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm still not sure how to apply proportions to solve a problem, could you walk me through it?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Is solving the problem the last step in mathematical modelling, sir?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why is it important to solve the problem using mathematical techniques, not just guess?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Could you help me check if I'm solving this problem correctly, please?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm stuck on this probability stuff, help?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can u show me how to use these ratios in real life?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Why do we use algebra in solving these prob?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "I don't get how to use these techniques, can u help?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What's the first step in solving these types of problems?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can u explain algebraic techniques more?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can I improve in solving these probs?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Na sir, what's the first step in solving a problem?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you solve a problem using algebra?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain ratios and proportions in simple terms?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Pls how do we use probability in solving a problem?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What's the difference between using algebra and probability?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "I'm confused, can you clarify solving proportions?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you set up an equation for a problem?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "What are some common mistakes in solving problems?",
+    "concept_id": "jemh1a2__solving_model",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "So sir, how do we validate our math solutions in real life? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what if our solution seems off? Should we just stick to our assumptions?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you explain this model assessment part again, please sir?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How do you check if our model's predictions are reasonable for the real world?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, can you give me an example of validating our math model with real data?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What exactly do we need to look for when validating our math model?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm a bit confused sir, how do we know our math model is accurate enough?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, I'm worried our solution might not fit the observed data. How do we fix this?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "How important is the iterative process in validating our math model?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what if our model predicts something that seems unrealistic? What should we do then?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Interpretation is important, right? Sir, how do I check if my solution fits the real-world context? Na, can you explain more on that?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Validation is tricky, sir. How do you make sure your solution aligns with reality? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Model assessment, sir. Can you show me how to validate it properly? Pls, I'm lost.",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Assumptions in our model, sir. How do we know they're not wrong? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Reasonableness is key. How do we assess if the solution makes sense in reality? Sir, explain please.",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Accuracy is crucial. What should we look for to check if the solution is accurate? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Observed data and expected outcomes, sir. How do we compare these? Pls, I'm confused.",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Need help with this iterative process, sir. Any tips on how to go about it? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Checking for consistency, sir. How do we ensure our solution doesn't contradict anything in reality? Na?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you walk me through an example of validating a solution, please? I need to see it in action.",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Sir, what if our model doesn't match with observed data? Should we change it?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you give an example of interpreting our solution in real life?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "How do we know if our solution is reasonable and accurate?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Sir, is it just checking assumptions, or do we look at other things too?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "After solving, what steps do we take to ensure our model fits reality?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you clarify when we might need to revise our model based on validation?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How important is it to validate our model in each step or just at the end?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we use the expected outcomes in validating our model solution?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can someone explain validation again? Like how do we do that?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do we know if our solution matches the real world?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "Can we validate by comparing our model's expected outcomes to actual observed data?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What if my model's assumptions seem unrealistic?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Is there a way to check if our solution is accurate without comparing it to real data?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Do we revise the model if we find the solution unrealistic or inaccurate?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give an example of a reasonable outcome in our model?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What are the steps we follow in this validation process?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I got this solution, but I'm not sure if it makes sense in real life. Can you validate it? s",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do you know if the model is reasonable? can u help?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you give me an example of checking the accuracy of the model? plz",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "After solving, how do we check if the assumptions are reasonable? sir",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  },
+  {
+    "student_utterance": "I noticed my results are different from what was expected. How should I handle this? s",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What happens if the observed data doesn't match the model's predictions? can you explain?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "Can you guide me through the iterative process of checking the model? pls",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I want to know how to assess the model's consistency with the real world. Sir, help?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm curious, what role does the observed data play in validating the model? s",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How do I interpret the model's results in this real-world scenario, sir?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "I'm confused, sir. What's the difference between validation and interpretation?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "val"
+  },
+  {
+    "student_utterance": "Can you explain why validation is crucial in our model, pls?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "How can I check if the model's assumptions are realistic, sir?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "train"
+  },
+  {
+    "student_utterance": "What steps should I take to validate my model's solution, pls?",
+    "concept_id": "jemh1a2__interpretation_validation",
+    "miniLM_labels": "",
+    "hope_signals": "",
+    "target_policy_action": "",
+    "category": 0,
+    "source": "gap_generation_qwen",
+    "split": "test"
+  }
+]

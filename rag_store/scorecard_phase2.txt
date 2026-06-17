@@ -1,0 +1,25 @@
+=== Structural verification ===
+OK: 953 chunks == meta == FAISS(953); 108 concepts == meta
+graph: 3000 nodes / 1652 edges (schema_version=1)
+
+=== HOPE-readiness scorecard (plan section 4a) ===
+PASS  Concepts with difficulty                                     100.0%  (target >=100%)
+PASS  Concepts with >=2 near + >=1 far transfer links              100.0%  (target >=95%)
+PASS  Concepts with >=1 integration link (KI)                      100.0%  (target >=95%)
+PASS  Concepts with >=2 CT probes                                  100.0%  (target >=100%)
+PASS  Concepts with >=1 application                                100.0%  (target >=95%)
+PASS  Concepts with vocabulary                                     100.0%  (target >=100%)
+PASS  Concepts with metacognitive prompts (A1.4)                   100.0%  (target >=100%)
+PASS  Concepts with >=1 problem schema (A1.1)                       94.4%  (target >=90%)
+PASS  Misconceptions fully enriched (why/correct/diagnostic)       100.0%  (target >=100%)
+PASS  Exercises with valid 3-hint chain (A1.2)                     100.0%  (target >=95%)
+PASS  Figure/table nodes with image_path                            99.6%  (target >=90%)
+PASS  Formula nodes with image_path                                 70.7%  (target >=60%)
+....  Chapters with grade-9 bridges                                  0.0%  (target >=100%)
+....  Bridges with diagnostic question                               0.0%  (target >=100%)
+....  Dangling prerequisite nodes                                      29  (target <=0)
+PASS  Chunks concept-linked                                        100.0%  (target >=100%)
+PASS  Chunks difficulty-tagged                                     100.0%  (target >=100%)
+....  HOPE prompt bank rows                                             0  (target >=1000)
+
+Overall target attainment: 77.8%

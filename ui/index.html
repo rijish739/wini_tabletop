@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Wini Tutor — Cognitive Study Test UI</title>
+  <meta name="description" content="Real-time test harness for the Wini lockstep cognitive tutoring system — chat, cognitive analysis, HOPE metrics, and full pipeline visualization.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- ═══ Header ═══ -->
+    <header class="header" id="header">
+      <div class="header-brand">
+        <div class="header-logo">W</div>
+        <div>
+          <div class="header-title">Wini Tutor</div>
+          <div class="header-subtitle">Lockstep Cognitive Study System</div>
+        </div>
+      </div>
+      <div class="header-controls">
+        <div class="health-badge" id="healthBadge">
+          <span class="health-dot" id="healthDot"></span>
+          <span id="healthText">Checking Qwen…</span>
+        </div>
+        <div class="session-timer" id="sessionTimer">00:00</div>
+        <button class="btn btn-danger" id="resetBtn" title="Reset session state">⟳ Reset Session</button>
+      </div>
+    </header>
+
+    <!-- ═══ Main Content ═══ -->
+    <main class="main-content">
+      <!-- ── Chat Panel ── -->
+      <section class="chat-panel" id="chatPanel">
+        <div class="chat-messages" id="chatMessages">
+          <div class="welcome-message" id="welcomeMessage">
+            <div class="welcome-icon">🧠</div>
+            <div class="welcome-title">Welcome to Wini</div>
+            <div class="welcome-desc">
+              Type a question about Class 10 Mathematics to begin.
+              The cognitive pipeline will analyze your input and choose a pedagogical response.
+            </div>
+          </div>
+        </div>
+
+        <div class="typing-indicator" id="typingIndicator">
+          <div class="typing-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+
+        <div class="chat-input-area">
+          <div class="chat-input-wrapper">
+            <input type="text" class="chat-input" id="chatInput"
+                   placeholder="Ask about quadratics, trigonometry, polynomials…"
+                   autocomplete="off" autofocus>
+            <button class="send-btn" id="sendBtn" title="Send (Enter)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"></line>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Sidebar Dashboard ── -->
+      <aside class="sidebar" id="sidebar">
+        <!-- Cognitive State Gauges -->
+        <div class="card" id="cognitiveCard">
+          <div class="card-header">
+            <span class="card-title">Cognitive State</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          </div>
+          <div class="gauge-grid" id="gaugeGrid">
+            <!-- Gauges injected by JS -->
+          </div>
+        </div>
+
+        <!-- HOPE Metrics -->
+        <div class="card" id="hopeCard">
+          <div class="card-header">
+            <span class="card-title">HOPE Metrics</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          </div>
+          <div class="hope-grid" id="hopeGrid">
+            <!-- HOPE items injected by JS -->
+          </div>
+        </div>
+
+        <!-- Concept Mastery -->
+        <div class="card" id="masteryCard">
+          <div class="card-header">
+            <span class="card-title">Concept Mastery</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V10M6 20V4M18 20v-6"/></svg>
+          </div>
+          <div class="mastery-list" id="masteryList">
+            <div style="color:var(--text-muted);font-size:0.75rem;">Loading state…</div>
+          </div>
+        </div>
+
+        <!-- Session Info -->
+        <div class="card" id="sessionCard">
+          <div class="card-header">
+            <span class="card-title">Session</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </div>
+          <div class="session-info" id="sessionInfo">
+            <!-- Session details injected by JS -->
+          </div>
+        </div>
+
+        <!-- Recent Signals -->
+        <div class="card" id="signalsCard">
+          <div class="card-header">
+            <span class="card-title">Last Signals</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          </div>
+          <div class="signal-tags" id="signalTags">
+            <span style="color:var(--text-muted);font-size:0.72rem;">No turns yet</span>
+          </div>
+        </div>
+
+        <!-- Action History -->
+        <div class="card" id="historyCard">
+          <div class="card-header">
+            <span class="card-title">Action History</span>
+            <svg class="card-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          </div>
+          <div class="action-history" id="actionHistory">
+            <span style="color:var(--text-muted);font-size:0.72rem;">—</span>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Loading overlay (first turn model load) -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loadingText">Loading models — first request takes a moment…</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

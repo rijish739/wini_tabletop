@@ -1,0 +1,220 @@
+{
+  "learner_id": "demo_student_01",
+  "concept_states": {
+    "jemh101__fundamental_theorem_of_arithmetic": {
+      "mastery": 0.88,
+      "misconceptions": [],
+      "representations_known": [
+        "symbolic",
+        "verbal"
+      ],
+      "hint_dependency": 0.12,
+      "last_practiced": "2026-06-08T10:00:00Z"
+    },
+    "jemh101__irrational_numbers_definition": {
+      "mastery": 0.81,
+      "misconceptions": [],
+      "representations_known": [
+        "verbal"
+      ],
+      "hint_dependency": 0.2,
+      "last_practiced": "2026-06-08T10:10:00Z"
+    },
+    "jemh102__zero_of_polynomial": {
+      "mastery": 0.55,
+      "misconceptions": [
+        "zero_means_number"
+      ],
+      "representations_known": [
+        "symbolic"
+      ],
+      "representations_missing": [
+        "graphical"
+      ],
+      "hint_dependency": 0.4,
+      "last_practiced": "2026-06-07T09:00:00Z"
+    },
+    "jemh102__quadratic_coefficients": {
+      "mastery": 0.48,
+      "misconceptions": [
+        "sum_is_b_over_a"
+      ],
+      "representations_known": [
+        "symbolic"
+      ],
+      "hint_dependency": 0.5,
+      "last_practiced": "2026-06-07T09:20:00Z"
+    },
+    "jemh104__quadratic_equation_definition": {
+      "mastery": 0.22,
+      "misconceptions": [],
+      "representations_known": [
+        "verbal"
+      ],
+      "hint_dependency": 0.7,
+      "last_practiced": "2026-06-06T11:00:00Z"
+    },
+    "jemh104__roots_of_quadratic_equation": {
+      "mastery": 0.18,
+      "misconceptions": [],
+      "representations_known": [],
+      "hint_dependency": 0.8,
+      "last_practiced": "2026-06-06T11:15:00Z"
+    },
+    "jemh108__fundamental_trig_ratios": {},
+    "jemh108__intro_trigonometry": {},
+    "grade9::right_triangles": {
+      "mastery": 0.19999999999999998,
+      "last_practiced": "2026-06-12T12:44:43.304152+00:00"
+    },
+    "grade9::ratios": {
+      "mastery": 0.19999999999999998,
+      "last_practiced": "2026-06-12T12:47:39.667867+00:00"
+    },
+    "jemh106__similar_figures": {},
+    "jemh105__ap_applications": {},
+    "grade9::congruence_of_triangles": {
+      "mastery": 0.19999999999999998,
+      "last_practiced": "2026-06-15T13:18:34.865071+00:00"
+    },
+    "jemh105__nth_term_formula": {},
+    "jemh104__quadratic_formula": {}
+  },
+  "global": {
+    "confidence": 0.4715,
+    "curiosity": 0.0499,
+    "cognitive_load": 0.1978,
+    "engagement": 0.5274
+  },
+  "session": {
+    "current_concept": "jemh104__quadratic_formula",
+    "served_items": [
+      "bridge::grade9::right_triangles::jemh108",
+      "grade9::right_triangles",
+      "bridge::grade9::ratios::jemh108",
+      "grade9::ratios",
+      "jemh108::page_013::summary",
+      "jemh108::page_003::summary",
+      "jemh108::page_004::summary",
+      "jemh108::page_005::chunk_000",
+      "jemh108::page_020::summary",
+      "jemh108::page_012::chunk_000",
+      "jemh108::page_005::summary",
+      "figcap::fig::jemh108::fig_8_18",
+      "jemh108::page_002::summary",
+      "figcap::fig::jemh108::fig_8_16",
+      "jemh108::page_003::chunk_000",
+      "figcap::fig::jemh108::fig_8_17",
+      "figcap::fig::jemh108::fig_8_4",
+      "jemh108::page_002::chunk_001",
+      "figcap::fig::jemh108::fig_8_21",
+      "jemh108::page_007::summary",
+      "figcap::fig::jemh108::fig_8_19",
+      "jemh1an::page_007::summary",
+      "jemh108::page_012::chunk_001",
+      "jemh108::page_010::summary",
+      "jemh108::page_009::chunk_001",
+      "jemh108::page_009::summary",
+      "figcap::fig::jemh108::fig_8_15",
+      "figcap::fig::jemh108::fig_8_3",
+      "jemh108::page_015::summary",
+      "figcap::fig::jemh108::fig_8_12",
+      "bridge::grade9::congruence_of_triangles::jemh106",
+      "grade9::congruence_of_triangles",
+      "bridge::grade9::pythagoras_theorem::jemh106",
+      "grade9::pythagoras_theorem",
+      "jemh106__triangle_similarity_criteria_intro",
+      "jemh106::page_016::summary",
+      "jemh106::page_017::summary",
+      "jemh106::page_014::summary",
+      "jemh106::page_004::summary",
+      "jemh106::page_005::summary",
+      "figcap::fig::jemh106::fig_6_6",
+      "jemh105::page_007::summary",
+      "jemh105::page_007::chunk_001",
+      "jemh105::page_014::chunk_001",
+      "jemh105::page_014::chunk_000",
+      "jemh1an::page_006::summary",
+      "jemh108::page_001::summary",
+      "jemh108::page_002::chunk_000",
+      "jemh108::page_006::summary",
+      "figcap::table::jemh108::table_8_1",
+      "figcap::fig::jemh108::fig_8_7",
+      "figcap::fig::jemh108::fig_8_8",
+      "jemh108::page_006::chunk_000",
+      "jemh108::page_011::summary",
+      "jemh108::page_012::summary",
+      "figcap::fig::jemh108::fig_8_9",
+      "figcap::fig::jemh108::fig_8_13",
+      "jemh108::page_016::chunk_000",
+      "jemh108::page_014::chunk_000",
+      "figcap::fig::jemh108::fig_8_20",
+      "jemh108::page_020::chunk_000",
+      "jemh108::page_001::chunk_000",
+      "jemh1an::page_008::summary",
+      "jemh108::page_016::summary",
+      "figcap::fig::jemh108::fig_8_14",
+      "figcap::fig::jemh108::fig_8_10",
+      "figcap::fig::jemh108::fig_8_11",
+      "meta::jemh108__intro_trigonometry::after_success",
+      "jemh108::page_014::summary",
+      "jemh108::page_008::summary",
+      "jemh105::page_010::summary",
+      "jemh105::page_008::summary",
+      "jemh105::page_009::summary",
+      "jemh105::page_004::summary",
+      "jemh105::page_024::summary",
+      "jemh105::page_009::chunk_001",
+      "jemh1an::page_005::summary",
+      "jemh1an::page_004::summary",
+      "jemh104::page_002::summary",
+      "jemh105::page_010::chunk_000",
+      "jemh105::page_007::chunk_000"
+    ],
+    "bridges_served": [
+      "grade9::right_triangles",
+      "grade9::ratios",
+      "grade9::congruence_of_triangles"
+    ],
+    "context": [
+      {
+        "role": "student",
+        "text": "ok i understood now next topic"
+      },
+      {
+        "role": "wini",
+        "text": "Great to hear you understood! Now, let's move on to polynomials. A polynomial is an expression consisting of variables and coefficients, involving operations of addition, subtraction, multiplication, and non-negative integer exponents of variables. F"
+      },
+      {
+        "role": "student",
+        "text": "yes explain in deeail"
+      },
+      {
+        "role": "wini",
+        "text": "Great! Let's go into more detail about polynomials. A polynomial is an expression consisting of variables and coefficients, involving operations of addition, subtraction, multiplication, and non-negative integer exponents of variables. For example, \\"
+      },
+      {
+        "role": "student",
+        "text": "what is the second term is called. if highest term is the degree, is there any name for 2nd highest power"
+      },
+      {
+        "role": "wini",
+        "text": "In an Arithmetic Progression (AP), the second term is often referred to as the second term of the sequence. If we were talking about polynomials, the second term would be the term that has the second highest power of the variable. However, in an AP, "
+      },
+      {
+        "role": "student",
+        "text": "i asked about the second term in the quadratic equation not AP problem"
+      },
+      {
+        "role": "wini",
+        "text": "In a polynomial, the second term is called the term with the second highest power of the variable. For example, in the polynomial \\(3x^4 + 2x^3 - x^2 + 5x - 7\\), the second term is \\(2x^3\\), which has the second highest power of \\(x\\).\n\nFor a quadrat"
+      }
+    ],
+    "last_action": "QUIZ",
+    "last_repr_targets": []
+  },
+  "misconception_states": {},
+  "hope_rolling": {
+    "KI": 0.3029
+  }
+}

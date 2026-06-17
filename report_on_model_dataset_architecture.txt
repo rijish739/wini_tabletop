@@ -1,0 +1,97 @@
+1. Procedural Schemas & Worked Example Nodes
+Math is highly procedural. While your plan captures concepts (e.g., "Quadratic Equation") and their components, it misses Problem Type Schemas.
+
+The Gap: A student doesn't just fail at the "concept" of linear equations; they fail specifically at "upstream/downstream boat speed word problems."
+
+SOTA Fix: Introduce a worked_example or problem_schema node type. These nodes should map specific algorithmic steps required to solve a class of problems, allowing the RAG to retrieve an analogous step-by-step worked example when a student is stuck, rather than just re-explaining the core concept.
+
+2. Scaffolded Hint Hierarchies (Fading Support)
+Your plan includes ct_probes, why_wrong, and diagnostic_question fields, which are excellent for active learning. However, SOTA tutoring systems rely on "fading" — providing progressively more specific help.
+
+The Gap: If a student gets a diagnostic question wrong, the system needs a structured way to walk them to the answer without just handing it to them.
+
+SOTA Fix: Enrich exercise or diagnostic nodes with a hint_chain array. This provides a pre-computed progression of scaffolding (e.g., Hint 1: Conceptual nudge -> Hint 2: Formula recall -> Hint 3: Partial calculation), ensuring the LLM doesn't inadvertently give away the final answer in its attempt to be helpful.
+
+3. Isomorphic Problem Generation Hooks
+For a learning platform to build mastery, learners need to practice the same concept multiple times with different surface-level variables.
+
+The Gap: The plan links to applications, but doesn't explicitly tag structural variables for dynamic practice.
+
+SOTA Fix: Add an isomorphic_variables field to exercise/concept cards. This gives the generative layer strict parameters on what variables can be swapped (e.g., changing names, numbers, or contexts like "apples" to "oranges") without changing the mathematical integrity or difficulty of the chunk.
+
+4. Metacognitive Prompts
+You are measuring KI, KT, and CT, but true mastery also requires self-regulation and reflection.
+
+The Gap: The Graph-RAG is currently designed to push information and pull diagnostics, but not to prompt learner self-explanation.
+
+SOTA Fix: Alongside ct_probes, add metacognitive_prompts to the concept cards. These are prompts retrieved after a successful solve, asking things like, "How would you explain the steps you just took to a Class 9 student?" or "What was the trickiest part of this problem for you?" This directly supports the persistence and cognitive load metrics in the HOPE architecture.
+
+5. Multi-Hop Reasoning Validation
+Because NCERT Maths builds heavily on itself, generating accurate answers often requires pulling a Class 9 theorem, a Class 10 formula, and an edge-case misconception simultaneously.
+
+The Gap: The query.py upgrades handle routing, but don't explicitly enforce an evaluation of the retrieved bundle's cohesion before generation.
+
+SOTA Fix: Implement a lightweight "LLM-as-a-judge" or self-reflection step in the retrieval pipeline that verifies if the retrieved [bridge_recap + active_concept + misconception] logically align before passing them to the response layer, reducing the risk of contradictory LLM outputs.
+
+Given that Phase 1 and Phase 3 are already going to parse the chunks to enrich concepts and extract bridges, adding a problem_schema extraction or hint_chain generation wouldn't add too much computational overhead to your pipeline.
+
+
+agent 2 report:
+
+The main gaps
+1) The plan is still store-centric, not learner-centric enough
+
+It enriches the graph well, but it does not yet make retrieval depend strongly on the current learner snapshot: mastery, misconception state, representation coverage, cognitive load, recent hints, and current session history. In the architecture, those are not optional extras; they are part of the decision loop. Retrieval should not only ask “what concept is this?” but also “what does this learner currently need?”
+
+What is missing is a retrieval ranking that uses:
+current concept, unresolved misconceptions, missing representations, ZPD band, recent CT/KI/KT signals, and hint dependency. Right now the plan mostly upgrades the store contents and then adds mode switches like --need transfer|integrate|challenge|bridge; that is useful, but it is not yet a full learner-state-aware retrieval policy.
+
+2) There is no evidence-provenance layer at the response-sentence level
+
+The plan attaches image_path, bridge recaps, diagnostic questions, and concept links, but it does not yet say how every generated response will carry traceable evidence back to the exact chunk, figure crop, bridge node, or misconception node that justified it. For a pedagogy-first system, that provenance matters. It is how you keep explanations grounded and inspectable.
+
+3) HOPE bootstrap is good, but still weak on calibration
+
+The HOPE bank plan is a good start, but it is still just a seed corpus. The architecture wants KI/KT/CT as meaningful learning signals, not merely generated prompt labels. The missing piece is calibration against teacher judgment, inter-rater agreement, and real student responses. Without that, the prompts may be syntactically correct but pedagogically shallow.
+
+In other words: the plan can create prompts, but it does not yet ensure the prompts separate:
+memorized answer vs representation translation,
+surface analogy vs true transfer,
+and curiosity vs genuine critical thinking. That distinction is central to your HOPE design.
+
+4) Bridges need learner gating, not only graph insertion
+
+The bridge layer is conceptually sound, but the current plan treats bridges mainly as graph objects and retrieval entries. It needs a stronger runtime rule: only activate the bridge when the learner snapshot says the prerequisite is weak or uncertain, and skip it when the learner already shows sufficient mastery. The plan hints at this, but the policy contract should be explicit.
+
+Also missing is the feedback loop from bridge diagnostics back into learner state. A bridge diagnostic should not just be shown; it should update prerequisite mastery and misconception confidence. That is how the bridge becomes part of the cognitive model rather than just a recap widget.
+
+5) Visual assets are good, but need representation semantics
+
+The crop plan is strong, but the store still needs richer semantics on each visual asset: what representation it supports, what misconception it disambiguates, what question it is good for, and what learner gap it addresses. A crop by itself is not enough for KI unless it is linked to the exact representation-translation role.
+
+6) Missing explicit misconception graph mechanics
+
+The plan correctly says misconceptions need why_wrong, correct_idea, and diagnostic_question, but it does not yet define how these nodes behave in retrieval and policy. For example, a misconception should be retrievable before the correction, not after it. The architecture’s pedagogical order is probe → diagnose → correct, not correction first.
+
+7) The acceptance criteria are still mostly coverage metrics
+
+Coverage is necessary, but not sufficient. To match the pedagogical architecture, the acceptance criteria should also include:
+retention lift,
+misconception reduction,
+KI/KT/CT precision on teacher-labeled sets,
+bridge usefulness,
+false off-syllabus rate,
+and evidence-grounding quality. The current targets are good for build completion, but not enough to prove cognitive growth quality.
+
+What I would add to make it meet the full architecture
+
+Add four things to the plan:
+
+Learner-state-aware retrieval ranking
+Rank not only by concept match, but by mastery gap, misconception state, missing representation, and CT/KI/KT history.
+Evidence provenance in responses
+Every response should carry the exact supporting chunk ids, figure ids, bridge ids, or misconception ids used.
+Teacher-calibrated HOPE evaluation set
+Add a small but high-quality labeled set before scaling the prompt bank.
+Bridge and misconception feedback loops into learner state
+The result of a bridge diagnostic or misconception probe should update mastery and confidence directly.

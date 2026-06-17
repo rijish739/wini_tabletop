@@ -1,0 +1,47 @@
+# Large binary files
+*.npy
+*.npz
+*.faiss
+*.pyd
+*.dll
+*.exe
+*.so
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+*.egg
+
+# Google Cloud SDK (large directory)
+google-cloud-sdk/
+
+# IDE and local files
+.claude/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+.env
+*.log
+
+# Installation/build artifacts
+install_mode/
+*.bak
+*.tmp
+
+# Large datasets (optional - uncomment if needed)
+# *.jsonl
+# *.json
+
+# Virtual environments
+venv/
+env/
+ENV/

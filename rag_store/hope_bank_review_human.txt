@@ -1,0 +1,32 @@
+| #  | Prompt (Short Name)                     | Signal | HOPE Rating (0–3) | Why                                                                                                     |
+| -- | --------------------------------------- | ------ | ----------------- | ------------------------------------------------------------------------------------------------------- |
+| 1  | Triangle Area Calculation               | CT     | **3**             | Evaluates a common misconception (radius ≠ height) and requires geometric justification.                |
+| 2  | AP Applications                         | KI     | **2**             | Translates a word problem into AP parameters (a,d,n), but stays within one mathematical representation. |
+| 3  | Theoretical Probability Formula         | CT     | **2**             | Uses boundary cases (0 and 1 probabilities) but requires little evaluation beyond applying definitions. |
+| 4  | Linear Zero Geometry                    | CT     | **3**             | Requires explaining *why* zeros correspond to x-intercepts, not just recalling the fact.                |
+| 5  | Graphical Method Solving                | KT     | **3**             | Transfers graph intersection ideas to a motion scenario. Structural mapping is explicit.                |
+| 6  | Quadratic Equation Definition           | KT     | **1**             | Mostly recall of the degree-based definition; little transfer involved.                                 |
+| 7  | Mode of Grouped Data                    | KI     | **2**             | Translates table data into (f_0,f_1,f_2), but representation shift is limited.                          |
+| 8  | Quadratic Coefficients (Signs)          | KI     | **2**             | Connects roots to coefficient relationships, but remains algebraic.                                     |
+| 9  | Midpoint Formula Edge Cases             | CT     | **2**             | Examines special cases but does not deeply evaluate a claim.                                            |
+| 10 | Polynomial Degree → Quadratic           | KT     | **1**             | Essentially asks for a definition using another definition.                                             |
+| 11 | Substitution Method (Economics)         | KT     | **3**             | Strong transfer from economics to systems of equations.                                                 |
+| 12 | Negation of Statements                  | CT     | **3**             | Requires evaluating why a naive negation strategy fails.                                                |
+| 13 | Deductive Reasoning (Symbolic → Verbal) | KI     | **2**             | Good symbolic-to-verbal translation, but only partial representational integration.                     |
+| 14 | Pair of Linear Equations Intro          | CT     | **2**             | Requires reasoning about a degenerate case, but evaluation is not extensive.                            |
+| 15 | Consistency of Trig Ratios              | CT     | **3**             | Evaluates an incorrect answer using similarity principles.                                              |
+| 16 | Elimination Method                      | KT     | **3**             | Transfers a real-world situation into simultaneous equations and solves structurally.                   |
+| 17 | Conjecture vs Counterexample            | KT     | **2**             | Good analogy to science, but transfer remains mostly conceptual.                                        |
+| 18 | Quadratic → Cubic Coefficients          | KT     | **3**             | Excellent structural transfer from quadratic relationships to cubic ones.                               |
+| 19 | Real-World Quadratic Modeling           | KI     | **2**             | Converts a verbal situation into a quadratic equation.                                                  |
+| 20 | Trisection Ratios                       | CT     | **2**             | Conceptual explanation rather than evaluation of a claim.                                               |
+| 21 | Cubic Coefficients & Graph              | KI     | **3**             | Connects roots, coefficients, and graph behavior across representations.                                |
+| 22 | Probability Range                       | KI     | **2**             | Verbal ↔ symbolic probability translation, but limited depth.                                           |
+| 23 | Quadratic Zero Geometry                 | KI     | **3**             | Strong graph ↔ algebra translation involving repeated roots.                                            |
+| 24 | Trisection Using Section Formula        | KI     | **3**             | Explicitly requires algebraic and graphical representations to be connected.                            |
+| 25 | Linear Zero Geometry (Motion)           | KT     | **3**             | Transfers the meaning of a zero to a physical motion context.                                           |
+| 26 | AP General Form                         | KI     | **2**             | Moves between sequence description and symbolic form, but shallow integration.                          |
+| 27 | Tangent–Radius Perpendicularity         | CT     | **3**             | Evaluates a geometric claim and justifies why it must be true.                                          |
+| 28 | Deductive Reasoning Premise             | KT     | **2**             | Requires an example and explanation, but limited structural transfer.                                   |
+| 29 | AP Sum Formula (n/2)                    | CT     | **3**             | Requires understanding and evaluating the derivation logic behind the formula.                          |
+| 30 | Quadratic Formula & Discriminant        | CT     | **3**             | Requires justification of why the discriminant is checked first.                                        |

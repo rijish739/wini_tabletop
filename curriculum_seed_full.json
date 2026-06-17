@@ -1,0 +1,2432 @@
+{
+  "subject": "mathematics",
+  "grade": 10,
+  "chapters": [
+    {
+      "doc_id": "jemh101",
+      "chapter_name": "Real Numbers",
+      "core_concepts": [
+        {
+          "concept_id": "jemh101__fundamental_theorem_of_arithmetic",
+          "chapter_doc": "jemh101",
+          "name": "Fundamental Theorem of Arithmetic",
+          "aliases": [
+            "Unique Prime Factorization Theorem"
+          ],
+          "summary": "Every composite number can be uniquely expressed as a product of prime numbers, irrespective of the order of the factors.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Believing the order of prime factors matters for uniqueness",
+            "Confusing prime factorization with any factorization of a number"
+          ]
+        },
+        {
+          "concept_id": "jemh101__prime_factorization_hcf_lcm",
+          "chapter_doc": "jemh101",
+          "name": "HCF and LCM using Prime Factorization",
+          "aliases": [
+            "Finding HCF by prime factors",
+            "Finding LCM by prime factors"
+          ],
+          "summary": "A method to calculate the Highest Common Factor (HCF) and Least Common Multiple (LCM) of two or more positive integers by expressing them as a product of their prime factors and selecting appropriate powers.",
+          "prerequisites": [
+            "jemh101__fundamental_theorem_of_arithmetic"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "tabular"
+          ],
+          "misconceptions": [
+            "Confusing the rules for selecting powers for HCF (lowest) versus LCM (highest)",
+            "Applying the method incorrectly, especially for three or more numbers"
+          ]
+        },
+        {
+          "concept_id": "jemh101__hcf_lcm_product_relation",
+          "chapter_doc": "jemh101",
+          "name": "Relationship between HCF, LCM, and Product of Two Numbers",
+          "aliases": [
+            "Product of numbers equals HCF times LCM"
+          ],
+          "summary": "For any two positive integers 'a' and 'b', the product of their HCF and LCM is equal to the product of the numbers themselves (HCF(a,b) × LCM(a,b) = a × b).",
+          "prerequisites": [
+            "jemh101__prime_factorization_hcf_lcm"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Assuming this relationship holds true for three or more numbers"
+          ]
+        },
+        {
+          "concept_id": "jemh101__irrational_numbers_definition",
+          "chapter_doc": "jemh101",
+          "name": "Definition of Irrational Numbers",
+          "aliases": [
+            "What are irrational numbers?"
+          ],
+          "summary": "Irrational numbers are real numbers that cannot be expressed as a simple fraction p/q, where p and q are integers and q is non-zero, and their decimal expansions are non-terminating and non-repeating.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Confusing non-terminating decimals (like 1/3) with irrational numbers",
+            "Believing all square roots are irrational (e.g., √4)"
+          ]
+        },
+        {
+          "concept_id": "jemh101__proof_by_contradiction_method",
+          "chapter_doc": "jemh101",
+          "name": "Proof by Contradiction Method",
+          "aliases": [
+            "Indirect proof",
+            "Reductio ad absurdum"
+          ],
+          "summary": "A proof technique where a statement is proven by assuming its opposite is true, and then showing that this assumption leads to a logical contradiction, thereby establishing the original statement's truth.",
+          "prerequisites": [],
+          "representations": [
+            "verbal"
+          ],
+          "misconceptions": [
+            "Difficulty in identifying a valid contradiction",
+            "Not clearly stating the initial assumption of the proof"
+          ]
+        },
+        {
+          "concept_id": "jemh101__theorem_p_divides_a_squared",
+          "chapter_doc": "jemh101",
+          "name": "Theorem: If a prime p divides a², then p divides a",
+          "aliases": [
+            "Divisibility rule for prime squares",
+            "Lemma for irrationality proofs"
+          ],
+          "summary": "This theorem states that for any prime number 'p', if 'p' divides the square of an integer 'a' (i.e., a²), then 'p' must also divide the integer 'a' itself.",
+          "prerequisites": [
+            "jemh101__fundamental_theorem_of_arithmetic"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Applying this theorem to composite divisors instead of only prime divisors",
+            "Confusing 'divides' with 'is a factor of' in other contexts"
+          ]
+        },
+        {
+          "concept_id": "jemh101__proving_irrationality_root_n",
+          "chapter_doc": "jemh101",
+          "name": "Proving Irrationality of √n (e.g., √2, √3)",
+          "aliases": [
+            "Proof that root 2 is irrational",
+            "Irrationality of square roots"
+          ],
+          "summary": "Demonstrating that numbers like √2 or √3 are irrational by using the proof by contradiction method, assuming they are rational (p/q, coprime) and deriving a contradiction using the property that if a prime divides a², it also divides a.",
+          "prerequisites": [
+            "jemh101__irrational_numbers_definition",
+            "jemh101__proof_by_contradiction_method",
+            "jemh101__theorem_p_divides_a_squared"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Algebraic errors in manipulation leading to incorrect conclusions",
+            "Forgetting the coprime assumption for p/q",
+            "Failing to clearly articulate the derived contradiction"
+          ]
+        },
+        {
+          "concept_id": "jemh101__proving_irrationality_expressions",
+          "chapter_doc": "jemh101",
+          "name": "Proving Irrationality of Expressions (e.g., a ± √b, a√b)",
+          "aliases": [
+            "Operations with rational and irrational numbers",
+            "Proving 5-√3 is irrational"
+          ],
+          "summary": "Using proof by contradiction to establish the irrationality of expressions involving sums, differences, products, or quotients of rational and irrational numbers, by isolating the irrational term and showing that assuming the entire expression is rational leads to a contradiction.",
+          "prerequisites": [
+            "jemh101__irrational_numbers_definition",
+            "jemh101__proof_by_contradiction_method",
+            "jemh101__proving_irrationality_root_n"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly isolating the irrational part within an expression",
+            "Making algebraic errors when rearranging the expression",
+            "Not understanding the closure properties of rational numbers under basic operations"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh102",
+      "chapter_name": "Polynomials",
+      "core_concepts": [
+        {
+          "concept_id": "jemh102__polynomial_degree",
+          "name": "Degree of a Polynomial",
+          "aliases": [
+            "degree",
+            "linear polynomial",
+            "quadratic polynomial",
+            "cubic polynomial"
+          ],
+          "summary": "Degree is the highest power of the variable; degree 1 linear, degree 2 quadratic, degree 3 cubic.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "degree_equals_number_of_terms"
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__zero_of_polynomial",
+          "name": "Zero of a Polynomial",
+          "aliases": [
+            "zeroes",
+            "roots",
+            "x-intercepts"
+          ],
+          "summary": "A real number k is a zero if p(k)=0; geometrically it is an x-coordinate where y=p(x) intersects the x-axis.",
+          "prerequisites": [
+            "jemh102__polynomial_degree"
+          ],
+          "representations": [
+            "symbolic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "zero_means_number",
+            "only_for_quadratics"
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__linear_zero_geometry",
+          "name": "Geometrical Meaning of Linear Zeroes",
+          "aliases": [
+            "line intersects x-axis",
+            "linear polynomial graph"
+          ],
+          "summary": "A linear polynomial ax+b has exactly one zero, equal to the x-coordinate where its straight-line graph cuts the x-axis.",
+          "prerequisites": [
+            "jemh102__zero_of_polynomial"
+          ],
+          "representations": [
+            "graphical",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "line_can_have_two_zeroes"
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__quadratic_zero_geometry",
+          "name": "Geometrical Meaning of Quadratic Zeroes",
+          "aliases": [
+            "quadratic graph",
+            "parabola zeroes"
+          ],
+          "summary": "A quadratic ax^2+bx+c can have two distinct zeroes, one repeated zero, or no real zero depending on how the parabola intersects the x-axis.",
+          "prerequisites": [
+            "jemh102__zero_of_polynomial"
+          ],
+          "representations": [
+            "graphical",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "quadratic_always_has_two_real_zeroes"
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__cubic_zero_geometry",
+          "name": "Geometrical Meaning of Cubic Zeroes",
+          "aliases": [
+            "cubic graph",
+            "cubic zeroes"
+          ],
+          "summary": "A cubic can have at most three real zeroes; graph intersections with x-axis correspond to zeroes.",
+          "prerequisites": [
+            "jemh102__zero_of_polynomial"
+          ],
+          "representations": [
+            "graphical",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "cubic_has_more_than_three_zeroes"
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__quadratic_coefficients",
+          "name": "Zeroes and Coefficients of a Quadratic",
+          "aliases": [
+            "sum and product",
+            "quadratic coefficients"
+          ],
+          "summary": "If alpha and beta are zeroes of ax^2+bx+c, then alpha+beta = -b/a and alpha beta = c/a.",
+          "prerequisites": [
+            "jemh102__quadratic_zero_geometry"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "sum_is_b_over_a"
+          ],
+          "transfer_links": [
+            {
+              "target": "quadratic_equation",
+              "target_chapter": "Chapter 4: Quadratic Equations",
+              "transfer_type": "near",
+              "note": "Sum/product of roots reused when solving and constructing quadratic equations."
+            },
+            {
+              "target": "projectile_motion",
+              "target_chapter": "Science: Motion",
+              "transfer_type": "far",
+              "note": "Quadratic models the height-time path of a thrown object; zeroes are launch/landing times."
+            }
+          ],
+          "chapter_doc": "jemh102"
+        },
+        {
+          "concept_id": "jemh102__cubic_coefficients",
+          "name": "Zeroes and Coefficients of a Cubic",
+          "aliases": [
+            "cubic relations",
+            "Vieta cubic"
+          ],
+          "summary": "If alpha beta gamma are zeroes of ax^3+bx^2+cx+d, then alpha+beta+gamma = -b/a, alpha beta+beta gamma+gamma alpha = c/a, alpha beta gamma = -d/a.",
+          "prerequisites": [
+            "jemh102__cubic_zero_geometry"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "pairwise_sum_is_minus_c_over_a"
+          ],
+          "chapter_doc": "jemh102"
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh103",
+      "chapter_name": "Pair of Linear Equations in Two Variables",
+      "core_concepts": [
+        {
+          "concept_id": "jemh103__pair_linear_equations_intro",
+          "chapter_doc": "jemh103",
+          "name": "Pair of Linear Equations in Two Variables",
+          "aliases": [
+            "Linear equations in two variables",
+            "System of two linear equations"
+          ],
+          "summary": "Introduces the definition and general form of two linear equations involving two variables, which are often used to model real-world scenarios.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Confusing linear equations in two variables with those in one variable.",
+            "Incorrectly forming equations from word problems."
+          ]
+        },
+        {
+          "concept_id": "jemh103__graphical_method_solving",
+          "chapter_doc": "jemh103",
+          "name": "Graphical Method for Solving Linear Equations",
+          "aliases": [
+            "Graphing method"
+          ],
+          "summary": "A method to find solutions by plotting both linear equations on a coordinate plane and identifying their intersection point, or observing if they are parallel or coincident.",
+          "prerequisites": [
+            "jemh103__pair_linear_equations_intro"
+          ],
+          "representations": [
+            "graphical",
+            "diagrammatic",
+            "algebraic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Inaccurate plotting of points leading to incorrect intersection.",
+            "Difficulty interpreting parallel or coincident lines graphically."
+          ]
+        },
+        {
+          "concept_id": "jemh103__system_classification",
+          "chapter_doc": "jemh103",
+          "name": "Classification of Systems: Consistent, Inconsistent, Dependent",
+          "aliases": [
+            "Types of solutions",
+            "Nature of solutions"
+          ],
+          "summary": "Classifies pairs of linear equations based on the number of solutions they possess: unique solution (consistent), no solution (inconsistent), or infinitely many solutions (dependent and consistent).",
+          "prerequisites": [
+            "jemh103__pair_linear_equations_intro",
+            "jemh103__graphical_method_solving"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "graphical"
+          ],
+          "misconceptions": [
+            "Confusing 'dependent' with 'inconsistent'.",
+            "Assuming all systems must have a unique solution."
+          ]
+        },
+        {
+          "concept_id": "jemh103__coefficient_ratios_analysis",
+          "chapter_doc": "jemh103",
+          "name": "Analysis using Coefficient Ratios",
+          "aliases": [
+            "Ratios of coefficients method",
+            "Conditions for consistency"
+          ],
+          "summary": "Explains how comparing the ratios of coefficients (a1/a2, b1/b2, c1/c2) directly determines whether a system has a unique solution, no solution, or infinitely many solutions, and their corresponding graphical representations.",
+          "prerequisites": [
+            "jemh103__pair_linear_equations_intro",
+            "jemh103__system_classification"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly comparing ratios (e.g., swapping a1/a2 with b1/b2).",
+            "Forgetting the role of c1/c2 for coincident lines."
+          ]
+        },
+        {
+          "concept_id": "jemh103__substitution_method",
+          "chapter_doc": "jemh103",
+          "name": "Substitution Method for Solving",
+          "aliases": [
+            "Solving by substitution"
+          ],
+          "summary": "An algebraic technique where one variable is expressed in terms of the other from one equation and then substituted into the second equation to solve for both variables.",
+          "prerequisites": [
+            "jemh103__pair_linear_equations_intro"
+          ],
+          "representations": [
+            "algebraic",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Algebraic errors when isolating a variable or substituting.",
+            "Not knowing how to handle cases of no solution or infinite solutions when applying the method."
+          ]
+        },
+        {
+          "concept_id": "jemh103__elimination_method",
+          "chapter_doc": "jemh103",
+          "name": "Elimination Method for Solving",
+          "aliases": [
+            "Solving by elimination"
+          ],
+          "summary": "An algebraic technique where equations are manipulated (multiplied by constants) and then added or subtracted to eliminate one variable, allowing the other to be solved.",
+          "prerequisites": [
+            "jemh103__pair_linear_equations_intro"
+          ],
+          "representations": [
+            "algebraic",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Mistakes in multiplying equations by constants.",
+            "Algebraic errors during addition/subtraction, especially with negative signs."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh104",
+      "chapter_name": "Quadratic Equations",
+      "core_concepts": [
+        {
+          "concept_id": "jemh104__quadratic_equation_definition",
+          "chapter_doc": "jemh104",
+          "name": "Definition and Standard Form of a Quadratic Equation",
+          "aliases": [
+            "Standard Form of Quadratic Equation"
+          ],
+          "summary": "A quadratic equation is a polynomial equation of degree 2, typically written in the standard form `ax^2 + bx + c = 0`, where `a, b, c` are real numbers and `a ≠ 0`.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Confusing with linear or cubic equations",
+            "Forgetting that 'a' cannot be zero"
+          ]
+        },
+        {
+          "concept_id": "jemh104__identifying_quadratic_equations",
+          "chapter_doc": "jemh104",
+          "name": "Identifying Quadratic Equations",
+          "aliases": [],
+          "summary": "Determining if a given algebraic equation is quadratic by simplifying it to the standard form `ax^2 + bx + c = 0` and checking if the highest power of the variable is 2 and the coefficient 'a' is non-zero.",
+          "prerequisites": [
+            "jemh104__quadratic_equation_definition"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Not simplifying equations completely before classifying",
+            "Misidentifying the degree of the polynomial"
+          ]
+        },
+        {
+          "concept_id": "jemh104__forming_quadratic_equations",
+          "chapter_doc": "jemh104",
+          "name": "Forming Quadratic Equations from Word Problems",
+          "aliases": [
+            "Translating Word Problems"
+          ],
+          "summary": "The process of translating real-world scenarios and verbal descriptions into algebraic expressions that result in a quadratic equation to model a problem.",
+          "prerequisites": [
+            "jemh104__quadratic_equation_definition"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Incorrectly setting up variables or relationships from the problem statement",
+            "Difficulty in simplifying expressions to the standard form"
+          ]
+        },
+        {
+          "concept_id": "jemh104__roots_of_quadratic_equation",
+          "chapter_doc": "jemh104",
+          "name": "Roots of a Quadratic Equation",
+          "aliases": [
+            "Zeroes of a Quadratic Polynomial",
+            "Solutions of a Quadratic Equation"
+          ],
+          "summary": "The roots of a quadratic equation are the values of the variable that satisfy the equation, making it true, and are equivalent to the zeroes of the corresponding quadratic polynomial.",
+          "prerequisites": [
+            "jemh104__quadratic_equation_definition"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing roots with coefficients or constants",
+            "Not understanding what a 'solution' to an equation means"
+          ]
+        },
+        {
+          "concept_id": "jemh104__solving_by_factorization",
+          "chapter_doc": "jemh104",
+          "name": "Solving Quadratic Equations by Factorization",
+          "aliases": [
+            "Splitting the Middle Term Method"
+          ],
+          "summary": "A method to find the roots of a quadratic equation by factoring the quadratic polynomial into two linear factors and then setting each factor equal to zero to solve for the variable.",
+          "prerequisites": [
+            "jemh104__roots_of_quadratic_equation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Incorrectly factoring polynomials or splitting the middle term",
+            "Failing to equate each factor to zero to find all roots"
+          ]
+        },
+        {
+          "concept_id": "jemh104__quadratic_formula",
+          "chapter_doc": "jemh104",
+          "name": "The Quadratic Formula",
+          "aliases": [],
+          "summary": "A general formula, `x = [-b ± sqrt(b^2 - 4ac)] / 2a`, used to find the roots of any quadratic equation in the standard form `ax^2 + bx + c = 0`.",
+          "prerequisites": [
+            "jemh104__roots_of_quadratic_equation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Errors in substituting coefficients 'a', 'b', 'c'",
+            "Sign errors, especially with the negative 'b' or within the discriminant"
+          ]
+        },
+        {
+          "concept_id": "jemh104__discriminant_nature_of_roots",
+          "chapter_doc": "jemh104",
+          "name": "Discriminant and Nature of Roots",
+          "aliases": [
+            "Nature of Roots"
+          ],
+          "summary": "The discriminant, `D = b^2 - 4ac`, determines the nature of the roots of a quadratic equation: `D > 0` (two distinct real roots), `D = 0` (two equal real roots), and `D < 0` (no real roots).",
+          "prerequisites": [
+            "jemh104__quadratic_equation_definition",
+            "jemh104__quadratic_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Misinterpreting the sign of the discriminant",
+            "Not understanding what 'no real roots' implies for a problem"
+          ]
+        },
+        {
+          "concept_id": "jemh104__solving_real_world_problems",
+          "chapter_doc": "jemh104",
+          "name": "Solving Real-World Problems using Quadratic Equations",
+          "aliases": [
+            "Applications of Quadratic Equations"
+          ],
+          "summary": "Applying the methods for forming and solving quadratic equations, including factorization and the quadratic formula, to practical situations and interpreting the solutions in context, rejecting invalid ones.",
+          "prerequisites": [
+            "jemh104__forming_quadratic_equations",
+            "jemh104__solving_by_factorization",
+            "jemh104__quadratic_formula",
+            "jemh104__discriminant_nature_of_roots"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Difficulty in setting up the initial equation from problem text",
+            "Not rejecting physically impossible solutions (e.g., negative length or time)"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh105",
+      "chapter_name": "Arithmetic Progressions",
+      "core_concepts": [
+        {
+          "concept_id": "jemh105__ap_definition_identification",
+          "chapter_doc": "jemh105",
+          "name": "Arithmetic Progression (AP) Definition and Identification",
+          "aliases": [
+            "What is an AP?",
+            "Identifying APs",
+            "Sequence patterns"
+          ],
+          "summary": "An Arithmetic Progression (AP) is a sequence of numbers where the difference between consecutive terms is constant; this constant value is known as the common difference. This concept involves recognizing if a given list of numbers forms an AP by checking for this constant difference.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "tabular"
+          ],
+          "misconceptions": [
+            "Confusing an AP with other types of sequences (e.g., geometric progression, Fibonacci sequence).",
+            "Believing the common difference must always be positive."
+          ]
+        },
+        {
+          "concept_id": "jemh105__ap_components_general_form",
+          "chapter_doc": "jemh105",
+          "name": "Components and General Form of an AP",
+          "aliases": [
+            "First term of AP",
+            "Common difference",
+            "General AP form",
+            "Finite and infinite APs"
+          ],
+          "summary": "This concept defines the fundamental elements of an AP: the first term ('a') and the common difference ('d'), and presents the standard general form of an AP as a, a+d, a+2d, ... It also distinguishes between APs that have a finite or infinite number of terms.",
+          "prerequisites": [
+            "jemh105__ap_definition_identification"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Incorrectly identifying 'a' or 'd' from a given sequence.",
+            "Assuming 'd' can only be found by subtracting the first term from the second."
+          ]
+        },
+        {
+          "concept_id": "jemh105__nth_term_formula",
+          "chapter_doc": "jemh105",
+          "name": "Nth Term of an AP",
+          "aliases": [
+            "General term of AP",
+            "Term position formula",
+            "Finding a specific term"
+          ],
+          "summary": "The nth term of an AP, denoted as 'a_n', can be calculated using the formula a_n = a + (n-1)d, which enables finding any term's value or its position within the sequence, including terms from the end of a finite AP.",
+          "prerequisites": [
+            "jemh105__ap_components_general_form"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal",
+            "tabular"
+          ],
+          "misconceptions": [
+            "Confusing 'n-1' with 'n' in the formula.",
+            "Not understanding that 'n' (term position) must always be a positive integer."
+          ]
+        },
+        {
+          "concept_id": "jemh105__sum_n_terms_formula",
+          "chapter_doc": "jemh105",
+          "name": "Sum of N Terms of an AP",
+          "aliases": [
+            "Sum of an AP",
+            "Arithmetic series sum",
+            "Sum to 'n' terms"
+          ],
+          "summary": "This concept covers the derivation and application of formulas for the sum of the first 'n' terms of an AP, specifically S_n = (n/2)[2a + (n-1)d] or S_n = (n/2)(a + l), where 'l' is the last term. It also shows the relationship between the nth term and the sum of terms.",
+          "prerequisites": [
+            "jemh105__nth_term_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Forgetting the (n/2) factor in the sum formula.",
+            "Confusing 'a_n' (the nth term) with 'S_n' (the sum up to the nth term).",
+            "Difficulty solving quadratic equations that arise when finding 'n'."
+          ]
+        },
+        {
+          "concept_id": "jemh105__arithmetic_mean",
+          "chapter_doc": "jemh105",
+          "name": "Arithmetic Mean",
+          "aliases": [
+            "Mean of two numbers in AP",
+            "Middle term of three AP numbers"
+          ],
+          "summary": "The arithmetic mean of two numbers 'a' and 'b' is the number 'A' such that 'a', 'A', 'b' form an AP, and it is calculated by the formula A = (a+b)/2.",
+          "prerequisites": [
+            "jemh105__ap_definition_identification"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing arithmetic mean with other types of means (e.g., geometric mean).",
+            "Not understanding its direct relation to the common difference of an AP."
+          ]
+        },
+        {
+          "concept_id": "jemh105__ap_applications",
+          "chapter_doc": "jemh105",
+          "name": "Real-world Applications of APs",
+          "aliases": [
+            "AP word problems",
+            "Practical AP scenarios",
+            "Problem-solving with APs"
+          ],
+          "summary": "This concept involves applying the formulas for the nth term and the sum of 'n' terms of an AP to solve diverse real-world problems, ranging from financial scenarios to physical arrangements and geometric patterns.",
+          "prerequisites": [
+            "jemh105__nth_term_formula",
+            "jemh105__sum_n_terms_formula"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Difficulty in translating a word problem into the parameters (a, d, n) of an AP.",
+            "Incorrectly choosing between the nth term formula and the sum formula for a given problem."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh106",
+      "chapter_name": "Similarity of Triangles",
+      "core_concepts": [
+        {
+          "concept_id": "jemh106__similar_figures",
+          "chapter_doc": "jemh106",
+          "name": "Similar Figures",
+          "aliases": [],
+          "summary": "Figures that have the same shape but not necessarily the same size. For polygons, this means corresponding angles are equal and corresponding sides are in the same ratio.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "graphical",
+            "diagrammatic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Confusing similarity with congruence",
+            "Assuming only one condition (angles or sides) is sufficient for polygons"
+          ]
+        },
+        {
+          "concept_id": "jemh106__basic_proportionality_theorem",
+          "chapter_doc": "jemh106",
+          "name": "Basic Proportionality Theorem",
+          "aliases": [
+            "Thales Theorem",
+            "BPT"
+          ],
+          "summary": "If a line is drawn parallel to one side of a triangle intersecting the other two sides, then it divides the two sides in the same ratio.",
+          "prerequisites": [
+            "jemh106__similar_figures"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "algebraic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Applying the theorem when the line is not parallel to a side",
+            "Incorrectly setting up the ratios of segments"
+          ]
+        },
+        {
+          "concept_id": "jemh106__converse_bpt",
+          "chapter_doc": "jemh106",
+          "name": "Converse of Basic Proportionality Theorem",
+          "aliases": [
+            "Converse of Thales Theorem"
+          ],
+          "summary": "If a line divides any two sides of a triangle in the same ratio, then the line is parallel to the third side.",
+          "prerequisites": [
+            "jemh106__basic_proportionality_theorem"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "algebraic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Confusing the statement with the original BPT",
+            "Not recognizing proportional divisions imply parallelism"
+          ]
+        },
+        {
+          "concept_id": "jemh106__triangle_similarity_criteria_intro",
+          "chapter_doc": "jemh106",
+          "name": "Triangle Similarity Criteria",
+          "aliases": [],
+          "summary": "Specific conditions based on corresponding angles and side ratios that, if met, prove two triangles are similar, simplifying the full definition of similar polygons.",
+          "prerequisites": [
+            "jemh106__similar_figures"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Applying polygon similarity rules (both conditions required) to triangles unnecessarily",
+            "Incorrectly matching corresponding vertices"
+          ]
+        },
+        {
+          "concept_id": "jemh106__aaa_similarity",
+          "chapter_doc": "jemh106",
+          "name": "AAA (Angle-Angle-Angle) Similarity Criterion",
+          "aliases": [
+            "Angle-Angle-Angle Similarity"
+          ],
+          "summary": "If the corresponding angles of two triangles are equal, then the triangles are similar, and their corresponding sides will be proportional.",
+          "prerequisites": [
+            "jemh106__triangle_similarity_criteria_intro"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Forgetting that equal angles imply proportional sides",
+            "Assuming AAA is only about angles and not similarity itself"
+          ]
+        },
+        {
+          "concept_id": "jemh106__aa_similarity",
+          "chapter_doc": "jemh106",
+          "name": "AA (Angle-Angle) Similarity Criterion",
+          "aliases": [
+            "Angle-Angle Similarity"
+          ],
+          "summary": "If two angles of one triangle are respectively equal to two angles of another triangle, then the two triangles are similar. This is a simplified form of AAA, as the third angles must also be equal.",
+          "prerequisites": [
+            "jemh106__aaa_similarity"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Not realizing that two angles are sufficient, not three",
+            "Confusing with SAS or SSS"
+          ]
+        },
+        {
+          "concept_id": "jemh106__sss_similarity",
+          "chapter_doc": "jemh106",
+          "name": "SSS (Side-Side-Side) Similarity Criterion",
+          "aliases": [
+            "Side-Side-Side Similarity"
+          ],
+          "summary": "If the corresponding sides of two triangles are in the same proportion, then their corresponding angles are equal, and the triangles are similar.",
+          "prerequisites": [
+            "jemh106__triangle_similarity_criteria_intro"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Confusing SSS similarity with SSS congruence",
+            "Incorrectly setting up side ratios"
+          ]
+        },
+        {
+          "concept_id": "jemh106__sas_similarity",
+          "chapter_doc": "jemh106",
+          "name": "SAS (Side-Angle-Side) Similarity Criterion",
+          "aliases": [
+            "Side-Angle-Side Similarity"
+          ],
+          "summary": "If one angle of a triangle is equal to one angle of another triangle and the sides including these angles are proportional, then the two triangles are similar.",
+          "prerequisites": [
+            "jemh106__triangle_similarity_criteria_intro"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Using the non-included angle or non-included sides for the proportionality",
+            "Confusing SAS similarity with SAS congruence"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh107",
+      "chapter_name": "Coordinate Geometry",
+      "core_concepts": [
+        {
+          "concept_id": "jemh107__cartesian_coordinate_system",
+          "chapter_doc": "jemh107",
+          "name": "Cartesian Coordinate System",
+          "aliases": [
+            "Coordinate axes",
+            "Abscissa",
+            "Ordinate"
+          ],
+          "summary": "A system using perpendicular number lines (x-axis and y-axis) to uniquely locate points in a plane using ordered pairs (x, y), where x is the abscissa and y is the ordinate.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing the x-coordinate with the y-coordinate or vice-versa.",
+            "Incorrectly identifying abscissa and ordinate."
+          ]
+        },
+        {
+          "concept_id": "jemh107__distance_formula",
+          "chapter_doc": "jemh107",
+          "name": "Distance Formula",
+          "aliases": [
+            "Distance between two points"
+          ],
+          "summary": "A formula derived from the Pythagorean theorem to calculate the straight-line distance between any two points (x1, y1) and (x2, y2) in a Cartesian plane.",
+          "prerequisites": [
+            "jemh107__cartesian_coordinate_system"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly substituting coordinates into the formula.",
+            "Forgetting to take the square root at the end of the calculation.",
+            "Confusing the differences (x2-x1) and (y2-y1)."
+          ]
+        },
+        {
+          "concept_id": "jemh107__collinearity_of_points",
+          "chapter_doc": "jemh107",
+          "name": "Collinearity of Points",
+          "aliases": [
+            "Points on a straight line"
+          ],
+          "summary": "The property of three or more points lying on the same straight line, which can be verified using the distance formula by checking if the sum of two smaller distances equals the largest distance.",
+          "prerequisites": [
+            "jemh107__distance_formula"
+          ],
+          "representations": [
+            "graphical",
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Assuming points are collinear based on visual inspection without calculation.",
+            "Not testing all possible combinations of distances to confirm collinearity."
+          ]
+        },
+        {
+          "concept_id": "jemh107__geometric_figure_properties",
+          "chapter_doc": "jemh107",
+          "name": "Properties of Geometric Figures",
+          "aliases": [
+            "Types of triangles",
+            "Types of quadrilaterals"
+          ],
+          "summary": "Application of the distance formula to determine the characteristics of geometric shapes (e.g., isosceles/equilateral triangles, squares, rectangles, rhombuses) by calculating side lengths and diagonal lengths.",
+          "prerequisites": [
+            "jemh107__distance_formula"
+          ],
+          "representations": [
+            "graphical",
+            "symbolic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusing the properties required to identify different quadrilaterals (e.g., only checking sides for a square without checking diagonals).",
+            "Miscalculating lengths leading to incorrect classification."
+          ]
+        },
+        {
+          "concept_id": "jemh107__section_formula",
+          "chapter_doc": "jemh107",
+          "name": "Section Formula",
+          "aliases": [
+            "Division of a line segment"
+          ],
+          "summary": "A formula used to find the coordinates of a point that divides a line segment joining two given points in a specified ratio (m:n) internally, derived using similar triangles.",
+          "prerequisites": [
+            "jemh107__cartesian_coordinate_system"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly applying the ratio, e.g., using m*x1 + n*x2 instead of m*x2 + n*x1.",
+            "Confusing internal division with external division (which is for higher classes)."
+          ]
+        },
+        {
+          "concept_id": "jemh107__midpoint_formula",
+          "chapter_doc": "jemh107",
+          "name": "Midpoint Formula",
+          "aliases": [
+            "Finding the midpoint"
+          ],
+          "summary": "A special case of the section formula where the ratio of division is 1:1, used to find the coordinates of the point that exactly bisects a line segment.",
+          "prerequisites": [
+            "jemh107__section_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly summing or dividing the coordinates.",
+            "Applying the formula for one coordinate but not the other."
+          ]
+        },
+        {
+          "concept_id": "jemh107__finding_division_ratio",
+          "chapter_doc": "jemh107",
+          "name": "Finding Ratio of Division",
+          "aliases": [
+            "Ratio in which a point divides a segment"
+          ],
+          "summary": "The process of using the section formula in reverse to determine the ratio (often expressed as k:1) in which a given point divides a line segment joining two other points.",
+          "prerequisites": [
+            "jemh107__section_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly setting up the equation when solving for the ratio.",
+            "Not checking consistency of the ratio using both x and y coordinates."
+          ]
+        },
+        {
+          "concept_id": "jemh107__trisection_of_segment",
+          "chapter_doc": "jemh107",
+          "name": "Trisection of a Line Segment",
+          "aliases": [
+            "Dividing a segment into three equal parts"
+          ],
+          "summary": "The method of finding two points that divide a line segment into three equal parts by applying the section formula with specific ratios of 1:2 and 2:1.",
+          "prerequisites": [
+            "jemh107__section_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "graphical",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing the two ratios (1:2 and 2:1) for the two trisection points.",
+            "Incorrectly identifying which point corresponds to which ratio."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh108",
+      "chapter_name": "Trigonometric Ratios",
+      "core_concepts": [
+        {
+          "concept_id": "jemh108__intro_trigonometry",
+          "chapter_doc": "jemh108",
+          "name": "Introduction to Trigonometry and Right-Angled Triangles",
+          "aliases": [
+            "What is Trigonometry?",
+            "Trigonometry Basics"
+          ],
+          "summary": "Defines trigonometry as the study of relationships between sides and angles of right-angled triangles, highlighting its relevance in solving real-world problems involving indirect measurement.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Believing trigonometry is only for abstract math, not practical problems."
+          ]
+        },
+        {
+          "concept_id": "jemh108__fundamental_trig_ratios",
+          "chapter_doc": "jemh108",
+          "name": "Fundamental Trigonometric Ratios",
+          "aliases": [
+            "Trigonometric Ratios",
+            "Six Trig Ratios",
+            "SOH CAH TOA"
+          ],
+          "summary": "Defines sine, cosine, tangent, cosecant, secant, and cotangent for an acute angle in a right-angled triangle using the ratios of its sides (opposite, adjacent, hypotenuse).",
+          "prerequisites": [
+            "jemh108__intro_trigonometry"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusing which side is opposite/adjacent for a given angle.",
+            "Mixing up the definitions of ratios (e.g., sin vs. cos)."
+          ]
+        },
+        {
+          "concept_id": "jemh108__reciprocal_quotient_identities",
+          "chapter_doc": "jemh108",
+          "name": "Reciprocal and Quotient Trigonometric Identities",
+          "aliases": [
+            "Basic Trig Relationships"
+          ],
+          "summary": "Establishes relationships between the fundamental trigonometric ratios, such as cosecant being the reciprocal of sine, and tangent being sine divided by cosine.",
+          "prerequisites": [
+            "jemh108__fundamental_trig_ratios"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Forgetting reciprocal pairs.",
+            "Incorrect quotient relationships (e.g., tan A = cos A / sin A)."
+          ]
+        },
+        {
+          "concept_id": "jemh108__consistency_trig_ratios",
+          "chapter_doc": "jemh108",
+          "name": "Consistency of Trigonometric Ratios for Similar Triangles",
+          "aliases": [
+            "Ratios for a given angle are constant"
+          ],
+          "summary": "Explains that the trigonometric ratios for a given acute angle are constant, irrespective of the size of the right-angled triangle, due to the property of similar triangles.",
+          "prerequisites": [
+            "jemh108__fundamental_trig_ratios"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Believing that larger triangles have different ratio values for the same angle."
+          ]
+        },
+        {
+          "concept_id": "jemh108__trig_ratios_specific_angles",
+          "chapter_doc": "jemh108",
+          "name": "Trigonometric Ratios for Specific Angles (0°, 30°, 45°, 60°, 90°)",
+          "aliases": [
+            "Standard Angles",
+            "Special Angles"
+          ],
+          "summary": "Derives and tabulates the exact values of trigonometric ratios for common angles like 0°, 30°, 45°, 60°, and 90° using geometric constructions.",
+          "prerequisites": [
+            "jemh108__fundamental_trig_ratios"
+          ],
+          "representations": [
+            "symbolic",
+            "tabular",
+            "diagrammatic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Memorizing values incorrectly.",
+            "Not understanding why certain ratios are undefined (e.g., tan 90°)."
+          ]
+        },
+        {
+          "concept_id": "jemh108__pythagorean_trig_identities",
+          "chapter_doc": "jemh108",
+          "name": "Pythagorean Trigonometric Identities",
+          "aliases": [
+            "Fundamental Identities",
+            "Squared Identities"
+          ],
+          "summary": "Introduces and proves the three fundamental identities (sin²A + cos²A = 1, 1 + tan²A = sec²A, 1 + cot²A = cosec²A) derived from the Pythagorean theorem.",
+          "prerequisites": [
+            "jemh108__fundamental_trig_ratios",
+            "jemh108__reciprocal_quotient_identities"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Misapplying the identities (e.g., sin A + cos A = 1).",
+            "Forgetting the squared notation (e.g., confusing sin A^2 with sin^2 A)."
+          ]
+        },
+        {
+          "concept_id": "jemh108__apply_trig_ratios",
+          "chapter_doc": "jemh108",
+          "name": "Application of Trigonometric Ratios to Solve Triangles",
+          "aliases": [
+            "Solving Right Triangles"
+          ],
+          "summary": "Uses trigonometric ratios, sometimes in conjunction with the Pythagorean theorem, to calculate unknown side lengths or angles in right-angled triangles.",
+          "prerequisites": [
+            "jemh108__fundamental_trig_ratios",
+            "jemh108__trig_ratios_specific_angles"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "diagrammatic",
+            "tabular"
+          ],
+          "misconceptions": [
+            "Incorrectly setting up the ratio for a given unknown.",
+            "Calculation errors when finding side lengths or angles.",
+            "Not knowing when to use which ratio."
+          ]
+        },
+        {
+          "concept_id": "jemh108__proving_trig_identities",
+          "chapter_doc": "jemh108",
+          "name": "Proving and Manipulating Trigonometric Identities",
+          "aliases": [
+            "Manipulating Identities",
+            "Trigonometric Proofs"
+          ],
+          "summary": "Develops skills in algebraically manipulating trigonometric expressions and proving identities using fundamental, reciprocal, quotient, and Pythagorean identities.",
+          "prerequisites": [
+            "jemh108__reciprocal_quotient_identities",
+            "jemh108__pythagorean_trig_identities"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Treating identities as equations to be solved for an angle.",
+            "Not knowing how to start a proof or choose appropriate identities.",
+            "Incorrect algebraic simplification of expressions."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh109",
+      "chapter_name": "Some Applications of Trigonometry",
+      "core_concepts": [
+        {
+          "concept_id": "jemh109__line_of_sight",
+          "chapter_doc": "jemh109",
+          "name": "Line of Sight",
+          "aliases": [],
+          "summary": "The line of sight is the imaginary line drawn from an observer's eye to the object being viewed. It is a fundamental component for defining angles of elevation and depression.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusing it with the horizontal line or ground level",
+            "Incorrectly identifying the starting point as other than the observer's eye"
+          ]
+        },
+        {
+          "concept_id": "jemh109__angle_of_elevation",
+          "chapter_doc": "jemh109",
+          "name": "Angle of Elevation",
+          "aliases": [],
+          "summary": "The angle of elevation is the angle formed by the line of sight with the horizontal when an observer looks up at an object located above their horizontal level.",
+          "prerequisites": [
+            "jemh109__line_of_sight"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Measuring from the ground instead of the horizontal line from the eye",
+            "Confusing it with the angle formed by the vertical",
+            "Interchanging it with angle of depression"
+          ]
+        },
+        {
+          "concept_id": "jemh109__angle_of_depression",
+          "chapter_doc": "jemh109",
+          "name": "Angle of Depression",
+          "aliases": [],
+          "summary": "The angle of depression is the angle formed by the line of sight with the horizontal when an observer looks down at an object located below their horizontal level.",
+          "prerequisites": [
+            "jemh109__line_of_sight"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Measuring from the vertical line",
+            "Confusing it with the angle inside the triangle below the horizontal",
+            "Interchanging it with angle of elevation"
+          ]
+        },
+        {
+          "concept_id": "jemh109__application_trig_ratios",
+          "chapter_doc": "jemh109",
+          "name": "Application of Trigonometric Ratios",
+          "aliases": [
+            "Trigonometric Ratios in Heights and Distances"
+          ],
+          "summary": "This concept involves using sine, cosine, and tangent ratios (SOH CAH TOA) to relate the sides and angles of right-angled triangles to solve for unknown quantities.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly identifying opposite, adjacent, and hypotenuse sides relative to the angle",
+            "Using the wrong trigonometric ratio for the given knowns and unknowns"
+          ]
+        },
+        {
+          "concept_id": "jemh109__heights_distances_problem_solving",
+          "chapter_doc": "jemh109",
+          "name": "Problem-Solving in Heights and Distances",
+          "aliases": [
+            "Modeling with Trigonometry",
+            "Real-world applications of trigonometry"
+          ],
+          "summary": "This involves interpreting real-world scenarios to construct one or more right-angled triangles, identifying known and unknown quantities, and then applying angles of elevation/depression and trigonometric ratios to calculate heights or distances.",
+          "prerequisites": [
+            "jemh109__line_of_sight",
+            "jemh109__angle_of_elevation",
+            "jemh109__angle_of_depression",
+            "jemh109__application_trig_ratios"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "algebraic",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Drawing incorrect diagrams from word problems",
+            "Not correctly identifying the horizontal and line of sight in complex scenarios",
+            "Ignoring practical constraints or units in final answers"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh110",
+      "chapter_name": "Circles",
+      "core_concepts": [
+        {
+          "concept_id": "jemh110__lines_and_circles_definitions",
+          "chapter_doc": "jemh110",
+          "name": "Relationships between a Line and a Circle",
+          "aliases": [
+            "Secant Line",
+            "Tangent Line",
+            "Point of Contact"
+          ],
+          "summary": "This concept defines the three possible relationships a line can have with a circle in a plane: non-intersecting, a secant (intersecting at two points), and a tangent (touching at exactly one point), including the definition of the 'point of contact'.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusing a secant with a tangent, especially when the intersection points are very close.",
+            "Incorrectly identifying the point of contact."
+          ]
+        },
+        {
+          "concept_id": "jemh110__tangent_radius_perpendicularity",
+          "chapter_doc": "jemh110",
+          "name": "Tangent Perpendicular to Radius at Point of Contact",
+          "aliases": [
+            "Theorem 10.1",
+            "Radius-Tangent Perpendicularity Theorem"
+          ],
+          "summary": "This fundamental property states that the radius drawn to the point of contact is always perpendicular to the tangent line, a relationship explored through its proof demonstrating the radius as the shortest distance.",
+          "prerequisites": [
+            "jemh110__lines_and_circles_definitions"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Believing the tangent is perpendicular to the radius at any point, not specifically the point of contact.",
+            "Not understanding the geometric reason (shortest distance) behind the perpendicularity."
+          ]
+        },
+        {
+          "concept_id": "jemh110__number_of_tangents_from_a_point",
+          "chapter_doc": "jemh110",
+          "name": "Number of Tangents from a Point to a Circle",
+          "aliases": [],
+          "summary": "This concept explains that the number of tangents that can be drawn to a circle depends on the point's position: zero from an interior point, one from a point on the circle, and exactly two from an exterior point.",
+          "prerequisites": [
+            "jemh110__lines_and_circles_definitions"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Assuming more than two tangents can be drawn from an external point.",
+            "Confusing the number of tangents from points at different locations relative to the circle."
+          ]
+        },
+        {
+          "concept_id": "jemh110__equal_tangent_lengths",
+          "chapter_doc": "jemh110",
+          "name": "Lengths of Tangents from an External Point",
+          "aliases": [
+            "Theorem 10.2",
+            "Two Tangents Theorem"
+          ],
+          "summary": "This theorem states that the lengths of the two tangents drawn from an external point to a circle are equal, a property proven using congruence of triangles (RHS criterion) or the Pythagorean theorem.",
+          "prerequisites": [
+            "jemh110__lines_and_circles_definitions",
+            "jemh110__tangent_radius_perpendicularity"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Assuming this property holds for any two arbitrary tangents, not necessarily from the same external point.",
+            "Difficulty in applying the congruence or Pythagorean theorem for proving this property."
+          ]
+        },
+        {
+          "concept_id": "jemh110__applications_of_tangent_properties",
+          "chapter_doc": "jemh110",
+          "name": "Applying Tangent Properties to Solve Problems",
+          "aliases": [
+            "Problem Solving with Tangents"
+          ],
+          "summary": "This concept involves using the derived properties of tangents, such as their perpendicularity to radii and equal lengths from an external point, alongside other geometric principles like the Pythagorean theorem or similar triangles, to calculate unknown lengths, angles, or prove relationships in geometric figures involving circles.",
+          "prerequisites": [
+            "jemh110__tangent_radius_perpendicularity",
+            "jemh110__number_of_tangents_from_a_point",
+            "jemh110__equal_tangent_lengths"
+          ],
+          "representations": [
+            "algebraic",
+            "diagrammatic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Not identifying the correct property to apply in a given problem scenario.",
+            "Errors in applying algebraic or geometric formulas during calculations and proofs.",
+            "Struggling to construct appropriate auxiliary lines or identify relevant triangles for proofs."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh111",
+      "chapter_name": "Areas Related to Circles",
+      "core_concepts": [
+        {
+          "concept_id": "jemh111__sector_segment_definitions",
+          "chapter_doc": "jemh111",
+          "name": "Definitions of Sector and Segment",
+          "aliases": [
+            "Minor Sector",
+            "Major Sector",
+            "Minor Segment",
+            "Major Segment"
+          ],
+          "summary": "Defines a sector as a region enclosed by two radii and an arc, and a segment as a region enclosed by a chord and an arc, differentiating between minor and major types.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusing sector with segment.",
+            "Incorrectly identifying minor vs. major parts."
+          ]
+        },
+        {
+          "concept_id": "jemh111__sector_arc_formula_derivation",
+          "chapter_doc": "jemh111",
+          "name": "Derivation of Area of Sector and Length of Arc Formulas",
+          "aliases": [
+            "Unitary Method for Circles"
+          ],
+          "summary": "Explains how to derive formulas for the area of a sector and the length of an arc using the Unitary Method, based on the full circle's area and circumference.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Not understanding the proportionality of area/arc length to central angle.",
+            "Incorrectly applying the 360-degree reference."
+          ]
+        },
+        {
+          "concept_id": "jemh111__area_of_sector",
+          "chapter_doc": "jemh111",
+          "name": "Area of a Sector",
+          "aliases": [
+            "Formula for Sector Area"
+          ],
+          "summary": "Provides the formula and method for calculating the area of a circular sector given its radius (r) and central angle (θ in degrees).",
+          "prerequisites": [
+            "jemh111__sector_segment_definitions",
+            "jemh111__sector_arc_formula_derivation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Using circumference formula instead of area formula.",
+            "Forgetting to divide by 360 degrees in the formula."
+          ]
+        },
+        {
+          "concept_id": "jemh111__length_of_arc",
+          "chapter_doc": "jemh111",
+          "name": "Length of an Arc",
+          "aliases": [
+            "Formula for Arc Length"
+          ],
+          "summary": "Provides the formula and method for calculating the length of a circular arc given its radius (r) and central angle (θ in degrees).",
+          "prerequisites": [
+            "jemh111__sector_segment_definitions",
+            "jemh111__sector_arc_formula_derivation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Using area formula instead of circumference formula.",
+            "Confusing arc length with perimeter."
+          ]
+        },
+        {
+          "concept_id": "jemh111__triangle_area_calculation",
+          "chapter_doc": "jemh111",
+          "name": "Area of a Triangle within a Sector",
+          "aliases": [
+            "Area of Isosceles Triangle in Circle",
+            "Trigonometry for Triangle Area"
+          ],
+          "summary": "Explains how to calculate the area of the triangle formed by two radii and a chord, often requiring trigonometric methods or geometric properties.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Applying the wrong formula for triangle area based on given information.",
+            "Errors in trigonometric calculations."
+          ]
+        },
+        {
+          "concept_id": "jemh111__area_of_segment",
+          "chapter_doc": "jemh111",
+          "name": "Area of a Segment",
+          "aliases": [
+            "Formula for Segment Area"
+          ],
+          "summary": "Method for calculating the area of a circular segment by subtracting the area of the corresponding triangle from the area of its sector.",
+          "prerequisites": [
+            "jemh111__area_of_sector",
+            "jemh111__triangle_area_calculation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Forgetting to subtract the triangle's area.",
+            "Incorrectly calculating the triangle's area."
+          ]
+        },
+        {
+          "concept_id": "jemh111__applications_circle_areas",
+          "chapter_doc": "jemh111",
+          "name": "Applications of Areas Related to Circles",
+          "aliases": [
+            "Real-world problems with sectors and segments"
+          ],
+          "summary": "Applying the learned formulas for areas of sectors, segments, and arc lengths to solve practical, real-world problems involving circular shapes.",
+          "prerequisites": [
+            "jemh111__area_of_sector",
+            "jemh111__length_of_arc",
+            "jemh111__area_of_segment"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Misinterpreting the problem statement to select the wrong formula.",
+            "Ignoring units or practical constraints."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh112",
+      "chapter_name": "Surface Areas and Volumes",
+      "core_concepts": [
+        {
+          "concept_id": "jemh112__properties_of_basic_3d_shapes",
+          "chapter_doc": "jemh112",
+          "name": "Surface Area and Volume of Basic 3D Shapes",
+          "aliases": [
+            "Individual 3D shape formulas",
+            "Cuboid, Cone, Cylinder, Sphere, Hemisphere formulas"
+          ],
+          "summary": "Recalling and applying the formulas for surface area (curved and total) and volume of fundamental three-dimensional geometric shapes like cuboids, cylinders, cones, spheres, and hemispheres.",
+          "prerequisites": [],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Confusion between Curved Surface Area (CSA) and Total Surface Area (TSA)",
+            "Incorrect formula recall for specific shapes"
+          ]
+        },
+        {
+          "concept_id": "jemh112__decomposition_of_composite_solids",
+          "chapter_doc": "jemh112",
+          "name": "Decomposition of Composite Solids",
+          "aliases": [
+            "Breaking down complex shapes",
+            "Identifying component shapes"
+          ],
+          "summary": "The process of identifying and separating a complex three-dimensional object into its simpler, constituent basic geometric shapes (e.g., cylinder, cone, hemisphere) to facilitate calculation of its surface area or volume.",
+          "prerequisites": [
+            "jemh112__properties_of_basic_3d_shapes"
+          ],
+          "representations": [
+            "diagrammatic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly identifying the component shapes or their dimensions",
+            "Overlooking hidden components of the solid"
+          ]
+        },
+        {
+          "concept_id": "jemh112__surface_area_combined_solids",
+          "chapter_doc": "jemh112",
+          "name": "Calculating Surface Area of Combined Solids",
+          "aliases": [
+            "Total Surface Area of Composite Shapes",
+            "Area of objects formed by joining shapes"
+          ],
+          "summary": "Determining the total exposed surface area of an object formed by combining two or more basic 3D shapes, typically by summing the curved surface areas of the visible individual components and excluding any internal or overlapping surfaces.",
+          "prerequisites": [
+            "jemh112__properties_of_basic_3d_shapes",
+            "jemh112__decomposition_of_composite_solids"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Including the area of the common/joined base or overlapping surfaces",
+            "Calculating Total Surface Area (TSA) of individual parts instead of Curved Surface Area (CSA) where appropriate"
+          ]
+        },
+        {
+          "concept_id": "jemh112__volume_combined_solids",
+          "chapter_doc": "jemh112",
+          "name": "Calculating Volume of Combined Solids",
+          "aliases": [
+            "Volume of Composite Shapes",
+            "Capacity of combined objects"
+          ],
+          "summary": "Determining the total volume of an object formed by combining two or more basic 3D shapes, by summing or subtracting the volumes of its individual constituent parts, acknowledging that volumes are always additive.",
+          "prerequisites": [
+            "jemh112__properties_of_basic_3d_shapes",
+            "jemh112__decomposition_of_composite_solids"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Incorrectly adding or subtracting volumes for internal cavities or combined solids",
+            "Confusing volume concepts with surface area concepts"
+          ]
+        },
+        {
+          "concept_id": "jemh112__real_world_applications",
+          "chapter_doc": "jemh112",
+          "name": "Real-World Applications of Surface Area and Volume",
+          "aliases": [
+            "Practical problems of SA and Volume",
+            "Everyday uses of combined shapes"
+          ],
+          "summary": "Applying the concepts and calculation methods for surface areas and volumes of composite solids to solve practical problems involving real-life objects and scenarios such as painting, capacity, or material usage.",
+          "prerequisites": [
+            "jemh112__surface_area_combined_solids",
+            "jemh112__volume_combined_solids"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Difficulty translating real-world problem statements into mathematical models",
+            "Misinterpreting the question (e.g., calculating volume when surface area is required)"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh113",
+      "chapter_name": "Statistics",
+      "core_concepts": [
+        {
+          "concept_id": "jemh113__grouped_frequency_distribution",
+          "chapter_doc": "jemh113",
+          "name": "Grouped Frequency Distribution",
+          "aliases": [
+            "Frequency Distribution Table",
+            "Class Intervals",
+            "Class Mark"
+          ],
+          "summary": "A method to organize large datasets into classes or intervals along with their corresponding frequencies, using class marks as representative values for subsequent calculations.",
+          "prerequisites": [],
+          "representations": [
+            "tabular",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing upper/lower limits for class intervals, especially when data points fall on boundaries.",
+            "Incorrectly calculating class marks (mid-points)."
+          ]
+        },
+        {
+          "concept_id": "jemh113__mean_grouped_data",
+          "chapter_doc": "jemh113",
+          "name": "Mean of Grouped Data",
+          "aliases": [
+            "Arithmetic Mean",
+            "Direct Method",
+            "Assumed Mean Method",
+            "Step-Deviation Method"
+          ],
+          "summary": "The average value of a grouped dataset, calculated using direct, assumed mean, or step-deviation methods, each employing class marks and frequencies.",
+          "prerequisites": [
+            "jemh113__grouped_frequency_distribution"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "tabular",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Using the wrong formula for a specific method.",
+            "Errors in calculation, especially with deviations or assumed mean.",
+            "Believing different methods yield different means for the same data."
+          ]
+        },
+        {
+          "concept_id": "jemh113__mode_grouped_data",
+          "chapter_doc": "jemh113",
+          "name": "Mode of Grouped Data",
+          "aliases": [
+            "Modal Class"
+          ],
+          "summary": "The value with the highest frequency in a grouped dataset, identified by first determining the modal class and then applying a specific formula.",
+          "prerequisites": [
+            "jemh113__grouped_frequency_distribution"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "tabular",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing the modal class with the actual mode value.",
+            "Incorrectly identifying the frequency of the modal class or its preceding/succeeding classes."
+          ]
+        },
+        {
+          "concept_id": "jemh113__cumulative_frequency",
+          "chapter_doc": "jemh113",
+          "name": "Cumulative Frequency",
+          "aliases": [
+            "Less Than Type Cumulative Frequency",
+            "More Than Type Cumulative Frequency"
+          ],
+          "summary": "A running total of frequencies, representing the number of observations less than or equal to a certain value ('less than' type) or greater than or equal to a certain value ('more than' type).",
+          "prerequisites": [
+            "jemh113__grouped_frequency_distribution"
+          ],
+          "representations": [
+            "tabular",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Errors in summing frequencies for 'less than' or 'more than' types.",
+            "Confusing cumulative frequency with simple frequency for an interval."
+          ]
+        },
+        {
+          "concept_id": "jemh113__median_grouped_data",
+          "chapter_doc": "jemh113",
+          "name": "Median of Grouped Data",
+          "aliases": [
+            "Median Class"
+          ],
+          "summary": "The middle value of a grouped dataset, determined by first identifying the median class using cumulative frequencies and then applying a specific formula.",
+          "prerequisites": [
+            "jemh113__grouped_frequency_distribution",
+            "jemh113__cumulative_frequency"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "tabular",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Incorrectly identifying the median class.",
+            "Using the wrong cumulative frequency (e.g., from the median class itself instead of the preceding one).",
+            "Failing to convert discrete intervals to continuous classes before calculation."
+          ]
+        },
+        {
+          "concept_id": "jemh113__interpreting_measures",
+          "chapter_doc": "jemh113",
+          "name": "Interpreting Measures of Central Tendency",
+          "aliases": [
+            "Relationship between Mean, Median, Mode",
+            "Choosing appropriate measure"
+          ],
+          "summary": "Understanding the characteristics of mean, median, and mode, their empirical relationship, and knowing when to use each measure effectively based on data distribution and context.",
+          "prerequisites": [
+            "jemh113__mean_grouped_data",
+            "jemh113__mode_grouped_data",
+            "jemh113__median_grouped_data"
+          ],
+          "representations": [
+            "verbal",
+            "tabular"
+          ],
+          "misconceptions": [
+            "Assuming the mean is always the most suitable measure.",
+            "Not understanding the impact of outliers on the mean vs. median.",
+            "Confusing the interpretation of each measure's value."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh114",
+      "chapter_name": "Probability",
+      "core_concepts": [
+        {
+          "concept_id": "jemh114__random_experiment_equally_likely",
+          "chapter_doc": "jemh114",
+          "name": "Random Experiments and Equally Likely Outcomes",
+          "aliases": [
+            "Random Trials",
+            "Fair Events",
+            "Unbiased Events"
+          ],
+          "summary": "Defines a random experiment as an activity with unpredictable individual outcomes but a known set of all possible outcomes, and introduces equally likely outcomes where each outcome has the same chance of occurring.",
+          "prerequisites": [],
+          "representations": [
+            "verbal"
+          ],
+          "misconceptions": [
+            "Assuming all outcomes in every experiment are naturally equally likely; confusing a random experiment with a non-random process."
+          ]
+        },
+        {
+          "concept_id": "jemh114__sample_space_events",
+          "chapter_doc": "jemh114",
+          "name": "Sample Space and Events",
+          "aliases": [
+            "Possible Outcomes",
+            "Favorable Outcomes",
+            "Elementary Event"
+          ],
+          "summary": "Explains the sample space as the set of all possible outcomes of a random experiment, and an event as any subset of the sample space, including elementary events consisting of a single outcome.",
+          "prerequisites": [
+            "jemh114__random_experiment_equally_likely"
+          ],
+          "representations": [
+            "verbal",
+            "tabular",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Not identifying all possible outcomes in the sample space; confusing an outcome with an event; incorrectly identifying favorable outcomes."
+          ]
+        },
+        {
+          "concept_id": "jemh114__theoretical_probability_formula",
+          "chapter_doc": "jemh114",
+          "name": "Theoretical Probability Definition and Formula",
+          "aliases": [
+            "Classical Probability",
+            "Probability Formula"
+          ],
+          "summary": "Defines theoretical probability for an event E as the ratio of the number of outcomes favorable to E to the total number of equally likely outcomes in the sample space, expressed as P(E) = (Number of favorable outcomes) / (Total number of possible outcomes).",
+          "prerequisites": [
+            "jemh114__random_experiment_equally_likely",
+            "jemh114__sample_space_events"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Using the formula when outcomes are not equally likely; incorrectly counting favorable or total outcomes; thinking probability is about predicting specific single outcomes."
+          ]
+        },
+        {
+          "concept_id": "jemh114__probability_range",
+          "chapter_doc": "jemh114",
+          "name": "Range of Probability: Impossible and Sure Events",
+          "aliases": [
+            "Probability Bounds",
+            "Impossible Event",
+            "Sure Event",
+            "Certain Event"
+          ],
+          "summary": "Establishes that the probability of any event P(E) must fall between 0 and 1 (0 ≤ P(E) ≤ 1), where 0 signifies an impossible event and 1 signifies a sure (certain) event.",
+          "prerequisites": [
+            "jemh114__theoretical_probability_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Calculating a probability greater than 1 or less than 0; thinking impossible events have a tiny probability instead of zero."
+          ]
+        },
+        {
+          "concept_id": "jemh114__complementary_events",
+          "chapter_doc": "jemh114",
+          "name": "Complementary Events",
+          "aliases": [
+            "Complement of an Event",
+            "Not E"
+          ],
+          "summary": "Explains that the complement of an event E (denoted E-bar) is the event that E does not occur, and the sum of their probabilities is always 1, i.e., P(E) + P(E-bar) = 1 or P(E-bar) = 1 - P(E).",
+          "prerequisites": [
+            "jemh114__theoretical_probability_formula",
+            "jemh114__probability_range"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Confusing mutually exclusive events with complementary events; incorrectly applying the 1-P(E) formula when events are not complementary."
+          ]
+        },
+        {
+          "concept_id": "jemh114__sum_elementary_probabilities",
+          "chapter_doc": "jemh114",
+          "name": "Sum of Probabilities of All Elementary Events",
+          "aliases": [
+            "Total Probability of Sample Space"
+          ],
+          "summary": "States that the sum of the probabilities of all distinct elementary events that constitute the entire sample space of a random experiment is always equal to 1.",
+          "prerequisites": [
+            "jemh114__sample_space_events",
+            "jemh114__theoretical_probability_formula"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Assuming this property applies to any set of events, not just elementary ones that partition the sample space."
+          ]
+        },
+        {
+          "concept_id": "jemh114__geometric_probability",
+          "chapter_doc": "jemh114",
+          "name": "Geometric Probability",
+          "aliases": [
+            "Probability in Continuous Sample Space"
+          ],
+          "summary": "Introduces probability for continuous sample spaces, calculated as the ratio of a favorable geometric measure (length or area) to the total geometric measure of the sample space.",
+          "prerequisites": [
+            "jemh114__theoretical_probability_formula"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Applying discrete counting methods to continuous scenarios; confusing area/length ratios with counting outcomes; misidentifying the relevant geometric measures."
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh1a1",
+      "chapter_name": "Appendix 1: Proofs in Mathematics",
+      "core_concepts": [
+        {
+          "concept_id": "jemh1a1__mathematical_statement",
+          "chapter_doc": "jemh1a1",
+          "name": "Mathematical Statement",
+          "aliases": [
+            "Statement",
+            "Mathematical Proposition"
+          ],
+          "summary": "A sentence that is either unequivocally true or unequivocally false, but not both, serving as a fundamental unit for mathematical reasoning.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Believing all sentences (questions, commands) are mathematical statements",
+            "Assuming a statement can be both true and false simultaneously"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__deductive_reasoning",
+          "chapter_doc": "jemh1a1",
+          "name": "Deductive Reasoning",
+          "aliases": [
+            "Deduction"
+          ],
+          "summary": "A logical process where a conclusion is derived from one or more assumed true premises, ensuring that if the premises are true, the conclusion must also be true.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic"
+          ],
+          "misconceptions": [
+            "Confusing deductive reasoning with inductive reasoning or guesswork",
+            "Believing a conclusion is always true even if the premises are flawed or unproven"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__conjecture_counterexample",
+          "chapter_doc": "jemh1a1",
+          "name": "Conjecture and Counterexample",
+          "aliases": [
+            "Mathematical Conjecture",
+            "Disproving a Conjecture"
+          ],
+          "summary": "A conjecture is an unproven mathematical statement based on observations or patterns; a counterexample is a specific instance that definitively proves a conjecture false.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement",
+            "jemh1a1__deductive_reasoning"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "numerical",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Believing that a pattern observed for several cases constitutes a mathematical proof",
+            "Not understanding that a single counterexample is sufficient to disprove a universal statement"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__direct_proof",
+          "chapter_doc": "jemh1a1",
+          "name": "Direct Proof",
+          "aliases": [
+            "Deductive Proof"
+          ],
+          "summary": "A method of proof where the conclusion is established by logically deriving it step-by-step from axioms, definitions, and previously proven theorems.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement",
+            "jemh1a1__deductive_reasoning"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Assuming steps in a proof without providing justification or reference",
+            "Confusing illustrating with examples as a form of proof"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__negation_of_statements",
+          "chapter_doc": "jemh1a1",
+          "name": "Negation of Statements",
+          "aliases": [
+            "Logical Negation"
+          ],
+          "summary": "The process of forming a new statement that has the opposite truth value of the original statement, typically denoted by '~p' for statement 'p'.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Simply inserting 'not' into a sentence without accurately reversing its truth value",
+            "Incorrectly negating statements that involve quantifiers like 'all' or 'some'",
+            "Believing a statement and its negation can both be true or both false"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__conditional_converse",
+          "chapter_doc": "jemh1a1",
+          "name": "Conditional Statements and Converses",
+          "aliases": [
+            "If-then Statements",
+            "Converse Statement"
+          ],
+          "summary": "A conditional statement (if P, then Q) links a hypothesis to a conclusion; its converse (if Q, then P) swaps them, and its truth value is not necessarily the same as the original.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement",
+            "jemh1a1__negation_of_statements"
+          ],
+          "representations": [
+            "symbolic",
+            "verbal"
+          ],
+          "misconceptions": [
+            "Assuming that if a conditional statement is true, its converse must also be true",
+            "Confusing the converse of a statement with its negation"
+          ]
+        },
+        {
+          "concept_id": "jemh1a1__proof_by_contradiction",
+          "chapter_doc": "jemh1a1",
+          "name": "Proof by Contradiction",
+          "aliases": [
+            "Indirect Proof",
+            "Reductio ad Absurdum"
+          ],
+          "summary": "An indirect method of proof where one assumes the negation of the statement to be proven, and then demonstrates that this assumption logically leads to a contradiction, thereby proving the original statement.",
+          "prerequisites": [
+            "jemh1a1__mathematical_statement",
+            "jemh1a1__deductive_reasoning",
+            "jemh1a1__negation_of_statements"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic"
+          ],
+          "misconceptions": [
+            "Incorrectly forming the negation of the statement to be proven",
+            "Failing to identify a true logical contradiction within the argument",
+            "Confusing it with a direct proof method"
+          ]
+        }
+      ]
+    },
+    {
+      "doc_id": "jemh1a2",
+      "chapter_name": "Mathematical Modelling",
+      "core_concepts": [
+        {
+          "concept_id": "jemh1a2__mathematical_modelling",
+          "chapter_doc": "jemh1a2",
+          "name": "Mathematical Modelling",
+          "aliases": [
+            "Modeling"
+          ],
+          "summary": "The process of using mathematical descriptions and methods to analyze, understand, and solve real-life problems by converting them into mathematical problems.",
+          "prerequisites": [],
+          "representations": [
+            "verbal",
+            "diagrammatic"
+          ],
+          "misconceptions": [
+            "Modelling is only for complex scientific or engineering problems",
+            "Mathematical models are always perfectly accurate representations of reality"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__modelling_stages",
+          "chapter_doc": "jemh1a2",
+          "name": "Stages of Mathematical Modelling",
+          "aliases": [
+            "Steps of Modelling Process"
+          ],
+          "summary": "A systematic five-step process involving understanding the problem, formulating a mathematical description, solving the mathematical problem, interpreting the solution, and validating or revising the model.",
+          "prerequisites": [
+            "jemh1a2__mathematical_modelling"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "flowchart"
+          ],
+          "misconceptions": [
+            "The process is strictly linear and only done once",
+            "Skipping steps is acceptable if the problem seems simple"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__problem_formulation",
+          "chapter_doc": "jemh1a2",
+          "name": "Problem Understanding and Formulation",
+          "aliases": [
+            "Mathematical Description",
+            "Problem Definition"
+          ],
+          "summary": "The initial stages of mathematical modelling where a real-world problem is defined, simplified, and translated into mathematical terms using variables, equations, data, graphs, or probabilities.",
+          "prerequisites": [
+            "jemh1a2__modelling_stages"
+          ],
+          "representations": [
+            "verbal",
+            "symbolic",
+            "algebraic",
+            "tabular"
+          ],
+          "misconceptions": [
+            "All real-world details must be included in the model",
+            "Assuming variables without clear definitions or units"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__solving_model",
+          "chapter_doc": "jemh1a2",
+          "name": "Solving the Mathematical Problem",
+          "aliases": [
+            "Mathematical Solution"
+          ],
+          "summary": "The stage in mathematical modelling where the formulated mathematical description is solved using appropriate mathematical techniques, such as algebra, probability, ratios, or proportions.",
+          "prerequisites": [
+            "jemh1a2__modelling_stages",
+            "jemh1a2__problem_formulation"
+          ],
+          "representations": [
+            "symbolic",
+            "algebraic",
+            "tabular"
+          ],
+          "misconceptions": [
+            "The mathematical solution is automatically the real-world answer",
+            "Getting the 'right' mathematical answer means the model is correct and complete"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__interpretation_validation",
+          "chapter_doc": "jemh1a2",
+          "name": "Interpreting and Validating the Solution",
+          "aliases": [
+            "Model Assessment",
+            "Reality Check"
+          ],
+          "summary": "The final stages of mathematical modelling, where the mathematical solution is translated back into the real-world context and checked for reasonableness, accuracy, and consistency with observed data or expectations, leading to model revision if necessary.",
+          "prerequisites": [
+            "jemh1a2__modelling_stages",
+            "jemh1a2__solving_model"
+          ],
+          "representations": [
+            "verbal",
+            "tabular"
+          ],
+          "misconceptions": [
+            "If the numbers don't match exactly, the model is useless",
+            "Validation is a one-time step that confirms the model is perfect"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__iterative_modelling",
+          "chapter_doc": "jemh1a2",
+          "name": "Iterative Nature of Modelling",
+          "aliases": [
+            "Model Refinement Cycle",
+            "Revision in Modelling"
+          ],
+          "summary": "Mathematical modelling is an iterative process, meaning it often requires repeated cycles of refinement where assumptions are adjusted and the model is revised if the initial solution does not adequately capture the real-life situation or is not sufficiently accurate.",
+          "prerequisites": [
+            "jemh1a2__modelling_stages",
+            "jemh1a2__interpretation_validation"
+          ],
+          "representations": [
+            "verbal",
+            "diagrammatic",
+            "flowchart"
+          ],
+          "misconceptions": [
+            "Models are built once and are final",
+            "The first attempt at a model should be perfect and require no adjustments"
+          ]
+        },
+        {
+          "concept_id": "jemh1a2__modelling_importance",
+          "chapter_doc": "jemh1a2",
+          "name": "Importance and Applications of Mathematical Modelling",
+          "aliases": [
+            "Utility of Modelling",
+            "Uses of Modelling"
+          ],
+          "summary": "Mathematical modelling is crucial for understanding complex real-world systems, predicting outcomes (e.g., election results), making informed decisions, estimating large values, and simulating scenarios across various fields.",
+          "prerequisites": [
+            "jemh1a2__mathematical_modelling"
+          ],
+          "representations": [
+            "verbal"
+          ],
+          "misconceptions": [
+            "Modelling is too abstract to be useful in everyday life or simple problems",
+            "Its only purpose is to find a single, exact answer"
+          ]
+        }
+      ]
+    }
+  ]
+}

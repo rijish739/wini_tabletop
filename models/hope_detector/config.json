@@ -1,0 +1,14 @@
+{
+  "signals": [
+    "KI",
+    "KT",
+    "CT"
+  ],
+  "signal_map": {
+    "bridge": "KT"
+  },
+  "model": "sentence-transformers/all-MiniLM-L6-v2",
+  "seed": 42,
+  "n_scalars": 5,
+  "feature": "answer_emb + standardized scalars"
+}
