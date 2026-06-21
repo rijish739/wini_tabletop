@@ -55,6 +55,15 @@ def index():
     return send_from_directory(str(UI_DIR), "index.html")
 
 
+@app.route("/store/<path:relpath>")
+def store_file(relpath):
+    """T9 display channel: serve a figure crop (or any store asset) by its
+    store-relative path, e.g. /store/figure_crops/jemh102/fig_jemh102_fig_2_1.png.
+    `image_path` values in the turn result are store-relative; the browser
+    prefixes them with /store/. send_from_directory blocks path traversal."""
+    return send_from_directory(str(STORE), relpath)
+
+
 @app.route("/<path:filename>")
 def static_files(filename):
     return send_from_directory(str(UI_DIR), filename)

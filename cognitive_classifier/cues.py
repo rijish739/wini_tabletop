@@ -93,7 +93,9 @@ CUE_NAMES = [
 
 # Standalone cue (NOT part of the feature vector): the student confirms they
 # understood the previous explanation. Used by tutor_loop rules so an
-# acknowledgment never triggers a re-explanation.
+# acknowledgment never triggers a re-explanation. Reason-bearing replies such
+# as "yes because ..." are not pure acks; the pacing layer keeps them as
+# student evidence.
 ACK_RE = re.compile(
     r"\b(yes|ya|yeah|ok(ay)?|got it|understood|i (have |had )?understood"
     r"|makes sense|that helps|it (helped|explained)|clear now|all clear"
@@ -102,6 +104,47 @@ ACK_RE = re.compile(
 )
 
 _WH_RE = re.compile(r"\b(what|why|how|which|where|when|who)\b", re.IGNORECASE)
+
+# Standalone cues (NOT part of the feature vector, like ACK_RE above) used only
+# by the tutor_loop runtime — adding them does NOT change gold semantics or the
+# logreg widths, so no classifier/policy rebuild is required.
+#
+# CLARIFY_RE: the student is signalling "I did not understand / this is too hard /
+# you are repeating yourself / make it simpler" — a meta-confusion or simplification
+# plea, NOT an attempt at any pending diagnostic. The exemplar classifier often
+# misreads these as curiosity/high_confidence (see learning_log regression: an
+# overwhelmed "how can i learn in an easy manner" scored curiosity 0.67), so this
+# deterministic cue must be available to outrank it in the pedagogy rules.
+CLARIFY_RE = re.compile(
+    r"(can'?t|can ?not|could ?n'?t|do ?n'?t|did ?n'?t|not able to|unable to) "
+    r"(really |quite |fully |even )?(understand|get it|get this|follow|grasp|make sense of)"
+    r"|did ?n'?t (understand|get|follow)|not (clear|getting|understanding)"
+    r"|what (do|did|does) (you|u|that|this) mean"
+    r"|i('?m| am)? (so |really |totally |very |a bit )?(confused|lost)"
+    r"|\b(scary|too hard|too difficult|too confusing|too complicated)\b"
+    r"|(so|too|very) (hard|difficult|confusing|complicated|tough)"
+    r"|makes? no sense|does ?n'?t make sense|not making sense"
+    r"|\brepeat(ing|ed)?\b|same (answer|thing|question|reply)|again and again"
+    r"|(easy|easier|simple|simpler) (manner|way)|in (a |an )?easy"
+    r"|\b(simpler|more simply|simply put|in simple (words|terms))\b"
+    r"|explain (it |this )?(again|differently|another way|in a simpler)"
+    r"|say (it|that) again|one more time|once more"
+    r"|still (confused|lost|stuck|do ?n'?t (get|understand))",
+    re.IGNORECASE,
+)
+
+
+def is_clarification_request(text: str) -> bool:
+    """True when the reply is a confusion / 'make it simpler' / 'you are repeating'
+    plea rather than an answer attempt. Standalone runtime cue (see CLARIFY_RE)."""
+    return bool(CLARIFY_RE.search(text or ""))
+
+
+def is_answer_attempt(text: str) -> bool:
+    """True when the reply carries a surface cue of actually attempting an answer
+    ('i think it is...', 'the answer is', '= 5', 'is it 0'). Standalone runtime cue
+    used to protect genuine attempts from the non-attempt guard."""
+    return bool(ANSWER_RE.search(text or ""))
 
 
 def is_pure_ack(text: str) -> bool:
@@ -112,10 +155,10 @@ def is_pure_ack(text: str) -> bool:
     MiniLM embeds "makes sense now" next to "not making sense now"), so this
     deterministic cue must outrank the classifier in the pedagogy rules —
     same philosophy as the question rule. "yes but what about..." is NOT a
-    pure ack: any question mark, WH-word, or 'but' disqualifies it.
+    pure ack: any question mark, WH-word, 'but', or reason marker disqualifies it.
     """
     return bool(ACK_RE.search(text)) and "?" not in text \
-        and not _WH_RE.search(text) and not re.search(r"\bbut\b", text, re.IGNORECASE)
+        and not _WH_RE.search(text) and not re.search(r"\b(but|because|since|as)\b", text, re.IGNORECASE)
 
 
 def is_question(text: str) -> bool:

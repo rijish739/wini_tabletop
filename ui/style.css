@@ -281,6 +281,59 @@ body {
   color: var(--text-primary);
 }
 
+/* KaTeX: keep display-math blocks inside the bubble (scroll, don't overflow) */
+.message-bubble .katex-display {
+  margin: 0.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.message-bubble .katex { font-size: 1.02em; }
+
+/* T9 multimodal display channel — textbook crop shown while Wini explains */
+.message-figure {
+  margin: 8px 0 4px;
+  padding: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  max-width: 299px;        /* 35% smaller than the original 460px */
+  animation: figure-in 0.25s ease;
+}
+
+@keyframes figure-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.figure-img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-sm);
+  background: #fff;            /* crops are on transparent/white textbook ground */
+}
+
+.figure-caption {
+  margin-top: 6px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: var(--text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.figure-eye { font-size: 0.8rem; }
+
+.figure-reps {
+  padding: 1px 6px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--blue);
+  font-size: 0.66rem;
+}
+
 .message-meta {
   display: flex;
   align-items: center;

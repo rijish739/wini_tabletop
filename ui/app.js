@@ -175,6 +175,7 @@
           bridgeIds: data.bridge_ids,
           pendingCheck: data.pending_check,
           pendingHope: data.pending_hope,
+          display: data.display,
         });
 
         // Update dashboard
@@ -204,8 +205,16 @@
 
     const bubble = document.createElement('div');
     bubble.className = 'message-bubble';
-    bubble.textContent = text;
+    bubble.textContent = text;        // set as text first (no HTML injection), then typeset math
+    renderMath(bubble);
     msg.appendChild(bubble);
+
+    // T9 multimodal display channel: show the textbook crop while Wini explains
+    if (role === 'wini' && meta.display && meta.display.length) {
+      for (const d of meta.display) {
+        msg.appendChild(buildFigure(d));
+      }
+    }
 
     // Writeback banner
     if (meta.writeback) {
@@ -326,6 +335,47 @@
     }
 
     return html;
+  }
+
+  // ── LaTeX math rendering (KaTeX auto-render) ───────────────────
+  function renderMath(el) {
+    if (typeof renderMathInElement !== 'function') return;  // CDN not loaded / offline
+    try {
+      renderMathInElement(el, {
+        delimiters: [
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+          { left: '$$', right: '$$', display: true },
+        ],
+        throwOnError: false,           // bad LaTeX -> leave it as text, never break the bubble
+        ignoredTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+      });
+    } catch (e) { /* leave raw text on any KaTeX error */ }
+  }
+
+  // ── Display Figure (T9 multimodal channel) ─────────────────────
+  function buildFigure(d) {
+    const fig = document.createElement('figure');
+    fig.className = 'message-figure';
+
+    const img = document.createElement('img');
+    img.className = 'figure-img';
+    // image_path is store-relative; the server serves it under /store/
+    img.src = `${API}/store/${d.image_path}`;
+    img.alt = d.alt_text || 'figure';
+    img.loading = 'lazy';
+    img.title = d.why || '';
+    img.addEventListener('error', () => { fig.style.display = 'none'; });
+    fig.appendChild(img);
+
+    const cap = document.createElement('figcaption');
+    cap.className = 'figure-caption';
+    const reps = (d.supports_representation || []).join(' · ');
+    cap.innerHTML = `<span class="figure-eye">🖼</span> ${escapeHtml(d.alt_text || 'Figure on screen')}` +
+      (reps ? ` <span class="figure-reps">${escapeHtml(reps)}</span>` : '');
+    fig.appendChild(cap);
+
+    return fig;
   }
 
   // ── Cognitive Gauges ───────────────────────────────────────────

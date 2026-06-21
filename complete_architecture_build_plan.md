@@ -45,6 +45,13 @@ This one dataset supervises THREE models: the cognitive signal classifier (Part 
 concept resolver (Part 2 — `concept_id` column), and the pedagogy policy v1 (Part 5 —
 `target_policy_action` column).
 
+**Canonical source moved 2026-06-19.** `dataset/exemplar_dataset_10000_fixed.json` is now
+THE dataset of record: 10,000 audit-corrected base rows (external Gemini audit + an 11-rule
+text-evidence second pass) + 800 T2/T3 supplementary rows carrying `split:"train"`.
+`curate_dataset.py` reads it (no longer the raw file) and writes `exemplar_dataset_10000_curated.json`,
+the gold-rule projection that build_bank / build_policy / concept_resolver consume. The raw
+`exemplar_dataset_10000.json` profiled above is archived under `dataset/archive/` (provenance only).
+
 ---
 
 ## 2. PART 1 — MiniLM exemplar cognitive classifier  ← BUILDING NOW
@@ -68,8 +75,10 @@ wait for 15k examples) is evaluated as a comparison baseline only, not shipped a
 
 ### 2.2 Label canonicalization
 
-48 raw labels → ~36 canonical. Merge map (variants/singletons folded into the nearest
-canonical label, documented in `cognitive_classifier/label_space.py`):
+48 raw labels → 38 canonical (was ~36; `acknowledgment` added 2026-06-19 as its own
+canonical label for positive-confirmation utterances — see §2.5.2). Merge map
+(variants/singletons folded into the nearest canonical label, documented in
+`cognitive_classifier/label_space.py`):
 `recurring_misconception→recurring_error`, `prerequisite_weakness_clue→prerequisite_weakness`,
 `self_deprecation→low_confidence`, `visual_analogy→request_representation`,
 `surface_engagement→disengagement`, `application_*→physical`, `logical→abstraction_attempt`,
@@ -78,10 +87,13 @@ Labels still below MIN_SUPPORT=40 after merging are dropped from the label space
 
 ### 2.3 Splits
 
-80/10/10 train/val/test (8,000 exemplar bank / 1,000 threshold calibration / 1,000 held-out
-test), seeded, stratified on the primary (first) label with rare labels pooled. Splits saved
-to `models/exemplar_classifier/splits.json` so every later model trained on this dataset
-uses the SAME test rows (no leakage across Parts 1/2/5).
+80/10/10 train/val/test, seeded, stratified on the primary (first) label with rare labels
+pooled, drawn over the 10,000 base rows only. Splits saved to
+`models/exemplar_classifier/splits.json` so every later model trained on this dataset uses
+the SAME test rows (no leakage across Parts 1/2/5). **Regenerated 2026-06-19** when the source
+moved to `_fixed.json` (the prior frozen split was stratified on the old curated-from-raw
+labels; 893/999 test rows changed). The 800 supplementary rows (`split:"train"`) and the 1,331
+`augmented_rare_labels.json` rows are TRAIN-ONLY and never enter val/test.
 
 ### 2.4 Deliverables
 
@@ -152,6 +164,36 @@ These have augmented training support now; the honest blocker is **test-set supp
 which only more real (or held-out-quality) labeled data fixes. Note: build-1 vs build-2
 numbers are not strictly comparable — build 2 is scored against the curated gold, which
 is the point: the old gold was wrong.
+
+### 2.5.2 Third build (2026-06-19): fixed-source re-point + T2/T3 (all shipped)
+
+Two changes, rebuilt together:
+
+1. **T2 — `acknowledgment` label.** Positive-confirmation utterances ("ok got it",
+   "makes sense now") had almost no exemplars, so MiniLM's polarity blindness mislabeled
+   them `confusion`. Registered `acknowledgment` in `label_space.py`; added a deterministic
+   gold rule in `curate_dataset.py` (`is_pure_ack` ⇒ +acknowledgment, −confusion/−low_confidence);
+   authored ~300 pure-ack rows. T3 — 100 each for the weak long tail (answer_attempt,
+   self_correction, high_confidence, hint_dependency, representation_shift). All 800 are
+   supplementary `split:"train"` rows in `_fixed.json`.
+2. **Source re-point** — curate now derives from `_fixed.json` (audit-corrected labels)
+   instead of raw; splits regenerated (§2.3).
+
+Shipped scorer = **evidence+logreg** (selected by val macro-F1; the cleaner labels flipped
+the winner from knn+logreg). 38 canonical labels; 12,131 rows used (10,000 base + 800 supp +
+1,331 augmented in train).
+
+| metric (test, n=999, fixed-derived gold) | build 2 | build 3 |
+|---|---|---|
+| micro-F1 | 0.77 | **0.83 ✓** |
+| macro-F1 | 0.62 | **0.69 ✓** |
+| representation_shift F1 | 0.44 | **0.82** (T3) |
+| answer_attempt F1 | 0.30 | **0.71** (T3) |
+
+Pure-ack smoke test on the shipped bank: "ok got it" → ack 0.95, "makes sense now" → 0.91,
+confusion ≤ 0.25 (well under the 0.37 fire threshold); hard negatives ("yes but why x=2?")
+correctly low. `acknowledgment` per-label test F1 stays noisy (6 natural test rows; the 300
+authored acks are train-only) — same test-support blocker as the other rare labels.
 
 ---
 
@@ -256,23 +298,28 @@ RELATIVE terms on free text (strong 1.4 > memorized 0.3 > weak 0.2) but are cons
 calibrated in absolute terms (synthetic gold), so they shift all three signals similarly —
 fine for w7, which boosts the weakest signal, not absolute thresholds.
 
-## 6. PART 5 — Pedagogy policy (architecture §6.6, report §6) — SHADOW BUILT 2026-06-12
+## 6. PART 5 — Pedagogy policy (architecture §6.6, report §6) — SHADOW BUILT 2026-06-12, REBUILT 2026-06-19
 
 Code: `policy_shadow/` (shadow.py, build_policy.py); artifacts `models/policy_shadow/`.
-Actions canonicalized 27 → 15 (`canonicalize_action`: multi-action → first listed;
-VERBAL_ANALOGY → VISUAL_ANALOGY; RESUME_STATE/REQUEST_HINT dropped, 9 rows). Features =
+Actions canonicalized to the pedagogy set (`canonicalize_action`: multi-action → first
+listed; VERBAL_ANALOGY → VISUAL_ANALOGY; RESUME_STATE/REQUEST_HINT dropped). Features =
 exactly what runtime computes per turn: MiniLM emb (384) + Part-1 label scores + §6.2
-update aggregates (10). Multinomial logreg, frozen splits.
+update aggregates (10). Multinomial logreg.
 
-| model | test top-1 | test top-2 |
-|---|---|---|
-| majority class | 0.196 | — |
-| embedding only | 0.539 | 0.730 |
-| full features (shipped) | **0.558** | **0.745** |
+**Rebuilt 2026-06-19** on the fixed-derived curated set (cleaner action labels: the audit
+corrected ~6,900 actions) and now also trains on the 800 supplementary rows (632 enter
+train after dropping non-pedagogy actions). 14 canonical actions, n_label_scores = 38.
 
-Modest by design — the right action depends on learner history a single utterance can't
-carry. Hence SHADOW MODE: `tutor_loop.py` logs `shadow_suggestion` beside the rules'
-choice every turn; promotion only after it beats rules on logged real turns.
+| model | test top-1 (2026-06-12) | test top-1 (2026-06-19) | test top-2 |
+|---|---|---|---|
+| majority class | 0.196 | 0.405 | — |
+| embedding only | 0.539 | 0.670 | 0.821 |
+| full features (shipped) | 0.558 | **0.680** | **0.844** |
+
+The jump (0.558 → 0.680 top-1; EXPLAIN F1 0.498 → 0.733) is the cleaner fixed action labels
+plus the supplementary rows now reaching policy training. Still SHADOW MODE: `tutor_loop.py`
+logs `shadow_suggestion` beside the rules' choice every turn; promotion only after it beats
+rules on logged real turns.
 
 ## 7. PART 6 — Knowledge tracing (report §7.1)
 
@@ -362,6 +409,43 @@ manifest + cohesion (v1/v2), misconception probe→writeback (v2), hint-chain fa
 ack→reflect + conversation memory + Qwen cohesion judge + representation write-back (v3),
 HOPE probe→rolling (v4).
 
+**v5 (2026-06-20): multimodal display channel (T9) + closed-loop grading hardening.**
+- **T9 display channel**: `tutor_loop.turn()` now returns a `display` list — at most ONE
+  task-relevant figure crop per turn (working-memory limit). `figure`-type evidence is
+  already gated by query.py to the two show-cases (representation gap / active-misconception
+  disambiguation), so it always shows; an incidental `figure_caption` chunk shows only for
+  `REPRESENTATION_TRANSLATION`/`VISUAL_ANALOGY`. `image_path` stays store-relative (sinks
+  resolve it). The Qwen prompt gets a "refer to the figure on screen" cue on display turns.
+  Web UI feasibility path wired: `wini_ui_server.py` serves crops at `/store/<relpath>` and
+  `ui/app.js` renders the crop in the Wini bubble (KaTeX added so the LaTeX the tutor emits —
+  `\(x\)`, `\[..\]`, `x^2` — renders as real math, not raw text). Voice-side renderer added as a
+  separate file `voice/display.py` (`DisplaySink` protocol + `NullDisplaySink` default +
+  `TkDisplaySink` always-on-top pane), wired into `voice_hybrid_runner.py` behind an opt-in
+  `--display tk` flag synced to TTS start/clear — `--display none` keeps plain text+voice
+  unchanged. Verified: graphical-gap parabola question → Fig-2.2 crop shown; audio-only turns
+  return `[]`; traversal-guarded route serves PNGs.
+- **Grading hardening (three regressions found via `learning_log.jsonl` on a dev test
+  session, all fixed):**
+  1. *Non-attempt mis-grading* — the closed loop graded EVERY reply, so "I can not
+     understand" / "you are repeating yourself" were judged `wrong`, dropping mastery and
+     forcing misconceptions active. Fix: a deterministic `non_attempt` guard (no answer cue +
+     ack / clarification / bare question / fresh request) short-circuits to `not_an_answer`
+     BEFORE the local judge, and gates the HOPE scorer too.
+  2. *Confused learner challenged* — a misread curiosity score sent an overwhelmed learner to
+     `SOCRATIC_Q`. Fix: deterministic `rule 1b` (clarification cue) re-explains more simply,
+     outranking the inferred-misconception probe; plus a Qwen anti-repeat/simplify cue.
+  3. *`ct_probe` graded as a misconception* — a `ct_probe` carries a `question`, so it armed
+     `pending_check` and was written into `misconception_states` (bogus `ct_probe::…` entry)
+     while mastery dropped. Fix: only `bridge_diagnostic`/`misconception` may arm
+     `pending_check`; CT/KT/KI probes are HOPE-scored only. Verified end-to-end.
+  New standalone cues (`is_clarification_request`, `is_answer_attempt` in cues.py) are NOT in
+  the feature vector → no classifier/policy rebuild. `learner_state.json` (developer dummy
+  data, corrupted by the above) reset to a clean baseline.
+- **Regression coverage**: `smoke_test_phase5.py` extended with T6-T9 (Qwen calls monkeypatched,
+  no server needed) — non-attempt not graded, real answer still graded, clarification→EXPLAIN,
+  `ct_probe` HOPE-armed not graded, and the display channel surfaces one crop / nothing on
+  audio-only. All 11 new checks pass.
+
 ## 9. PART 8 — Evaluation & monitoring
 
 - Frozen test split (Part 1 splits.json) reused for every dataset-derived model.
@@ -386,3 +470,91 @@ analyzer and its splits.json freezes the shared evaluation contract.
 
 Lockstep rule: changes here propagate to `learner_cognitive_state_architecture.md` and
 `model_dataset_architecture_report.md` (3-doc rule from rag_memory.md, now 4 docs).
+
+---
+
+## 11. PART 9 — Jetson voice deployment (Layers A & C + in-process serving) — BUILT 2026-06-16
+
+Wiring the verified study core (Parts 1–8) into the end-to-end voice robot on the **Jetson
+Orin Nano** (JetPack R36.5, CUDA 12.6, Py 3.10, ROS 2 Humble). Full as-built detail +
+spec→reality deltas live in **`WINI_VOICE_STUDY_ARCHITECTURE.md` §12**; this is the
+build-status summary. ROS graph: `wakeword_node → /wake_word → fastwhisper_node →
+/speech_text → wini_brain_node → /llm_out(+/tts_done) → wini_tts_node`; `/robot_speaking`
+is the half-duplex mic gate. Retired (not launched): `llm_pkg` (ollama), `intent_pkg`.
+
+- **Phase 0 — study core imports clean (no cloud deps).** `wini_core` symlink → `cloud CLI`;
+  made faiss/google-genai/rank_bm25/rapidfuzz/python-dotenv **lazy**; `load_store(with_index=
+  False)`; networkx `edges="edges"` fix; new stdlib `device_config.py` (env paths, MiniLM
+  device). Verified `import tutor_loop` with none of those 5 installed.
+- **Phase 1 — MiniLM on CPU.** `sentence-transformers 5.5.1 --no-deps`; all-MiniLM-L6-v2 from
+  HF cache; ~84 ms/encode CPU.
+- **Phase 1.5 — CTranslate2 CUDA from source** (no aarch64 wheel): v4.7.1, `sm_87`,
+  `pybind11==2.13.6`; vendored `libctranslate2.so*` + `patchelf $ORIGIN` (no LD_LIBRARY_PATH);
+  `get_cuda_device_count()==1`. STT → `small.en/cuda/int8_float16`, **resident**.
+- **Phase 2 — in-process Qwen, streaming.** Built `llama-cpp-python 0.3.29` from source CUDA
+  (prebuilt 0.3.14 crashes on every gen). New `llm_local.py` (complete/stream_tokens/
+  stream_sentences). `tutor_loop.qwen_chat → llm_local.complete` (**:8080 server removed**);
+  `turn(text, on_sentence=…)` streams sentences. **MiniLM pinned to CPU** — fixes a process-
+  exit crash from torch+llama.cpp dual CUDA context. Pinned `setuptools<80` (colcon).
+- **Phase 3 — `wini_brain_pkg`.** Brain node subscribes `/speech_text`, runs
+  `TutorLoop.turn(on_sentence→/llm_out)`, owns `/robot_speaking=True` + `/tts_done`; pre-warms
+  Qwen at startup. Verified end-to-end; TTFS ≈ 3.4 s.
+- **Phase 4 — Kokoro TTS on GPU.** Native Kokoro→**TensorRT impossible** (TRT 10.3 rejects the
+  vocoder `STFT` op); CPU RTF≈2.4. Chose **onnxruntime-gpu 1.24.0 CUDA EP** (`--no-deps`,
+  numpy 1.24.4 kept; openWakeWord pins CPU so unaffected). `kokoro-onnx 0.5.0`+`phonemizer-
+  fork`+`espeakng-loader` `--no-deps`. **RTF≈0.17.** Rewrote `wini_tts_node`: resident Kokoro,
+  synth-ahead pipeline, `clean_for_tts()` (LaTeX/markdown), `/tts_done` gate handoff.
+- **Phase 5 — integration + robustness.** `wini_pipeline.launch.py` (all 4 nodes, ready ~9 s,
+  VRAM ≈ 6.2/7.6 GB). Audio: USB C-Media mic+speaker via **PulseAudio** (default sink/source),
+  TTS `output_device='pulse'`; speaker output confirmed. **Anti-self-trigger:** (a) Whisper
+  hallucination filter in `fastwhisper_node` (no_speech/logprob + blocklist); (b) `wakeword_
+  node` gated on `/robot_speaking`. **Wakeword false-fire fixed** (continuous feed, THRESHOLD
+  0.5, 2-frame debounce, refractory — 0 fires/40 s silent). **ALSA underrun fixed** via a
+  callback `sd.OutputStream` that fills silence when starved — 0 underruns over 41 sentences.
+
+**Open items:** A2 VAD divergence (RMS endpointing vs spec Silero), Qwen TTFS latency tuning
+(filler + prompt trim), occasional harmless wakeword ambient false-fire, session-context
+reset on wake, and the live human-voice test (injected `/speech_text` bypasses Whisper).
+
+## 12. PART 10 — Windows hybrid voice pipeline (cloud edges, local brain) — BUILT 2026-06-18
+
+A Windows laptop voice **test rig** that exercises the verified study core (Parts 1–8) over
+real speech, with only the voice edges in the cloud. Entry point `python voice_hybrid_runner.py
+--live`. Flow: `mic → Cloud STT (forced en-US) → MiniLM analysis → state-based filler →
+TutorLoop+Qwen (cohesion judge OFF) → Cloud TTS (en-IN Chirp3-HD, sentence-streamed) → speaker`.
+Turn-based / half-duplex (mic records only between Wini's turns); barge-in deferred. New code in
+`voice/` (`cloud_stt.py`, `cloud_tts.py`, `fillers.py`, `sanitize.py`, `live_session.py`,
+`live_tools.py`) + `pacing/`; the study core is unchanged.
+
+- **Gemini Live API tried and rejected as transport.** Native-audio `gemini-live-2.5-flash`
+  (a) would not vocalize a function-result verbatim, (b) when fed text it paraphrased and
+  **invented its own maths** (violates the local-brain mandate), and (c) its STT rendered
+  Indian-accented English into Telugu/Hindi script. Replaced both edges with purpose-built
+  Cloud Speech APIs. (Live reachable only at region `global` for project
+  `custom-model-training-493207`; `texttospeech` + `speech` APIs were `gcloud services enable`d.)
+- **STT — Cloud Speech-to-Text, forced `en-US`** + maths phrase-hints (boost "discriminant",
+  "real roots", …). English-only confirmed on real recordings (no Indic script); residual
+  accent errors only ("real roots"→"railroads"), mitigated by the phrase set.
+- **TTS — Cloud Text-to-Speech `en-IN-Chirp3-HD-Achernar`**, LINEAR16/24 kHz, **verbatim**
+  (speaks the local answer exactly — no embellishment). ~1.5–1.9 s synth for ~8 s audio;
+  spoken sentence-by-sentence so first audio is one short-sentence synth.
+- **Latency.** Cohesion judge disabled for voice (drops a big-prompt Qwen call per turn) and a
+  **Qwen generation warmup at startup**: first turn **11.2 s → 2.2 s**, subsequent 2–5 s.
+  Resolver lazy-load (~7 s) and the first MiniLM forward are pre-warmed at startup; per-turn
+  triage **~50 ms** (was ~10 s on a cold first turn).
+- **Cognitive fillers.** While the brain generates, Wini speaks a short filler chosen by the
+  MiniLM `cognitive_update` + triage (confused / curious / frustrated / hint / shift / ack /
+  default), a different phrase each time, all pre-synthesised. Replaces the fixed "Let me see".
+- **Spoken-budget enforcement (deliver, don't announce).** `qwen_answer` now hard-caps to whole
+  sentences within a word budget (`_truncate_to_spoken_budget`, drops token-cut fragments), and
+  the generation budget is resized to the ACTUAL action (`_budget_for_generation`) — the pacing
+  layer's pre-action guess (EXPLAIN 35 w) starved `WORKED_EXAMPLE`. WORKED_EXAMPLE raised to
+  **60 w / 4 sentences / `try_step`**, and the prompt forbids announcing ("let's use an
+  example") without working it: examples now substitute and compute to the result
+  (`D = (-4)² − 4·2·2 = 0`), and the micro-check asks about delivered content only. Generation
+  temperature 0.3 for instruction-following. Speech sanitizer (`voice/sanitize.py`) maps LaTeX/
+  symbols to words incl. `*`→"times" and strips stray `yes_no:` labels.
+
+**Open items:** local-VAD barge-in (currently half-duplex), streaming Qwen generation to close
+the post-filler gap, Cloud STT streaming (currently batch per utterance), and tuning the RMS
+endpoint threshold/`silence_ms` for child speech.

@@ -373,5 +373,88 @@ Human review cleared the Phase-6 blocker: user supplied `hope_bank_review_human.
    rewrite/drop the flagged non-discriminating prompts; then scale the bank.
 4. Pilot-phase §4b metrics (bridge usefulness 40–80% band, misconception resolution within
    3 sessions, retention lift at 3/7/21 days) — defined, awaiting real learners.
-5. Keep the 3-doc lockstep rule: changes here must propagate to
-   `learner_cognitive_state_architecture.md` and `model_dataset_architecture_report.md`.
+5. Keep the lockstep rule: changes here must propagate to
+   `learner_cognitive_state_architecture.md`, `model_dataset_architecture_report.md`, and
+   `complete_architecture_build_plan.md` (CLAUDE.md now lists all four).
+
+- **Windows hybrid voice pipeline (2026-06-18, build plan Part 10).** Added a cloud-edge/local-
+  brain voice rig (`voice/`, `pacing/`; `python voice_hybrid_runner.py --live`). **Gemini Live
+  API rejected**: native-audio model would not speak local text verbatim (paraphrased and
+  invented its own maths) and its STT produced Telugu/Hindi script for English speech. Switched
+  to **Cloud STT forced en-US** (+maths phrase-hints) and **Cloud TTS `en-IN-Chirp3-HD-Achernar`**
+  (verbatim, sentence-streamed). Latency: cohesion judge OFF for voice + Qwen generation warmup
+  at startup → first turn **11.2 s→2.2 s**, then 2–5 s; resolver pre-warmed so per-turn triage
+  ~50 ms. Fillers now chosen by MiniLM cognitive state + triage (varied, pre-synthesised), not a
+  fixed "let me see". **Spoken-budget bug fixed** (the user's report): a tight pre-action EXPLAIN
+  budget made Qwen *announce* a worked example then ask "did you understand" without working it.
+  Fix = `_budget_for_generation` resizes to the real action (WORKED_EXAMPLE 60 w/4 s/`try_step`),
+  `_truncate_to_spoken_budget` keeps whole sentences only, prompt forbids announce-without-deliver
+  and requires computing examples to the result, gen temp 0.3. Gotchas: google-genai rejects
+  `enterprise=False` next to `vertexai=True`; `texttospeech`+`speech` APIs had to be enabled;
+  sanitizer must convert `*`→"times" BEFORE markdown-stripping. Store untouched (RAG_upgrade_plan
+  unaffected); no new models/datasets (report unaffected).
+
+## Dataset re-point + T2/T3 classifier pass (2026-06-19, `dataset/` + `cognitive_classifier/` + `policy_shadow/`)
+
+Store untouched (RAG_upgrade_plan unaffected). Two things, rebuilt together; full build status in
+complete_architecture_build_plan.md §2.5.2 / §6.
+
+- **Canonical dataset moved to `exemplar_dataset_10000_fixed.json`** (was the curate source = raw
+  `exemplar_dataset_10000.json`). `_fixed.json` = 10,000 audit-corrected base rows (external Gemini
+  audit + an 11-rule text-evidence second pass, `dataset/apply_audit_fixes.py`) + 800 T2/T3
+  supplementary rows carrying `split:"train"`. `curate_dataset.py` now reads `_fixed.json` and
+  writes `_curated.json` (gold-rule projection = build input); raw + 100-sample + old backups moved
+  to `dataset/archive/`. `augmented_rare_labels.json` reverted to its original 1,331 (the 800 now
+  flow through fixed — no duplication).
+- **T2/T3**: `acknowledgment` registered as the 38th canonical label (`is_pure_ack` gold rule in
+  curate ⇒ +acknowledgment, −confusion/−low_confidence); ~300 pure-ack + 100×5 weak-label rows
+  authored. build_bank splits only the 10k base; supp + augmented are train-only. build_policy now
+  ALSO trains on the 800 (it reads curated).
+- **Splits REGENERATED** (old frozen one → `models/exemplar_classifier/_old_splits/`); 893/999 test
+  rows changed; val/test confined to base rows.
+- **Results**: classifier test micro/macro 0.77/0.62 → **0.83/0.69** (scorer flipped to
+  evidence+logreg); policy top-1/top-2 0.56/0.74 → **0.68/0.84** (EXPLAIN F1 0.50→0.73). Pure-ack
+  smoke: "ok got it"→ack 0.95, confusion ≤0.25.
+- **Gotchas**: (1) the four external audit files use DIFFERENT row-numbering (cats_123/last_100 =
+  array index; cats_456/789 = JSON line number = 8·idx+2) — match by utterance text, not row#.
+  (2) keyword matching this dataset needs word boundaries: `coin`⊂coincident, `block`⊂blocked,
+  `rope`/`tie`⊂properties, `sum`⊂summary; "sum" here means "a math problem". (3) rare-label test
+  F1 (ack, hint_dependency) stays noisy — the authored rows are train-only, so natural test support
+  is tiny; only real logged data fixes it. CLAUDE.md mandates + WINI_ARCHITECTURE/README/report/
+  build-plan updated to match.
+
+## T9 display channel + closed-loop grading incident (2026-06-20, `tutor_loop.py` + `cues.py` + `ui/`)
+
+Two pieces of work in one session, both touching the runtime loop (build-plan Part 7 v5).
+
+- **T9 multimodal display channel (flagship #1)**: `tutor_loop.turn()` now emits a `display`
+  list — ≤1 figure crop/turn. `_build_display` relies on query.py already gating `figure`-type
+  evidence to the two show-cases (representation gap / active-misconception disambiguation); an
+  incidental `figure_caption` chunk shows only for `REPRESENTATION_TRANSLATION`/`VISUAL_ANALOGY`.
+  `image_path` kept store-relative (channel-agnostic; web `/store/` route, future Windows pane /
+  Jetson `/display_image` each resolve). Qwen gets a "refer to the figure on screen" cue. Web UI
+  feasibility wired (`wini_ui_server.py` `/store/<relpath>`, `ui/app.js` `buildFigure`). Verified:
+  graphical-gap parabola → Fig-2.2 crop; audio-only → `[]`; 888 figure nodes carry valid crops.
+
+- **Closed-loop grading incident — 3 bugs found in one dev-test transcript** (a confused learner
+  said "this looks scary… how can I learn easily", "what did you mean, I can not understand", "you
+  are repeating the same answer"). `learning_log.jsonl` showed each graded **wrong** → mastery
+  0.20→0.10, misconceptions forced active, HOPE scored 0:
+  1. **Non-attempts were graded.** The loop ran every reply through `judge_answer`; the weak 3B
+     judge returns `wrong` for plain confusion. Fix: deterministic `non_attempt` guard (no answer
+     cue + ack/clarification/bare-question/fresh-request) → `not_an_answer` before the judge; same
+     guard gates the HOPE scorer.
+  2. **Confused → SOCRATIC.** Misread curiosity (0.67) routed an overwhelmed plea to a challenge.
+     Fix: `rule 1b` clarification override in `rules_decide` (re-explain simply), outranking the
+     inferred-misconception probe; + Qwen anti-repeat/simplify cue.
+  3. **`ct_probe` graded as a misconception.** A `ct_probe` carries a `question`, so it armed the
+     graded `pending_check` AND `pending_hope`; grading wrote a bogus
+     `misconception_states["ct_probe::…"] = active` and dropped concept mastery. Fix: only
+     `bridge_diagnostic`/`misconception` may arm `pending_check`; CT/KT/KI probes are HOPE-only.
+  **Gotchas/lessons**: (1) any evidence type carrying a `question`/`diagnostic_question` field will
+  be picked up by arming loops — gate by `type`, not by field presence. (2) New runtime cues
+  (`is_clarification_request`, `is_answer_attempt`) are standalone like `is_pure_ack` — NOT in
+  `cue_features`/`CUE_NAMES`, so no classifier/policy rebuild. (3) `mastery: None` entries seen in
+  the dummy state are legacy artifacts; no current code path writes them and `mastery()` handles
+  them. `learner_state.json` (developer dummy data, corrupted by the above) reset to a clean
+  baseline. Lockstep: architecture §6.4 grading contract + §6.6 rule 1b, build-plan Part 7 v5.

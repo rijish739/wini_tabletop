@@ -331,6 +331,17 @@ The learner state is not write-only from the Cognitive Analyzer. Two structured 
 - `apply_probe_result(misconception_id, outcome)` — a misconception diagnostic outcome drives
   the §10 status machine and adjusts misconception confidence and concept mastery.
 
+**Grading contract (closed loop, `tutor_loop`):** these write-back APIs fire only for a reply that
+actually *attempts* the pending question. A **non-attempt** — an acknowledgment, an "I don't
+understand / make it simpler / you are repeating yourself" plea, a fresh request, or a
+counter-question — is classified `not_an_answer` and moves no state (no mastery delta, no
+misconception activation, no HOPE score). This is enforced deterministically *before* the local
+judge runs, because the small judge otherwise mislabels plain confusion as `wrong`. Two arming
+rules follow from this: (1) only `bridge_diagnostic` and `misconception` evidence may arm the
+graded `pending_check`; (2) **CT/KT/KI probes (`ct_probe`/`transfer_target`/`integration_target`)
+are scored by the HOPE path only and are never written back as mastery/misconception diagnostics**
+— a `ct_probe` carries a `question` field but must not be graded as a misconception.
+
 ### Example structure
 
 ```json
@@ -485,6 +496,15 @@ The engine uses:
 - ZPD target range
 
 ### Decision examples and explicit contracts
+
+If the student explicitly signals they did not understand (an "I don't understand / make it
+simpler / you keep repeating yourself" plea — deterministic clarification cue):
+
+- **re-explain the same idea a different, simpler way; never answer a confused learner with a
+  Socratic challenge, and never re-serve a probe they just said they could not follow.** This
+  override (`rule 1b`) outranks the *inferred*-misconception probe, because the exemplar
+  classifier sometimes misreads an overwhelmed plea as high curiosity/confidence and would
+  otherwise route to `SOCRATIC_Q`.
 
 If the student is confused but curious:
 
@@ -1140,7 +1160,7 @@ These are now organized around learner cognition rather than chatbot intent.
 
 The following are not required for this architecture document:
 
-- voice / ASR / TTS
+- voice / ASR / TTS (edges only; the **spoken pacing contract** they require IS in scope — see §21)
 - turn-taking
 - games
 - storytelling
@@ -1225,4 +1245,36 @@ From this architecture, the following documents exist or are planned:
 - `pedagogy_policy_rules.md` (formalize §13 Rules 1–12 as executable policy)
 - `cognitive_signal_definitions.md`
 - `session_persistence_spec.md`
+
+---
+
+## 21. Spoken pacing contract (voice runtime)
+
+Voice I/O edges (ASR/TTS) remain out of scope as deployment concerns (§17), but speaking
+to a child imposes a *cognition* contract that this document owns: short spoken turns must
+not corrupt the learner model, and a turn must DELIVER its idea rather than announce it.
+Implemented in `pacing/` and consumed by the Windows voice rig (build plan Part 10) and the
+Jetson brain node (Part 9).
+
+**State-channel discipline for spoken replies.** A spoken turn is triaged before the tutor
+turn (`pacing/triage.py`) into one of: answer-current-prompt, hint_request, topic_shift, ack,
+elaboration, unclear. Only **one** state channel may move per turn, and the §10/§13-rule-8
+discipline still holds: deep state (mastery, misconception status, bridge mastery, HOPE)
+moves ONLY through `pending_check` closure (`apply_probe_result`/`apply_bridge_result`); a
+spoken reply that merely adds a side comment updates **soft** signals only. A pacing
+micro-check (`session.pace.pending_micro_check`) is NOT a mastery check and can never move
+deep state — it lives separately from `session.pending_check`. A yes/no answer that carries
+extra reasoning closes the pace check and keeps the reasoning as soft evidence; a mid-turn
+hint request routes to the existing hint chain; an ambiguous concept abstains/confirms rather
+than silently switching topic.
+
+**Action-aware spoken budget.** Spoken answers are capped to whole sentences within a word
+budget that reflects the ACTUAL pedagogical action (not a pre-action guess): e.g.
+`WORKED_EXAMPLE` = 60 words / 4 sentences with a `try_step` check, `SOCRATIC_Q` = 25 words /
+1 sentence. The generator must deliver one complete atomic idea — if it uses an example it
+must substitute the numbers and compute through to the result — and the closing micro-check
+may only ask about content actually delivered in that reply (never "did you understand"
+about something not shown). This is the contract that prevents the failure mode where a tight
+budget makes the model announce an example and then ask if it was understood without ever
+working it.
 

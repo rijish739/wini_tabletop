@@ -7,6 +7,11 @@
   <meta name="description" content="Real-time test harness for the Wini lockstep cognitive tutoring system — chat, cognitive analysis, HOPE metrics, and full pipeline visualization.">
   <link rel="stylesheet" href="style.css">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+  <!-- KaTeX: render the LaTeX (\(..\), \[..\], x^2, \frac, \times) the tutor emits.
+       CDN is fine for this browser test harness; vendor these files for offline use. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 </head>
 <body>
   <div class="app-shell">

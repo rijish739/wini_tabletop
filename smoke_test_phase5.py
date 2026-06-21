@@ -58,6 +58,97 @@ def manifest_ids_valid(manifest, chunks_by_id, G) -> bool:
     return bool(manifest["evidence"])
 
 
+def tutor_loop_guard_checks():
+    """Regression for the 2026-06-20 tutor_loop fixes (build-plan Part 7 v5):
+    non-attempt grading guard, clarification routing (rule 1b), ct_probe is
+    HOPE-only (never graded as a misconception), and the T9 display channel.
+
+    The two Qwen calls are monkeypatched so this needs no llama.cpp server and is
+    deterministic; everything else (analyzer, retrieval, state machine) runs for real.
+    """
+    import tutor_loop
+    from tutor_loop import TutorLoop
+
+    judge_calls = []
+    tutor_loop.judge_answer = lambda q, e, a: (judge_calls.append(a) or "wrong")
+    tutor_loop.qwen_answer = lambda *a, **k: "(stub answer)"
+
+    QCID = "jemh102__quadratic_zero_geometry"
+    MID = "misconception::quadratic_always_has_two_real_zeroes"
+
+    print("\n--- tutor_loop grading/display guards (T6-T9) ---")
+    loop = TutorLoop(state_path=None, want_answer=True, use_judge=False)  # one heavy load, reused
+
+    def armed_misconception_state(mastery=0.5):
+        return {
+            "concept_states": {QCID: {"mastery": mastery}},
+            "misconception_states": {MID: {"status": "active", "consecutive_correct": 0,
+                                           "consecutive_failures": 0}},
+            "session": {"current_concept": QCID, "pending_check": {
+                "kind": "misconception", "id": MID, "concept_id": QCID,
+                "question": "How many zeroes can a quadratic polynomial have?",
+                "expected_answer": "0, 1, or 2 real zeroes.", "hint_chain": None}},
+            "global": {},
+        }
+
+    # T6: a non-attempt (confusion plea) must NOT be graded or move mastery.
+    loop.state.data = armed_misconception_state()
+    judge_calls.clear()
+    before = loop.state.mastery(QCID)
+    res = loop.turn("what did you mean by this, i can not understand")
+    check("T6a non-attempt not graded (no judge, no writeback)",
+          res.get("writeback") is None and not judge_calls)
+    check("T6b non-attempt holds mastery", loop.state.mastery(QCID) == before,
+          f"{before:.2f} -> {loop.state.mastery(QCID):.2f}")
+    check("T6c non-attempt routes to EXPLAIN (rule 1b)", res["action"] == "EXPLAIN",
+          f"action={res['action']}")
+
+    # T7: a genuine answer attempt IS still graded (guard does not over-block).
+    loop.state.data = armed_misconception_state()
+    judge_calls.clear()
+    res = loop.turn("i think the answer is it can have zero, one or two real zeroes")
+    check("T7 real answer still graded", res.get("writeback") is not None and bool(judge_calls),
+          f"judge_called={bool(judge_calls)}")
+
+    # T8: a ct_probe must be HOPE-armed, never armed as a graded misconception.
+    loop.state.data = {"concept_states": {QCID: {"mastery": 0.5}}, "misconception_states": {},
+                       "session": {"current_concept": QCID}, "global": {}}
+    analysis = {
+        "raw_text": "give me a challenge", "normalized_text": "give me a challenge",
+        "signals": ["curiosity"], "signal_scores": {},
+        "concept": {"concept_id": QCID, "concept_confidence": 0.8, "abstained": False,
+                    "secondary_concepts": []},
+        "cognitive_update": {"confusion": 0.2, "curiosity": 0.7, "confidence": 0.5,
+            "misconception_probability": 0.1, "transfer_attempt": 0.1, "abstraction_attempt": 0.1,
+            "self_correction": 0.1, "cognitive_load": 0.2, "engagement": 0.6, "frustration_risk": 0.1},
+        "state_deltas": {"global": {"confidence": 0.5, "curiosity": 0.7, "cognitive_load": 0.2,
+                                    "engagement": 0.6}, "concept_id": QCID, "concept_flags": []},
+    }
+    res = loop.turn("give me a challenge", precomputed_analysis=analysis)
+    pc_id = str((loop.state.data["session"].get("pending_check") or {}).get("id") or "")
+    check("T8a Socratic turn served", res["action"] == "SOCRATIC_Q", f"action={res['action']}")
+    check("T8b ct_probe HOPE-armed (CT)", res["pending_hope"] == "CT")
+    check("T8c ct_probe NOT armed as a graded diagnostic", not pc_id.startswith("ct_probe"),
+          f"pending_check={pc_id}")
+    check("T8d no bogus ct_probe in misconception_states",
+          not any(k.startswith("ct_probe") for k in loop.state.misconception_states))
+
+    # T9: display channel surfaces ONE crop for a representation gap; audio-only otherwise.
+    loop.state.data = {"concept_states": {QCID: {"mastery": 0.5,
+                       "representations_known": ["symbolic", "verbal"]}}, "misconception_states": {},
+                       "session": {"current_concept": QCID}, "global": {}}
+    res = loop.turn("show me the graph of a quadratic with no real zeroes, i only think in equations")
+    disp = res.get("display") or []
+    check("T9a graphical-gap turn shows one crop",
+          len(disp) == 1 and bool(disp[0].get("image_path")),
+          f"display={[d.get('image_path') for d in disp]}")
+    check("T9b crop file exists on disk", bool(disp) and (STORE / disp[0]["image_path"]).exists())
+    loop.state.data = {"concept_states": {}, "misconception_states": {}, "session": {}, "global": {}}
+    res = loop.turn("what is the quadratic formula")
+    check("T9c audio-only turn shows nothing", res.get("display") == [],
+          f"display={res.get('display')}")
+
+
 def main():
     chunks = [json.loads(l) for l in (STORE / "chunks.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
     chunks_by_id = {c["chunk_id"]: c for c in chunks}
@@ -132,6 +223,9 @@ def main():
     # ---------------- T5: manifest validity (over all turns above) ----------------
     for i, m in enumerate([manifest, manifest2], 1):
         check(f"T5.{i} manifest non-empty + all ids exist", manifest_ids_valid(m, chunks_by_id, G))
+
+    # T6-T9: tutor_loop grading/routing/display guards (2026-06-20 regressions)
+    tutor_loop_guard_checks()
 
     print(f"\nALL {PASS_COUNT} SMOKE CHECKS PASSED")
 

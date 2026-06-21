@@ -64,8 +64,16 @@ QWEN = "http://127.0.0.1:8080"
 
 
 def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
-                 acknowledged: bool = False) -> tuple[str, str, str]:
+                 acknowledged: bool = False, clarification: bool = False) -> tuple[str, str, str]:
     s = set(signals)
+    # rule 1b (deterministic, outranks the inferred-misconception probe): the
+    # student EXPLICITLY signalled they did not understand / it is too hard / we
+    # are repeating ourselves. Re-explain the SAME idea more simply — never answer
+    # a confused learner with a Socratic challenge, and never re-serve a probe they
+    # just said they could not follow (learning_log repetition + mis-grade regression).
+    if clarification and not acknowledged:
+        return "EXPLAIN", "explain", \
+            "rule 1b: learner did not understand -> re-explain more simply (no challenge, no re-probe)"
     if "misconception_suspected" in flags:
         return "MISCONCEPTION_PROBE", "explain", "rule 2: probe before correcting (section 13 rule 8)"
     if "hint_requested" in flags:
@@ -138,7 +146,9 @@ def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> s
 
 
 def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter_hint: str,
-                writeback_note: str = "", history: list[dict] | None = None) -> str:
+                writeback_note: str = "", history: list[dict] | None = None,
+                answer_budget: dict | None = None, figure_on_screen: bool = False,
+                clarify: bool = False) -> str:
     tone = {
         "ENCOURAGE": "The student is frustrated or overloaded. Be warm and brief; acknowledge effort first.",
         "MISCONCEPTION_PROBE": "Ask the diagnostic question from the evidence FIRST. Do not reveal the correction yet.",
@@ -154,17 +164,150 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
     ev_text = "\n\n".join(
         f"EVIDENCE {i + 1}:\n{b['text'][:700]}" for i, b in enumerate(evidence_blocks) if b["text"]
     )[:6000]
+    pacing = ""
+    max_tokens = 400
+    if answer_budget:
+        max_words = int(answer_budget.get("max_words", 35))
+        max_sentences = int(answer_budget.get("max_sentences", 2))
+        micro = answer_budget.get("micro_check_type", "yes_no")
+        must_end = answer_budget.get("must_end_with", "micro_check")
+        # Token cap is generous enough to let Qwen FINISH its sentences (a too-tight
+        # cap cuts mid-sentence and the fragment gets spoken). Real brevity is
+        # enforced by _truncate_to_spoken_budget below, which keeps only whole
+        # sentences within the word budget.
+        max_tokens = max(70, min(180, round(max_words * 3.0)))
+        pacing = (
+            "PACING CONTRACT FOR SPOKEN VOICE:\n"
+            f"- Speak at most {max_words} words and {max_sentences} sentence(s).\n"
+            "- Teach ONE complete atomic idea and actually DELIVER it in this reply.\n"
+            "- Do NOT announce what you will do ('let's look at an example', 'let me "
+            "explain'); just do it. Spend your words on the maths, not on preamble.\n"
+            "- If you use an example, WORK IT OUT here: substitute the numbers and carry "
+            "the calculation through to the final result (you may do the arithmetic "
+            "yourself, e.g. D = (-4)^2 - 4*2*2 = 0). Do not stop at the formula, and "
+            "never mention an example without giving it.\n"
+            "- Use short, concrete sentences for a Class 10 student.\n"
+            "- Do not repeat an explanation already present in RECENT CONVERSATION.\n"
+        )
+        if must_end == "micro_check" and action not in {"MISCONCEPTION_PROBE", "TRANSFER_PROBLEM", "QUIZ"}:
+            micro_phrase = {
+                "yes_no": "a short yes-or-no question",
+                "own_words": "a short request to say it back in their own words",
+                "answer": "a short question asking them to try the answer",
+                "question": "one short guiding question",
+                "try_step": "a short nudge to try the next step",
+                "next_step": "a short check on what to do next",
+            }.get(micro, "a short question")
+            pacing += (
+                f"- End with {micro_phrase}, but ONLY about what you actually explained "
+                "in THIS reply. Never ask 'did you understand' about something you did not "
+                "show. If you worked an example, ask them to state the result or try the "
+                "next step.\n"
+                "- Do NOT print any label like 'yes_no:' or 'check:'; just ask the question.\n"
+                "- This is only for pacing, not for grading mastery.\n"
+            )
+        else:
+            pacing += "- Do not add an extra pacing question after the required diagnostic/problem.\n"
+        pacing += "\n"
+    clarify_cue = ""
+    if clarify:
+        clarify_cue = (
+            "THE STUDENT SAID THEY DID NOT UNDERSTAND YOUR PREVIOUS REPLY (or that you "
+            "are repeating yourself). Explain the SAME idea a DIFFERENT, simpler way: "
+            "shorter sentences, plainer words, and a concrete number example. Do NOT "
+            "repeat your earlier wording or ask the same question again.\n"
+        )
+    screen_cue = ""
+    if figure_on_screen:
+        screen_cue = (
+            "A FIGURE FROM THE TEXTBOOK IS BEING SHOWN ON THE STUDENT'S SCREEN RIGHT NOW. "
+            "Refer to it directly ('look at the figure on the screen', 'in the picture you "
+            "can see…') and use it to make your point. Do NOT describe the picture in words "
+            "as if they cannot see it — point them to it.\n"
+        )
     prompt = (
         f"You are Wini, a friendly Class 10 Maths tutor ({chapter_hint}).\n"
         f"Pedagogical action for this turn: {action}. {tone}\n"
         + (f"Context: {writeback_note}\n" if writeback_note else "")
+        + clarify_cue
+        + screen_cue
+        + pacing
         + "Use ONLY the evidence below — if it does not support a claim, say less. "
         "Never mention internal IDs, codes, or evidence numbers (no 'jemh104', no "
         "'EVIDENCE 2', no 'misconception::...'); speak naturally about the maths. "
-        "Keep the reply under 150 words, Indian-English friendly.\n\n"
+        "Indian-English friendly.\n\n"
         f"{hist_text}{ev_text}\n\nSTUDENT: {question}\n\nWINI:"
     )
-    return qwen_chat(prompt)
+    text = qwen_chat(prompt, temperature=0.3, max_tokens=max_tokens)
+    if answer_budget:
+        text = _truncate_to_spoken_budget(
+            text,
+            int(answer_budget.get("max_words", 35)),
+            int(answer_budget.get("max_sentences", 2)),
+        )
+    return text
+
+
+def _budget_for_generation(answer_budget: dict | None, action: str) -> dict | None:
+    """Resize the spoken budget to the ACTUAL pedagogical action.
+
+    The pacing layer guesses a generic budget before the action is decided, so a
+    WORKED_EXAMPLE would otherwise be capped at EXPLAIN's 35 words / 2 sentences —
+    only enough to announce an example, not work it. We take the per-action word/
+    sentence room from the pacing controller (single source of truth) while keeping
+    the caller's micro-check decision (must_end_with reflects pending_check state).
+    """
+    if not answer_budget:
+        return answer_budget
+    try:
+        from pacing.pacing_controller import ACTION_BUDGETS
+        ab = ACTION_BUDGETS.get(action)
+    except Exception:  # noqa: BLE001 — pacing not importable: keep caller's budget
+        ab = None
+    if not ab:
+        return answer_budget
+    out = dict(answer_budget)
+    out["max_words"] = int(ab["max_words"])
+    out["max_sentences"] = int(ab["max_sentences"])
+    # adopt the action's check type (e.g. WORKED_EXAMPLE -> 'try_step', so the model
+    # asks them to try the next step rather than 'did you understand'); but keep the
+    # caller's must_end_with, which already encodes pending_check (no extra check).
+    if out.get("must_end_with") == "micro_check":
+        out["micro_check_type"] = ab.get("micro_check_type", out.get("micro_check_type"))
+    return out
+
+
+def _truncate_to_spoken_budget(text: str, max_words: int, max_sentences: int) -> str:
+    """Enforce the spoken budget on Qwen's output for TTS.
+
+    Keeps only COMPLETE sentences (this also drops a trailing fragment left by a
+    token-capped generation, e.g. '...4 times 2' with no period). Then caps to
+    max_sentences and to max_words, always keeping at least one sentence and
+    preserving a trailing micro-check question if there is one.
+    """
+    import re as _re
+
+    sentences = [s.strip() for s in _re.findall(r"[^.!?]*[.!?]", text.strip()) if s.strip()]
+    if not sentences:
+        # no terminator at all (rare) — return the raw text, trimmed of any
+        # obvious dangling open paren from a hard token cut.
+        return text.strip().rstrip("(,-")
+    kept: list[str] = []
+    words = 0
+    for s in sentences[:max_sentences]:
+        w = len(s.split())
+        if kept and words + w > max_words:
+            break
+        kept.append(s)
+        words += w
+    last = sentences[-1]
+    if last.endswith("?") and not kept[-1].endswith("?"):
+        # ensure the pacing micro-check survives the cap
+        if words + len(last.split()) > max_words and len(kept) > 1:
+            kept[-1] = last
+        elif last not in kept:
+            kept.append(last)
+    return " ".join(kept)
 
 
 def qwen_cohesion_check(evidence: list[dict], blocks_text: dict) -> list[str]:
@@ -257,17 +400,104 @@ class TutorLoop:
     NEED_TO_HOPE = {"challenge": "CT", "transfer": "KT", "integrate": "KI"}
     HOPE_EV_TYPES = {"ct_probe": "CT", "transfer_target": "KT", "integration_target": "KI"}
 
+    # T9 multimodal display channel: actions that are themselves visual, for which
+    # an incidental figure-caption crop is worth SHOWING even when no pedagogy-gated
+    # `figure` crop was selected (architecture section 9 "show, don't only tell").
+    VISUAL_ACTIONS = {"REPRESENTATION_TRANSLATION", "VISUAL_ANALOGY"}
+
     @property
     def current_concept(self):
         return self.state.data.setdefault("session", {}).get("current_concept")
 
-    def turn(self, text: str) -> dict:
+    def analyze_only(self, text: str) -> dict:
+        """Analyze a student utterance without mutating learner state.
+
+        Used by the voice pacing layer to triage mixed replies before the normal
+        turn path decides which state channels may move.
+        """
+        return self.analyzer.analyze(text, current_concept=self.current_concept)
+
+    def _build_display(self, evidence: list[dict], action: str) -> list[dict]:
+        """T9 multimodal channel — pick at most ONE task-relevant figure crop to
+        SHOW alongside speech (working-memory limit: one primary visual per turn).
+
+        query.py already gates `figure`-type evidence to exactly the two
+        pedagogical show-cases — a representation gap (need_evidence/integrate:
+        ``reps_missing & supports_representation``) or disambiguating an active
+        misconception (misconception_evidence corrective phase) — so any
+        figure-type item is show-worthy. An *incidental* `figure_caption` chunk
+        (a semantic match that happens to carry a crop) is shown only when the
+        action is itself visual (REPRESENTATION_TRANSLATION / VISUAL_ANALOGY).
+        Otherwise the turn stays audio-only and this returns [].
+
+        Items are channel-agnostic: ``image_path`` stays store-relative so each
+        DisplaySink (web /store route, Windows pane, Jetson /display_image)
+        resolves it against the store root — never hard-coded.
+        """
+        primary = None    # pedagogy-gated `figure` crop (preferred)
+        fallback = None   # incidental figure_caption chunk (visual actions only)
+        for e in evidence:
+            if not e.get("image_path"):
+                continue
+            if e["type"] == "figure":
+                primary = e
+                break
+            if e["type"] == "chunk" and action in self.VISUAL_ACTIONS and fallback is None:
+                fallback = e
+        chosen = primary or fallback
+        if not chosen:
+            return []
+        node = self.graph.nodes.get(chosen["id"], {})
+        row = self.chunks_by_id.get(chosen["id"], {})
+        alt = (chosen.get("alt_text") or node.get("alt_text")
+               or (row.get("text") or "").split(":")[0].strip()[:120] or "figure")
+        supports = (chosen.get("supports_representation") or node.get("supports_representation")
+                    or row.get("representations") or [])
+        return [{
+            "image_path": chosen["image_path"],   # store-relative; sink resolves
+            "alt_text": alt,
+            "why": chosen.get("why", ""),
+            "supports_representation": supports,
+            "figure_id": chosen["id"],
+        }]
+
+    def turn(self, text: str, answer_budget: dict | None = None,
+             precomputed_analysis: dict | None = None) -> dict:
         # 1-2. cognitive analysis + state update (Parts 1+2+3)
-        analysis = self.analyzer.analyze_and_apply(text, self.state, current_concept=self.current_concept)
+        if precomputed_analysis is None:
+            analysis = self.analyzer.analyze_and_apply(text, self.state, current_concept=self.current_concept)
+        else:
+            from cognitive_analyzer.analyzer import apply_deltas
+
+            analysis = precomputed_analysis
+            analysis["new_global_state"] = apply_deltas(self.state, analysis["state_deltas"])
         concept = analysis["concept"]
         primary = concept["concept_id"]
         if primary:
             self.state.data.setdefault("session", {})["current_concept"] = primary
+
+        # 1a. Is this reply an ATTEMPT at the question we asked, or a non-attempt
+        # (acknowledgment, "I don't understand", a fresh request, a counter-
+        # question)? Computed once and reused by the diagnostic grader (1b),
+        # the HOPE scorer (1c) and the pedagogy rules so a confusion plea is
+        # never written back as a "wrong" diagnostic answer (learning_log
+        # regression: "i can not understand" graded wrong → mastery dropped).
+        from cognitive_classifier.cues import (
+            is_pure_ack, is_question, is_clarification_request, is_answer_attempt,
+        )
+        _sig = set(analysis["signals"])
+        _norm = analysis["normalized_text"]
+        clarification = is_clarification_request(text) or "simplification_request" in _sig
+        answer_try = ("answer_attempt" in _sig) or is_answer_attempt(text)
+        wants_hint = ("hint_requested" in analysis["state_deltas"]["concept_flags"]
+                      or "request_hint" in _sig)
+        fresh_request = wants_hint or bool(_sig & {
+            "request_representation", "representation_shift",
+            "simplification_request", "example_request", "topic_shift"})
+        # a non-attempt carries no answer cue AND looks like an ack / confusion plea /
+        # bare question / fresh request rather than a try at the pending question
+        non_attempt = (not answer_try) and (
+            is_pure_ack(_norm) or clarification or is_question(text) or fresh_request)
 
         # 1b. pending diagnostic from the previous turn (closed loop, section 8):
         # a hint request escalates the hint chain (never past it, rule 10); any
@@ -293,10 +523,17 @@ class TutorLoop:
                     return {"action": f"HINT_LEVEL_{k}", "action_reason": "hint chain level served",
                             "need": "hint", "shadow": None, "concept": concept,
                             "signals": analysis["signals"], "cognitive_update": analysis["cognitive_update"],
-                            "n_evidence": 1, "bridge_ids": [], "answer": hint_text}
+                            "n_evidence": 1, "bridge_ids": [], "display": [], "answer": hint_text}
                 # chain exhausted: fall through — rule 10 says switch action, don't leak
-            outcome = judge_answer(pending["question"], pending["expected_answer"], text) \
-                if self.want_answer else "not_an_answer"
+            # Only grade a reply that actually ATTEMPTS the question. A non-attempt
+            # (ack, "I don't understand", a fresh request, a counter-question) must
+            # never move mastery or force a misconception active — the weak local
+            # judge otherwise returns "wrong" for plain confusion (see 1a).
+            if non_attempt:
+                outcome = "not_an_answer"
+            else:
+                outcome = judge_answer(pending["question"], pending["expected_answer"], text) \
+                    if self.want_answer else "not_an_answer"
             if outcome in ("correct", "partial", "wrong"):
                 hints_used = (self.state.concept_states.get(pending["concept_id"]) or {}) \
                     .get("hints_used_current", 0)
@@ -313,13 +550,12 @@ class TutorLoop:
         # an answer, score it 0-3 with the HOPE detector and fold into the
         # rolling KI/KT/CT averages (consumed by query.py ranking w7).
         hope_update = None
-        from cognitive_classifier.cues import is_pure_ack
         pending_hope = session.get("pending_hope")
         if pending_hope:
-            wants_hint = "hint_requested" in analysis["state_deltas"]["concept_flags"] \
-                or "request_hint" in analysis["signals"]
-            attempted = (not is_pure_ack(analysis["normalized_text"])
-                         and not wants_hint and len(text.split()) >= 4)
+            # only score a substantive attempt at the probe — a non-attempt
+            # (ack / confusion plea / fresh request / counter-question) must not
+            # be scored 0 and drag the rolling HOPE average down (see 1a)
+            attempted = (not non_attempt) and len(text.split()) >= 4
             if attempted:
                 r = self.hope.score(pending_hope["signal"], pending_hope["prompt"],
                                     text, pending_hope.get("rubric_anchor", ""))
@@ -345,6 +581,7 @@ class TutorLoop:
             analysis["cognitive_update"], analysis["signals"],
             analysis["state_deltas"]["concept_flags"], concept["abstained"],
             acknowledged=acknowledged,
+            clarification=(clarification and not answer_try),
         )
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
 
@@ -382,8 +619,15 @@ class TutorLoop:
                     break
 
         # arm the pending check for the NEXT turn: first diagnostic served wins
-        # (bridges precede misconceptions in evidence order, matching section 6.8)
+        # (bridges precede misconceptions in evidence order, matching section 6.8).
+        # ONLY the two mastery-grading diagnostics may arm it — a `ct_probe` also
+        # carries a `question`, but CT/KT/KI probes are scored by the HOPE path
+        # (pending_hope) and must NOT be graded as misconceptions: doing so wrote
+        # a bogus `ct_probe::...` entry into misconception_states and moved mastery
+        # (learning_log regression — a Socratic turn tanked quadratic_zero_geometry).
         for e in evidence:
+            if e["type"] not in ("bridge_diagnostic", "misconception"):
+                continue
             q = e.get("question") or e.get("diagnostic_question")
             if not q:
                 continue
@@ -430,6 +674,10 @@ class TutorLoop:
             "snapshot": snapshot.summary(), "band_reason": band_reason,
         }
 
+        # 4b. T9 display channel: pick the one figure crop (if any) to SHOW this
+        # turn. Computed before generation so the prompt can reference it on screen.
+        display = self._build_display(evidence, action)
+
         # 5. response from manifest only (Qwen, local)
         answer = None
         if self.want_answer:
@@ -451,8 +699,15 @@ class TutorLoop:
                         f"'{writeback['outcome']}'. "
                         + ("Acknowledge it and continue." if writeback["outcome"] == "correct"
                            else "Gently correct using the evidence; do not scold."))
+            # The pacing layer computed answer_budget BEFORE the action was known
+            # (generic EXPLAIN). Now that the action is decided, give the generator
+            # the action-appropriate word/sentence room — e.g. a WORKED_EXAMPLE
+            # needs space to actually work the example, not just announce it.
+            gen_budget = _budget_for_generation(answer_budget, action)
             answer = qwen_answer(text, action, blocks, chapter_hint, writeback_note=note,
-                                 history=session.get("context", [])[-6:])
+                                 history=session.get("context", [])[-6:],
+                                 answer_budget=gen_budget, figure_on_screen=bool(display),
+                                 clarify=(clarification and not answer_try))
 
         # 6. session memory (section 12.3 transient context) + bookkeeping for
         # the next turn's acknowledgment handling
@@ -495,6 +750,9 @@ class TutorLoop:
                 "writeback": writeback, "hope_update": hope_update,
                 "pending_check": session.get("pending_check", {}).get("id"),
                 "pending_hope": session.get("pending_hope", {}).get("signal"),
+                "answer_budget": answer_budget,
+                "pace": session.get("pace", {}),
+                "display": display,
                 "answer": answer}
 
     def _log(self, text, action, why, need, shadow, analysis, manifest, writeback=None,
