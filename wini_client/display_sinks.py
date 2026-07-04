@@ -8,16 +8,51 @@ Wini speaks. Unknown/missing path => keep the face (never crash a turn).
 Sinks:
     NullSink      — no display (audio-only devices / debugging)
     ConsoleSink   — prints what WOULD be shown (any platform, zero deps)
-    RosDisplaySink— Jetson: publishes 480x320 rgb8 frames to /wini/display/image
-                    at 5 Hz (the existing display_controll node contract,
-                    JETSON_PIPELINE_RUNBOOK.md §7), pre-flipped horizontally.
-                    Needs rclpy + cv2 + numpy — platform extras, imported lazily.
+    RosDisplaySink— Jetson (legacy ROS stack): publishes 480x320 rgb8 frames to
+                    /wini/display/image at 5 Hz (the display_controll node
+                    contract, JETSON_PIPELINE_RUNBOOK.md §7), pre-flipped
+                    horizontally. Needs rclpy + cv2 + numpy, imported lazily.
+    InProcSink    — ROS-less platform (WINI_ROSLESS_PLATFORM_PLAN.md): hands the
+                    rendered frame straight to the in-process DisplayThread —
+                    no keepalive, no pre-flip (the driver owns orientation).
 """
 
 from __future__ import annotations
 
 import threading
 from pathlib import Path
+
+
+def render_crop(store_dir: Path, rel_path: str, w: int, h: int,
+                flip: bool = False):
+    """Load a figure crop from the local store and letterbox it to w×h RGB.
+    Returns a numpy array or None (missing/unreadable => caller keeps the face).
+    flip=True pre-flips horizontally (legacy ROS display-node contract only)."""
+    try:
+        import cv2
+        import numpy as np
+
+        path = Path(store_dir) / rel_path
+        if not path.exists():
+            print(f"[display] crop missing (keeping face): {path}")
+            return None
+        bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
+        if bgr is None:
+            return None
+        rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
+        ih, iw = rgb.shape[:2]
+        scale = min(w / iw, h / ih)
+        nw, nh = max(1, int(round(iw * scale))), max(1, int(round(ih * scale)))
+        canvas = np.zeros((h, w, 3), dtype=np.uint8)
+        y0, x0 = (h - nh) // 2, (w - nw) // 2
+        canvas[y0:y0 + nh, x0:x0 + nw] = cv2.resize(rgb, (nw, nh),
+                                                    interpolation=cv2.INTER_AREA)
+        if flip:
+            canvas = cv2.flip(canvas, 1)
+        return np.ascontiguousarray(canvas)
+    except Exception as e:  # noqa: BLE001
+        print(f"[display] render failed for {rel_path}: {e}")
+        return None
 
 
 class NullSink:
@@ -112,29 +147,8 @@ class RosDisplaySink:
             print(f"[display] thinking signal failed: {e}")
 
     def _render(self, rel_path: str):
-        try:
-            import cv2
-            import numpy as np
-
-            path = self.store / rel_path
-            if not path.exists():
-                print(f"[display] crop missing (keeping face): {path}")
-                return None
-            bgr = cv2.imread(str(path), cv2.IMREAD_COLOR)
-            if bgr is None:
-                return None
-            rgb = cv2.cvtColor(bgr, cv2.COLOR_BGR2RGB)
-            h, w = rgb.shape[:2]
-            scale = min(self.W / w, self.H / h)
-            nw, nh = max(1, int(round(w * scale))), max(1, int(round(h * scale)))
-            canvas = np.zeros((self.H, self.W, 3), dtype=np.uint8)
-            y0, x0 = (self.H - nh) // 2, (self.W - nw) // 2
-            canvas[y0:y0 + nh, x0:x0 + nw] = cv2.resize(rgb, (nw, nh),
-                                                        interpolation=cv2.INTER_AREA)
-            return np.ascontiguousarray(cv2.flip(canvas, 1))  # panel un-mirrors it
-        except Exception as e:  # noqa: BLE001
-            print(f"[display] render failed for {rel_path}: {e}")
-            return None
+        # flip=True: legacy contract — the ROS display node un-mirrors it.
+        return render_crop(self.store, rel_path, self.W, self.H, flip=True)
 
     def _to_msg(self, frame):
         m = self._Image()
@@ -144,6 +158,45 @@ class RosDisplaySink:
         m.step = self.W * 3
         m.data = frame.tobytes()
         return m
+
+
+class InProcSink:
+    """ROS-less platform sink: same metadata contract as RosDisplaySink
+    (`image_path` = SD-card image ID resolved against the local store — the
+    ESP32 contract is unchanged), but the rendered frame goes straight to the
+    in-process DisplayThread. No keepalive thread, no pre-flip.
+
+    `display` is a wini_platform DisplayThread (show_overlay/clear_overlay);
+    `set_thinking` is the platform's thinking-face hook (may be None).
+    """
+
+    W, H = 480, 320
+
+    def __init__(self, store_dir: Path, display, set_thinking=None):
+        self.store = Path(store_dir)
+        self._display = display
+        self._set_thinking = set_thinking
+
+    def show(self, item: dict) -> None:
+        rel = (item or {}).get("image_path")
+        if not rel:
+            return self.clear()
+        frame = render_crop(self.store, rel, self.W, self.H)
+        if frame is None:
+            return  # keep whatever is on screen — never crash a turn
+        self._display.show_overlay(frame)
+        print(f"[display] showing {rel}")
+
+    def clear(self) -> None:
+        self._display.clear_overlay()
+
+    def thinking(self, active: bool) -> None:
+        if self._set_thinking is None:
+            return
+        try:
+            self._set_thinking(bool(active))
+        except Exception as e:  # noqa: BLE001 — a face cue must never cost a turn
+            print(f"[display] thinking signal failed: {e}")
 
 
 def make_sink(kind: str, store_dir: Path):

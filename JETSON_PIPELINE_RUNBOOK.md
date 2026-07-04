@@ -521,7 +521,12 @@ already consuming exactly the metadata the ESP32 will receive.
 
 ---
 
-## 15. Thin-client mode (CURRENT bring-up)
+## 15. Thin-client mode (manual bring-up — superseded at boot by §16)
+
+> **2026-07-04:** the boot default is now the ROS-less platform (§16). `run_thin.sh` /
+> `run_client.sh` still work as a manual/legacy path alongside the ROS display+head
+> nodes, but nothing launches them automatically anymore — do NOT run both stacks at
+> once (one owner per panel/serial port).
 
 No wakeword, no fastwhisper, no Kokoro, no brain node — see §0. Two processes + the
 display node:
@@ -580,3 +585,70 @@ display frames ~4–5 Hz while speaking.
   the daemon (`ros2 topic list`) first, or you will chase phantom "no frames" bugs.
 - The RMS VAD listens to EVERYTHING (no wakeword by design) — TV/background speech will
   open turns. The touch-sensor trigger (`--trigger enter` shape) is the planned gate.
+
+---
+
+## 16. ROS-less platform (CURRENT bring-up, boot default since 2026-07-04)
+
+The five platform ROS nodes (display, head, chin-reaction, touch trigger + the
+`ros2 run` wrappers) are replaced by ONE process — `python -u -m wini_platform` from
+the study core — per `WINI_ROSLESS_PLATFORM_PLAN.md`. No colcon, no DDS, no keepalive,
+no pre-flip contract: the render thread owns the panel, the serial thread owns the
+STM32, the client loop runs in-process, and `wini_server.py` is spawned/monitored as
+the one separate process (it is the Cloud Run artifact).
+
+### 16.1 Bring up / stop / watch
+
+```bash
+ssh ... 'bash ~/run_wini_platform.sh'                # face up, idle; chin hold 3 s starts/wakes
+ssh ... 'bash ~/run_wini_platform.sh --autostart'    # also cold-start brain + client immediately
+ssh ... 'tail -f ~/wini_test_logs/platform.log'      # "[platform] up:", head connect, turns
+ssh ... 'pkill -9 -f "\-m wini_platfor[m]|wini_serv[e]r[.]py"'   # stop everything
+```
+
+Boot: the `@reboot` crontab line runs `run_wini_platform.sh` (the old
+`run_boot_platform.sh` line is kept commented as rollback). The launcher sources
+`wini_pipeline_test_env.sh`, exports `WINI_FILLERS=0` + `WINI_AUDIO_SELECT`, and
+detaches the platform per §2.1. Server log: `"cloud CLI"/logs/server.log`.
+
+### 16.2 Stage demos (acceptance tools, from `"cloud CLI"`)
+
+```bash
+.venv/bin/python -u -m wini_platform.display.demo    # emotions/gaze/cards/figure crop
+.venv/bin/python -u -m wini_platform.touch.demo      # chin/head edges + press counts
+```
+
+⚠️ One owner per device: stop the ROS display/head nodes before ANY of the above, and
+stop the platform before relaunching the old stack.
+
+### 16.3 Measured (2026-07-04)
+
+Old platform 5 processes ≈ 286 MB RSS → new platform 1 process 69 MB idle / 85 MB with
+the client live (~200 MB reclaimed). Ambient-noise turn through the new stack: 8.1 s
+(stt 3993 ms / brain 2 ms NONSENSE / tts 2592 ms) — same as §15.2 thin-mode numbers.
+
+### 16.4 Overlay orientation + speaker pops (fixed 2026-07-04)
+
+- **The §7.2 panel mirror still applies** in ROS-less mode — the plan's original
+  "renderer owns orientation, no flip needed" claim was wrong (the glass itself
+  mirrors; the near-symmetric face masked it until the Loading card came up
+  backwards). The pre-flip now lives in exactly ONE place:
+  `DisplayThread.show_overlay` — every sender (cards, `InProcSink` figure crops,
+  demos) composes un-flipped.
+- **TTS start/stop "dot" pops:** the C-Media USB codec clicks every time an output
+  stream opens/closes, and `sd.play()` opened one per utterance. `wini_client`'s
+  `play_pcm` now keeps ONE persistent `OutputStream` open across turns (survives
+  sleep), adds a 10 ms fade-in/out, and writes a 150 ms silence tail so speech is
+  fully out of the buffer before the mic reopens.
+
+### 16.5 Gotcha: dark panel with zero errors after a relaunch (fixed 2026-07-04)
+
+If the platform is killed **mid-SPI-write** (SIGKILL while rendering) and restarted
+immediately, the ST7796S can miss its init (SWRESET/SLPOUT sent with no settle delay)
+and stay **asleep**: every write then goes into display RAM invisibly — no exception,
+normal CPU, dark glass. Fixed with 150 ms settles after 0x01/0x11 in
+`wini_platform/display/wini_display_driver.py` (verified by 3× SIGKILL-mid-render +
+relaunch), and `run_wini_platform.sh` now TERMs the old instance (platform handles
+SIGTERM cleanly) before the `-9` belt. If a panel ever looks dead while logs are clean:
+`python3 /home/roavai/panel_color_test.py` flashes full-screen colors via a fresh
+driver init — colors visible ⇒ hardware fine, re-init the owner process.

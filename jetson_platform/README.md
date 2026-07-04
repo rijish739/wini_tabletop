@@ -17,5 +17,7 @@ merge (`JETSON_PIPELINE_RUNBOOK.md` §10), and re-snapshot here after on-device 
 
 Deploy a change: `scp <file> roavai@172.20.10.2:~/` (or into the workspace src path),
 then restart the affected process — running Python keeps old code in memory.
-`device_snapshot/` is also the library basis for the planned ROS-less platform:
-see `WINI_ROSLESS_PLATFORM_PLAN.md`.
+`device_snapshot/` is also the library basis for the ROS-less platform: the port now
+exists at `wini_platform/` (Stages 1–3 code complete, on-device validation pending);
+see `WINI_ROSLESS_PLATFORM_PLAN.md` and `wini_platform/README.md`. Everything in this
+directory stays as the running boot default + rollback until the Stage 4 boot swap.

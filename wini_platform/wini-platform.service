@@ -1,0 +1,35 @@
+# Wini ROS-less platform — systemd USER unit (Stage 4 boot swap).
+#
+# Install on the Jetson (as user roavai):
+#   mkdir -p ~/.config/systemd/user
+#   cp wini_platform/wini-platform.service ~/.config/systemd/user/
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now wini-platform
+#   loginctl enable-linger roavai      # start at boot without a login session
+#
+# NOTE: enable-linger can require root, and the board has NO passwordless sudo —
+# if it prompts, use the crontab route instead (same pattern as today's
+# run_boot_platform.sh @reboot entry):
+#   @reboot cd ~/wini/core && ~/wini/.venv/bin/python -u -m wini_platform >> ~/wini/logs/platform.log 2>&1
+#
+# Adjust WorkingDirectory/ExecStart if the checkout lives elsewhere (today the
+# live copy is "~/ROS2WS_audio_pipeline/cloud CLI"; the plan's target is
+# ~/wini/core with its own ROS-free venv at ~/wini/.venv).
+
+[Unit]
+Description=Wini ROS-less platform (display + touch + thin client supervisor)
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/roavai/wini/core
+ExecStart=/home/roavai/wini/.venv/bin/python -u -m wini_platform
+Restart=on-failure
+RestartSec=5
+# PulseAudio (user bus) — the client opens streams with device="pulse"
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

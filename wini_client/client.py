@@ -43,11 +43,14 @@ RATE = 16000
 
 def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int = 1200,
                      hard_cap_s: float = 15.0, preroll_ms: int = 400,
-                     wait_for_speech_s: float | None = None) -> bytes | None:
+                     wait_for_speech_s: float | None = None,
+                     stop_event=None) -> bytes | None:
     """Block until one spoken utterance is captured; return int16 mono PCM bytes.
 
     Returns None if wait_for_speech_s elapses with no speech (lets the main loop
-    breathe — check the server, handle Ctrl-C — instead of blocking forever).
+    breathe — check the server, handle Ctrl-C — instead of blocking forever), or
+    if stop_event is set (checked between 50 ms blocks — PortAudio blocking
+    reads ignore SIGTERM, so an in-process host must stop the loop this way).
     """
     import sounddevice as sd
 
@@ -71,6 +74,8 @@ def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int
                                    blocksize=block)
     with stream_cm as stream:
         while True:
+            if stop_event is not None and stop_event.is_set():
+                return None
             data, _ = stream.read(block)
             flat = data.reshape(-1).copy()
             rms = float(np.sqrt(np.mean((flat.astype(np.float32) / 32768.0) ** 2)))
@@ -103,19 +108,73 @@ def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int
 # platform seam 2: speaker
 # ---------------------------------------------------------------------------
 
+# ONE persistent output stream, opened on first play and kept open across
+# turns (and across sleep). Cheap USB codecs (the C-Media dongle) click
+# audibly every time a stream opens/closes, so the old sd.play()-per-turn
+# popped at both TTS start and stop. Kept module-global: only the client
+# thread plays audio.
+_out_stream = None
+_out_stream_rate = None
+
+PLAY_FADE_S = 0.010    # fade-in/out to kill waveform-edge clicks
+PLAY_TAIL_S = 0.150    # silence written after speech so the buffered tail is
+                       # fully out before we return to listening (half-duplex)
+
+
+def _close_out_stream() -> None:
+    global _out_stream, _out_stream_rate
+    if _out_stream is not None:
+        try:
+            _out_stream.close()
+        except Exception:  # noqa: BLE001
+            pass
+    _out_stream = None
+    _out_stream_rate = None
+
+
+def _ensure_out_stream(rate: int):
+    global _out_stream, _out_stream_rate
+    import sounddevice as sd
+
+    if _out_stream is not None and _out_stream_rate != rate:
+        _close_out_stream()
+    if _out_stream is None:
+        try:
+            # Route through PulseAudio where present (Jetson: raw ALSA default
+            # is pinned to the onboard card and rejects 24 kHz — runbook §4.2;
+            # PULSE_SINK/select_usb_audio.sh pick the USB speaker and resample).
+            _out_stream = sd.OutputStream(samplerate=rate, channels=1,
+                                          dtype="float32", device="pulse")
+        except (ValueError, sd.PortAudioError):
+            _out_stream = sd.OutputStream(samplerate=rate, channels=1,
+                                          dtype="float32")
+        _out_stream.start()
+        _out_stream_rate = rate
+    return _out_stream
+
+
 def play_pcm(pcm: bytes, rate: int) -> None:
     import sounddevice as sd
 
     if not pcm:
         return
     audio = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768.0
+    fade = min(len(audio) // 2, int(rate * PLAY_FADE_S))
+    if fade > 0:
+        env = np.linspace(0.0, 1.0, fade, dtype=np.float32)
+        audio[:fade] *= env
+        audio[-fade:] *= env[::-1]
     try:
-        # Route through PulseAudio where present (Jetson: raw ALSA default is
-        # pinned to the onboard card and rejects 24 kHz — §4.2 of the runbook;
-        # PULSE_SINK/select_usb_audio.sh pick the USB speaker and resample).
-        sd.play(audio, samplerate=rate, blocking=True, device="pulse")
-    except (ValueError, sd.PortAudioError):
-        sd.play(audio, samplerate=rate, blocking=True)
+        stream = _ensure_out_stream(rate)
+        stream.write(audio.reshape(-1, 1))
+        stream.write(np.zeros((int(rate * PLAY_TAIL_S), 1), dtype=np.float32))
+    except Exception as e:  # noqa: BLE001 — device gone/re-routed: reset + fall back
+        print(f"[client] persistent playback failed ({e}); falling back to sd.play")
+        _close_out_stream()
+        try:
+            sd.play(audio, samplerate=rate, blocking=True, device="pulse")
+        except (ValueError, sd.PortAudioError):
+            sd.play(audio, samplerate=rate, blocking=True)
 
 
 # ---------------------------------------------------------------------------
@@ -187,6 +246,69 @@ def speak_result(result: dict, sink) -> None:
         sink.clear()
 
 
+def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
+                rms_threshold: float = 0.018, silence_ms: int = 1200,
+                exit_on_session_end: bool = False, stop_event=None,
+                log=print) -> str:
+    """The listen → turn → speak loop, callable as a library (the ROS-less
+    platform runs this on its ClientThread with an InProcSink + stop_event).
+
+    Returns why it stopped: "session_ended" (farewell + exit_on_session_end)
+    or "stopped" (stop_event set). KeyboardInterrupt propagates to the caller.
+    """
+    while True:
+        if stop_event is not None and stop_event.is_set():
+            return "stopped"
+        try:
+            if trigger == "enter":
+                input("\n[press Enter, then speak]")
+            pcm = record_utterance(threshold=rms_threshold,
+                                   silence_ms=silence_ms,
+                                   wait_for_speech_s=30.0 if trigger == "vad" else None,
+                                   stop_event=stop_event)
+            if not pcm:
+                continue  # idle window elapsed (or stopping) — loop re-checks
+            t0 = time.time()
+            early_seen = []
+
+            def on_part(part: dict) -> None:
+                early_seen.append(True)
+                log(f"\nYou:  {part.get('transcript', '')}")
+                if part.get("filler"):
+                    log(f"Wini [{part.get('bank')}]: {part.get('filler')}")
+                if part.get("audio_b64"):
+                    play_pcm(base64.b64decode(part["audio_b64"]),
+                             int(part.get("audio_rate", 24000)))
+
+            # Thinking face while the brain works: from utterance sent until the
+            # answer audio is back; the sink restores the pre-turn emotion after.
+            sink.thinking(True)
+            try:
+                result = brain.voice_turn(pcm, on_filler=on_part)
+            finally:
+                sink.thinking(False)
+            transcript = result.get("transcript", "")
+            if not transcript:
+                continue  # STT heard nothing intelligible — re-listen silently
+            if not early_seen:
+                log(f"\nYou:  {transcript}")
+            log(f"Wini: {result.get('answer')}")
+            log(f"[client] turn {time.time() - t0:.1f}s  latency={result.get('latency_ms')} "
+                f"action={result.get('action')} display={bool(result.get('display'))}")
+            speak_result(result, sink)
+            if result.get("session_ended"):
+                if exit_on_session_end:
+                    log("[client] session ended — going to sleep (hold chin to wake).")
+                    return "session_ended"
+                log("[client] session ended (farewell spoken) — back to idle listening.")
+        except requests.RequestException as e:
+            log(f"[client] server error ({e}); retrying in 3s")
+            if stop_event is not None and stop_event.wait(3):
+                return "stopped"
+            if stop_event is None:
+                time.sleep(3)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="Wini thin client (mic+speaker+display)")
     ap.add_argument("--server", default=os.getenv("WINI_SERVER", "http://127.0.0.1:8123"))
@@ -221,54 +343,13 @@ def main() -> None:
         return
 
     print(f"[client] listening (trigger={args.trigger}). Ctrl-C to stop.")
-    while True:
-        try:
-            if args.trigger == "enter":
-                input("\n[press Enter, then speak]")
-            pcm = record_utterance(threshold=args.rms_threshold,
-                                   silence_ms=args.silence_ms,
-                                   wait_for_speech_s=30.0 if args.trigger == "vad" else None)
-            if not pcm:
-                continue  # idle window elapsed — just listen again
-            t0 = time.time()
-            early_seen = []
-
-            def on_part(part: dict) -> None:
-                early_seen.append(True)
-                print(f"\nYou:  {part.get('transcript', '')}")
-                if part.get("filler"):
-                    print(f"Wini [{part.get('bank')}]: {part.get('filler')}")
-                if part.get("audio_b64"):
-                    play_pcm(base64.b64decode(part["audio_b64"]),
-                             int(part.get("audio_rate", 24000)))
-
-            # Thinking face while the brain works: from utterance sent until the
-            # answer audio is back; the sink restores the pre-turn emotion after.
-            sink.thinking(True)
-            try:
-                result = brain.voice_turn(pcm, on_filler=on_part)
-            finally:
-                sink.thinking(False)
-            transcript = result.get("transcript", "")
-            if not transcript:
-                continue  # STT heard nothing intelligible — re-listen silently
-            if not early_seen:
-                print(f"\nYou:  {transcript}")
-            print(f"Wini: {result.get('answer')}")
-            print(f"[client] turn {time.time() - t0:.1f}s  latency={result.get('latency_ms')} "
-                  f"action={result.get('action')} display={bool(result.get('display'))}")
-            speak_result(result, sink)
-            if result.get("session_ended"):
-                if args.on_session_end == "exit":
-                    print("[client] session ended — going to sleep (hold chin to wake).")
-                    return
-                print("[client] session ended (farewell spoken) — back to idle listening.")
-        except KeyboardInterrupt:
-            print("\n[client] bye")
-            return
-        except requests.RequestException as e:
-            print(f"[client] server error ({e}); retrying in 3s")
-            time.sleep(3)
+    try:
+        run_session(brain, sink, trigger=args.trigger,
+                    rms_threshold=args.rms_threshold,
+                    silence_ms=args.silence_ms,
+                    exit_on_session_end=(args.on_session_end == "exit"))
+    except KeyboardInterrupt:
+        print("\n[client] bye")
 
 
 if __name__ == "__main__":
