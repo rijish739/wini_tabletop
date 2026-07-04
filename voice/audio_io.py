@@ -40,7 +40,7 @@ def read_wav(path: Path) -> tuple[bytes, int]:
         return wf.readframes(wf.getnframes()), wf.getframerate()
 
 
-def record_push_to_talk(out_path: Path, rate: int = 16000) -> Path:
+def record_push_to_talk(out_path: Path, rate: int = 16000, device: int | str | None = None) -> Path:
     import sounddevice as sd
 
     print("Press Enter to start recording.")
@@ -54,7 +54,7 @@ def record_push_to_talk(out_path: Path, rate: int = 16000) -> Path:
         q.put(indata.copy())
 
     chunks: list[np.ndarray] = []
-    with sd.InputStream(samplerate=rate, channels=1, dtype="int16", callback=callback):
+    with sd.InputStream(samplerate=rate, channels=1, dtype="int16", callback=callback, device=device):
         import threading
 
         stopper = threading.Event()

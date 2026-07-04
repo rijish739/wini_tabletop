@@ -385,6 +385,15 @@ questions, 0 dangling prereq nodes; read all ~60 recaps once (small enough for f
    The response layer must compose only from manifest items — this is what keeps every
    generated sentence traceable to an exact chunk/figure/bridge/misconception node
    (architecture §12.2 "retrieval evidence"), and it makes grounding *auditable* (see §4b).
+
+   > **Documented exception (Part 11, 2026-07-01).** Two reply paths are NOT store-grounded and
+   > are not required to be: (a) the **perception** call, which reads an utterance and emits
+   > structured JSON (intent/signals/concept) — schema-grounded, writes nothing; and (b) the
+   > **non-LEARNING** replies (SOCIAL / META_CAPABILITY / OFF_DOMAIN_ACADEMIC / EMOTIONAL /
+   > SESSION_CONTROL / SAFETY / NONSENSE), which are **persona-grounded** (`persona.json`;
+   > SAFETY/NONSENSE fully scripted) rather than manifest-grounded. They are only reachable when
+   > the front door routes away from `LEARNING`; every `LEARNING` answer stays manifest-only and
+   > auditable. See `PART11_GEMINI_PERCEPTION_LAYER.md` §4.3.
 8. **Bundle cohesion check (A1.5, cost-gated).** Before generation, validate that the retrieved
    bundle is coherent: (a) always-on structural checks — every evidence item must be within 2
    graph hops of the resolved concept, difficulty spread ≤ 3 bands, no `correct_idea` present

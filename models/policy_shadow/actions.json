@@ -10,7 +10,6 @@
     "QUIZ",
     "REPRESENTATION_TRANSLATION",
     "REVIEW",
-    "SOCRATIC_COUNTEREXAMPLE",
     "SOCRATIC_Q",
     "TRANSFER_PROBLEM",
     "VISUAL_ANALOGY",
@@ -28,5 +27,5 @@
     "engagement",
     "frustration_risk"
   ],
-  "n_label_scores": 37
+  "n_label_scores": 38
 }

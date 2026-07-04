@@ -1,0 +1,16 @@
+{
+  "sources": {
+    "label_space.json": {
+      "sha16": "0a2ff4148368fcd1",
+      "n_labels": 38
+    },
+    "concepts_meta.json": {
+      "sha16": "f64db08a876c713c",
+      "n_concepts": 108
+    }
+  },
+  "n_intents": 8,
+  "n_fewshot_anchors": 14,
+  "n_train_anchors": 6,
+  "context_chars": 20926
+}

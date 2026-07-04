@@ -60,14 +60,24 @@ def main() -> None:
     )
     features = np.hstack([emb, scores, updates])
 
+    # Supplementary rows (T2/T3, split=="train") live after the 10000 base rows
+    # in the curated file and are NOT referenced by splits.json (which indexes
+    # base rows only). Fold them into the TRAIN set so the policy also learns
+    # from the new acknowledgment / weak-label data; they never enter val/test.
+    supp_idx = [i for i, r in enumerate(rows)
+                if r.get("split") == "train" and action_of[i] is not None]
+
     def part(name):
         idx = [i for i in splits[name] if action_of[i] is not None]
+        if name == "train":
+            idx = idx + supp_idx
         return np.array(idx), np.array([aindex[action_of[i]] for i in idx])
 
     tr_idx, tr_y = part("train")
     va_idx, va_y = part("val")
     te_idx, te_y = part("test")
-    print({"train": len(tr_idx), "val": len(va_idx), "test": len(te_idx)})
+    print({"train": len(tr_idx), "val": len(va_idx), "test": len(te_idx),
+           "supplementary_in_train": len(supp_idx)})
 
     from sklearn.linear_model import LogisticRegression
 

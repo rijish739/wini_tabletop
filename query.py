@@ -33,10 +33,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
-import faiss
 import networkx as nx
-from dotenv import load_dotenv
 
+# faiss and python-dotenv are only needed by the standalone Gemini query path and
+# the FAISS index. They are imported lazily (in load_store / main) so tutor_loop
+# can import this module on the Jetson without installing them. rag_core's cloud
+# symbols are likewise lazy; importing the names below does not pull in google-genai.
 from rag_core import (GEN_MODEL, make_client, rank_hits, resolve_top_concepts,
                       answer_with_gemini)
 from learner_state import (LearnerState, load_learner_state, mastery_to_band,
@@ -83,11 +85,17 @@ def load_jsonl(path: Path) -> List[Dict[str, Any]]:
     return [json.loads(l) for l in path.read_text(encoding="utf-8").splitlines() if l.strip()]
 
 
-def load_store(store: Path):
+def load_store(store: Path, with_index: bool = True):
     chunks = load_jsonl(store / "chunks.jsonl")
     concepts = json.loads((store / "concepts.json").read_text(encoding="utf-8"))
-    graph = nx.node_link_graph(json.loads((store / "graph.json").read_text(encoding="utf-8")))
-    index = faiss.read_index(str(store / "vector.faiss"))
+    # graph.json stores edges under the "edges" key; networkx >=3.4 still defaults
+    # node_link_graph to the deprecated "links" key, so name it explicitly.
+    graph = nx.node_link_graph(
+        json.loads((store / "graph.json").read_text(encoding="utf-8")), edges="edges")
+    index = None
+    if with_index:
+        import faiss  # lazy: only the standalone Gemini query path needs the FAISS index
+        index = faiss.read_index(str(store / "vector.faiss"))
     return chunks, concepts, graph, index
 
 
@@ -542,6 +550,7 @@ def run_turn(store: Path, question: str, need: str, learner: LearnerState,
 
 
 def main():
+    from dotenv import load_dotenv  # lazy: standalone CLI only
     load_dotenv()
     ap = argparse.ArgumentParser()
     ap.add_argument("--store", default="rag_store")

@@ -10,24 +10,31 @@ from .ledger import PaceLedger, get_session
 from .triage import TriageResult, triage_turn
 
 
+# Spoken-turn budgets. Teaching actions (EXPLAIN / WORKED_EXAMPLE / ANALOGOUS /
+# REPRESENTATION / ENCOURAGE / TRANSFER) carry enough room to actually DELIVER a
+# clear multi-sentence idea (owner decision 2026-07-01: the earlier 25-35 word caps
+# produced content-free one-liners once a greeting/apology was stripped). Checking
+# actions (PROBE / SOCRATIC / QUIZ / REFLECT) stay tighter — a probe or a check
+# should be short by design, not a lecture.
 ACTION_BUDGETS: dict[str, dict[str, Any]] = {
-    "EXPLAIN": {"max_words": 35, "max_sentences": 2, "micro_check_type": "yes_no"},
-    "WORKED_EXAMPLE": {"max_words": 60, "max_sentences": 4, "micro_check_type": "try_step"},
-    "MISCONCEPTION_PROBE": {"max_words": 25, "max_sentences": 2, "micro_check_type": "none"},
-    "ANALOGOUS_EXAMPLE": {"max_words": 30, "max_sentences": 2, "micro_check_type": "try_step"},
-    "ENCOURAGE": {"max_words": 25, "max_sentences": 2, "micro_check_type": "next_step"},
-    "METACOGNITIVE_REFLECT": {"max_words": 25, "max_sentences": 2, "micro_check_type": "own_words"},
-    "TRANSFER_PROBLEM": {"max_words": 35, "max_sentences": 2, "micro_check_type": "answer"},
-    "REPRESENTATION_TRANSLATION": {"max_words": 40, "max_sentences": 2, "micro_check_type": "yes_no"},
-    "SOCRATIC_Q": {"max_words": 25, "max_sentences": 1, "micro_check_type": "question"},
-    "QUIZ": {"max_words": 25, "max_sentences": 2, "micro_check_type": "answer"},
+    "EXPLAIN": {"max_words": 65, "max_sentences": 4, "micro_check_type": "yes_no"},
+    "WORKED_EXAMPLE": {"max_words": 85, "max_sentences": 5, "micro_check_type": "try_step"},
+    "MISCONCEPTION_PROBE": {"max_words": 35, "max_sentences": 2, "micro_check_type": "none"},
+    "ANALOGOUS_EXAMPLE": {"max_words": 60, "max_sentences": 4, "micro_check_type": "try_step"},
+    "ENCOURAGE": {"max_words": 45, "max_sentences": 3, "micro_check_type": "next_step"},
+    "METACOGNITIVE_REFLECT": {"max_words": 30, "max_sentences": 2, "micro_check_type": "own_words"},
+    "TRANSFER_PROBLEM": {"max_words": 45, "max_sentences": 3, "micro_check_type": "answer"},
+    "REPRESENTATION_TRANSLATION": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
+    "WHY_IT_MATTERS": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
+    "SOCRATIC_Q": {"max_words": 30, "max_sentences": 2, "micro_check_type": "question"},
+    "QUIZ": {"max_words": 30, "max_sentences": 2, "micro_check_type": "answer"},
 }
 
 
 @dataclass
 class AnswerBudget:
-    max_words: int = 35
-    max_sentences: int = 2
+    max_words: int = 60
+    max_sentences: int = 4
     must_end_with: str = "micro_check"
     micro_check_type: str = "yes_no"
     expected_response_type: str = "yes_no"
@@ -107,7 +114,13 @@ class PacingController:
 
         if triage.route == "confirm_shift":
             concept = analysis.get("concept") or {}
-            name = concept.get("concept_id") or "that topic"
+            cid = concept.get("concept_id")
+            # speak the human name, never a raw catalog id; arm pending_shift so a
+            # bare "yes" next turn actually EXECUTES the switch (tutor_loop consumes
+            # it — previously the offer was made and then forgotten)
+            name = loop.concept_name(cid) if (cid and hasattr(loop, "concept_name")) else "that topic"
+            if cid:
+                session["pending_shift"] = {"concept_id": cid, "name": name}
             direct = f"We can switch to {name}. Should I pause the current topic here?"
             budget = budget_for_action(None, route="confirm_shift")
             return PacingDecision(triage=triage, answer_budget=budget, direct_answer=direct, analysis=analysis)

@@ -1,0 +1,20 @@
+{"utterance": "hi wini, good morning!", "gold_intent": "SOCIAL"}
+{"utterance": "how are you doing today", "gold_intent": "SOCIAL"}
+{"utterance": "you're really nice, i like you", "gold_intent": "SOCIAL"}
+{"utterance": "are you a robot or a real teacher", "gold_intent": "META_CAPABILITY"}
+{"utterance": "what can you actually help me with", "gold_intent": "META_CAPABILITY"}
+{"utterance": "what's the capital of japan", "gold_intent": "OFF_DOMAIN_ACADEMIC"}
+{"utterance": "who wrote romeo and juliet", "gold_intent": "OFF_DOMAIN_ACADEMIC"}
+{"utterance": "how many continents are there", "gold_intent": "OFF_DOMAIN_ACADEMIC"}
+{"utterance": "i'm tired, can we stop now", "gold_intent": "SESSION_CONTROL"}
+{"utterance": "this is boring, i don't want to do maths", "gold_intent": "SESSION_CONTROL"}
+{"utterance": "let's take a break please", "gold_intent": "SESSION_CONTROL"}
+{"utterance": "bye, see you tomorrow", "gold_intent": "SESSION_CONTROL"}
+{"utterance": "i'm so nervous about my exam", "gold_intent": "EMOTIONAL"}
+{"utterance": "i feel stupid, everyone is better than me", "gold_intent": "EMOTIONAL"}
+{"utterance": "i'm really excited to learn this!", "gold_intent": "EMOTIONAL"}
+{"utterance": "can you explain the quadratic formula", "gold_intent": "LEARNING"}
+{"utterance": "why do we check the discriminant", "gold_intent": "LEARNING"}
+{"utterance": "i think the answer is x equals 3", "gold_intent": "LEARNING"}
+{"utterance": "what is a prime number", "gold_intent": "LEARNING"}
+{"utterance": "show me an example of an arithmetic progression", "gold_intent": "LEARNING"}

@@ -30,6 +30,13 @@
 > **Lockstep note:** the study core (Layer B) is governed by the 4-doc lockstep rule in
 > `CLAUDE.md`. This document sits *above* those four and must be updated when Layer B's
 > external contract changes.
+>
+> **⚑ AS-BUILT (2026-06-16):** Layers A & C are now **built and verified on the Jetson Orin
+> Nano** (Phases 0–5). The realized system differs from §1–§11 in several places — LLM is
+> **in-process** (not a `:8080` server), TTS runs on the **onnxruntime CUDA EP** (Kokoro→
+> TensorRT proved impossible), MiniLM is **CPU**, and the wakeword/STT nodes gained
+> anti-self-trigger fixes. **§12 is the authoritative as-built record**; where §1–§11 and §12
+> disagree, §12 wins. Inline spots that changed are flagged `(as-built: §12)`.
 
 ---
 
@@ -188,11 +195,12 @@ replacement for the old intent router. It runs two MiniLM models and fuses them 
 [`cognitive_classifier/`](cognitive_classifier/classifier.py). All-MiniLM-L6-v2 (frozen,
 384-dim) → a `knn + logistic-regression` ensemble over a 8 k-row exemplar bank, plus **9
 deterministic surface-cue features** (question form, hint ask, self-correction "wait/
-actually", answer attempt, etc.) that pooled embeddings dilute. Emits **36 multi-label
+actually", answer attempt, etc.) that pooled embeddings dilute. Emits **38 multi-label
 cognitive signals** with calibrated per-label thresholds: `confusion, curiosity,
 low_confidence, frustration, request_representation, misconception_clue, request_hint,
-self_correction, ready_for_next, graphical/…` etc. Test micro-F1 0.77 / macro-F1 0.62;
-rule-governed labels (`question`, `request_hint`, `simplification_request`) at F1 1.0.
+self_correction, ready_for_next, acknowledgment, graphical/…` etc. Test micro-F1 0.83 /
+macro-F1 0.69 (fixed-source rebuild 2026-06-19); rule-governed labels (`question`,
+`request_hint`, `simplification_request`, `acknowledgment`) at F1 1.0 / near-1.0.
 
 **B1b. Concept resolver (Part 2).**
 [`concept_resolver/`](concept_resolver/resolver.py). MiniLM utterance vector → a
@@ -238,7 +246,8 @@ cognitive_load: 0.22, …}` + concept `jemh104__discriminant_nature_of_roots`.
   classifier's weakest and probing is cheap.
 - **Policy shadow (learning, non-authoritative):** [`policy_shadow/`](policy_shadow/shadow.py).
   A multinomial logreg over (MiniLM embedding + signal scores + §6.2 aggregates) → one of
-  **15 tutor actions** (test top-1 0.56 / top-2 0.75 vs 0.20 majority). It runs every turn
+  **14 tutor actions** (test top-1 0.68 / top-2 0.84 vs 0.41 majority; fixed-source rebuild
+  2026-06-19). It runs every turn
   and is **logged beside the rule decision**; it does not act until it demonstrably beats
   the rules on real logged turns.
 
@@ -270,8 +279,10 @@ Order, per architecture §6.7:
 
 ### B5. Response generation — local Qwen, grounded ✅
 
-- **Model:** Qwen2.5-3B-Instruct via **llama.cpp** (OpenAI-compatible server at
-  `127.0.0.1:8080`, GPU). No Gemini, no offline stub — the hard project mandate.
+- **Model:** Qwen2.5-3B-Instruct via **llama.cpp**, GPU. No Gemini, no offline stub — the
+  hard project mandate. **(as-built: §12)** On the Jetson this is **in-process**
+  (`llm_local.py`, `llama-cpp-python` built from source) wired directly into the brain node —
+  **not** the `127.0.0.1:8080` HTTP server (that was the dev-box form).
 - **`qwen_answer`** builds a prompt with: the chosen action's *tone* (e.g. for
   `MISCONCEPTION_PROBE` — "ask the diagnostic FIRST, don't reveal the correction"), the last
   6 turns of conversation memory ("don't repeat explanations already given"), and the
@@ -324,9 +335,12 @@ present yet (it needs AEC, A4 ⏳).
 
 ### C2. Text-to-speech 🔶
 
-- **Model (the only one):** **Kokoro TTS (82M)** ONNX → TensorRT engine (~300 MB resident,
-  <80–100 ms per sentence, non-autoregressive, expressive). Default for all modes. (The
-  Fish-Speech narration path from WINI_V2 is STORY-only and not part of the study core.)
+- **Model (the only one):** **Kokoro TTS (82M)**, non-autoregressive, expressive. Default for
+  all modes. (The Fish-Speech narration path from WINI_V2 is STORY-only and not part of the
+  study core.) **(as-built: §12)** Runs on the **onnxruntime CUDA EP**, **not** a TensorRT
+  engine — TRT 10.3 cannot parse Kokoro's vocoder `STFT` op. Real measured throughput is
+  **RTF ≈ 0.17 (~0.5–0.8 s/sentence)**, not <100 ms; perceived latency is hidden by
+  sentence-streaming + a callback playback stream that never underruns.
 - **Emotion:** primary = `[EMOTION:…]` tags the LLM injects; fallback = keyword rules; then
   pyrubberband pitch/tempo over 8 emotion profiles.
 - **Mic gating (half-duplex contract):** on TTS start, set `robot_speaking = True` and
@@ -357,8 +371,8 @@ present yet (it needs AEC, A4 ⏳).
 | STT | Faster-Whisper small.en, CTranslate2 int8_float16 CUDA | 200–400 ms | yes |
 | **B1 analyzer** | MiniLM classify + resolve | ~100–150 ms | yes |
 | **B4 retrieval** | local MiniLM rank + cohesion | ~50–150 ms | yes |
-| **B5 LLM TTFT** | Qwen first sentence | ~600–900 ms | **masked by filler** |
-| TTS | Kokoro per sentence | <100 ms | streamed |
+| **B5 LLM TTFT** | Qwen first sentence | spec ~600–900 ms; **as-built ~3.4 s** (prefill of the large grounded prompt — §12.9) | **to be masked by filler** |
+| TTS | Kokoro per sentence | spec <100 ms; **as-built ~0.5–0.8 s** (RTF 0.17, ORT-CUDA — §12.8) | streamed (gapless, no underrun) |
 
 (No disfluency-repair stage and no barge-in monitor at this stage — both arrive with AEC.)
 
@@ -382,9 +396,9 @@ per-device config/env at startup.
 | OS / compute | Windows + GTX 1650 (CUDA) | Linux/JetPack 6, Orin Nano 8 GB (CUDA/TRT) |
 | Filesystem root | `D:\cloud CLI\…` (Windows paths) | Linux paths under the device's install root |
 | HF / model cache | `D:\HuggingFaceCache` (`HF_HOME`) | Jetson cache dir from `HF_HOME` on-device |
-| LLM | Qwen2.5-3B-Instruct, llama.cpp, GPU | Qwen2.5-7B Q4_K_M, llama.cpp mmap |
-| Embeddings | all-MiniLM-L6-v2 (torch) | MiniLM ONNX (shared, TRT-EP) |
-| LLM endpoint | `http://127.0.0.1:8080` (from env) | local llama.cpp server (from env) |
+| LLM | Qwen2.5-3B-Instruct, llama.cpp, GPU | **Qwen2.5-3B Q4_K_M, in-process llama.cpp** (as-built §12.6) |
+| Embeddings | all-MiniLM-L6-v2 (torch) | **MiniLM torch on CPU** (as-built §12.4; avoids 2nd CUDA ctx) |
+| LLM endpoint | `http://127.0.0.1:8080` (from env) | **none — in-process** (`llm_local.py`, no HTTP server) |
 | Study core | ✅ built (Layer B) | same code, retargeted by config |
 | Speech I/O | not run on dev box | 🔶 openWakeWord / Faster-Whisper / Kokoro |
 
@@ -419,23 +433,24 @@ the adaptive endpoint, the barge-in policy, and the edge-first/zero-cloud philos
 
 | Layer | Component | Model / module | Status |
 |---|---|---|---|
-| A1 | Wakeword | openWakeWord TRT | 🔶 |
-| A2 | VAD/endpoint | Silero v5 ONNX + AdaptiveEndpointDetector | 🔶 |
-| A3 | STT | Faster-Whisper small.en, CTranslate2 int8_float16 (CUDA) | 🔶 |
+| A1 | Wakeword | openWakeWord **ONNX (CPU)**; continuous-feed + thr 0.5 + debounce + `/robot_speaking` gate | ✅ §12.9 |
+| A2 | VAD/endpoint | spec Silero v5 + AdaptiveEndpointDetector; **as-built RMS-energy endpointing in `fastwhisper_node`** | ⚠️ divergent §12.10 |
+| A3 | STT | Faster-Whisper small.en, **CTranslate2 int8_float16 CUDA built from source**, resident, + halluc filter | ✅ §12.5 |
 | A4 | AEC (echo cancellation) | `aec_pkg` (being built) — enables full-duplex/barge-in | ⏳ |
 | A4+ | Disfluency repair | BERT NER INT8 | ⏳ deferred |
 | B0 | Normalize | `cognitive_input_processor/` | ✅ |
-| B1 | Classifier | `cognitive_classifier/` (MiniLM knn+logreg+cues, 36 labels) | ✅ |
+| B1 | Classifier | `cognitive_classifier/` (MiniLM evidence+logreg+cues, 38 labels) | ✅ |
 | B1 | Resolver | `concept_resolver/` (MiniLM logreg, 108+ABSTAIN) | ✅ |
 | B1 | Analyzer | `cognitive_analyzer/` (Student Cognitive Update) | ✅ |
 | B2 | Learner state | `learner_state.py` (+ `update_hope`, write-backs) | ✅ |
 | B3 | Pedagogy | `tutor_loop.rules_decide` + `policy_shadow/` | ✅ |
 | B4 | Retrieval | `query.py` + `models/local_chunk_index/` | ✅ |
 | B4/B6 | HOPE detector | `hope_detector/` (ordinal KI/KT/CT) | ✅ |
-| B5 | LLM | Qwen2.5-3B via llama.cpp (GPU) | ✅ |
+| B5 | LLM | Qwen2.5-3B via **in-process** llama.cpp (GPU); `llm_local.py` | ✅ §12.6 |
 | B7 | Store | `rag_store/` (concepts, graph, chunks, FAISS, bridges, HOPE bank) | ✅ |
-| C1 | Sentence split | pysbd | 🔶 |
-| C2 | TTS + mic-gate | Kokoro ONNX/TRT; half-duplex mic mute on `robot_speaking` | 🔶 |
+| C1 | Sentence split | pysbd (streamed from `llm_local.stream_sentences`) | ✅ §12.6 |
+| C2 | TTS + mic-gate | **Kokoro ONNX on onnxruntime CUDA EP** (not TRT); half-duplex mute + `/tts_done`; callback playback | ✅ §12.8 |
+| — | Brain node | `wini_brain_pkg` (`TutorLoop.turn` → `/llm_out`, owns gate True edge) | ✅ §12.7 |
 | C3 | Barge-in | semantic LSTM | ⏳ unwired (needs AEC) |
 | orch | Tutor loop | `tutor_loop.py` (`TutorLoop.turn`) | ✅ |
 
@@ -493,3 +508,253 @@ Jetson Orin Nano**, not on the dev box. Remaining integration (🔶/⏳), all sp
 Data/human items unchanged from the build plan: human re-label of the HOPE answer set for
 absolute calibration, an `acknowledgment` label data pass, shadow-policy promotion review,
 and neural knowledge tracing once the learning log has real sessions.
+
+---
+
+## 12. AS-BUILT JETSON DEPLOYMENT (Phases 0–6) ✅
+
+> This section is the authoritative record of what was actually deployed on the **Jetson
+> Orin Nano** (JetPack R36.5, CUDA 12.6, Python 3.10, ROS 2 Humble, venv at
+> `ROS2WS_audio_pipeline/.venv`). It supersedes the 🔶/⏳ status and several model claims in
+> §1–§11 where they differ. The §1–§11 design intent is unchanged; the items below are the
+> realized engineering. Layers A and C are now **BUILT and verified end-to-end**, not just
+> specified. Where reality forced a deviation from the spec it is called out explicitly.
+>
+> **⚑ Phase 6 (2026-06-22):** the study core was refreshed from the workspace — the **T9
+> on-screen display channel** (the robot now *shows* the chosen figure crop), the grading-loop
+> fixes, the fixed-source **38-label classifier / 14-action policy**, and the **T10 spoken-budget
+> governor**. Verified by a 10-utterance topic-driven full-pipeline run (brain→Qwen→TTS→display).
+> Details in **§12.11**.
+
+### 12.1 Spec → as-built deltas (read this first)
+
+| Item | §1–§11 spec | **As-built on Jetson** | Why it changed |
+|---|---|---|---|
+| LLM serving | llama.cpp HTTP server `127.0.0.1:8080` | **in-process** `llama-cpp-python` (`llm_local.py`), wired directly into the brain node | one process speech→LLM→TTS; no server to manage |
+| LLM model | Qwen-7B-Q4 on Jetson | **Qwen2.5-3B-Instruct Q4_K_M** GGUF (2.1 GB), all layers on GPU | fits the 8 GB pool beside Whisper+Kokoro |
+| MiniLM (B1) | ONNX, TRT-EP, GPU | **torch on CPU** (`WINI_MINILM_DEVICE=cpu`) | avoids a 2nd in-proc CUDA context that crashed teardown next to llama.cpp; ~84 ms, within the B1 budget |
+| STT (A3) | small.en / CUDA / int8_float16 | **exactly that**, but **CTranslate2 built from source** (no aarch64 CUDA wheel exists); model **resident**; **+ hallucination filter** (new) | source build for sm_87; resident kills per-session reload |
+| Wakeword (A1) | openWakeWord **TRT**, 500 ms pre-roll | openWakeWord **ONNX on CPU**; **continuous feed + threshold 0.5 + 2-frame debounce + refractory**; **gated on `/robot_speaking`** (new); pre-roll not wired | TRT not needed for a tiny model; the rewrite fixes false-firing (12.7) |
+| VAD/endpoint (A2) | Silero v5 + `AdaptiveEndpointDetector` | **RMS-energy endpointing inside `fastwhisper_node`** (Silero not wired) | as-built divergence — see 12.8 (open item) |
+| TTS (C2) | Kokoro ONNX→**TensorRT**, **<80–100 ms/sentence** | Kokoro ONNX on **onnxruntime CUDA EP** (TensorRT **impossible** — see 12.6); **RTF ≈ 0.17 (~0.5–0.8 s/sentence)**; callback-streamed | TRT 10.3 can't parse Kokoro's `STFT` op |
+| TTS latency claim | sub-100 ms | **NOT achievable** for full-sentence neural TTS on this device | physical limit; masked by sentence-streaming |
+| Half-duplex | mute mic on `robot_speaking` | same, **+ new `/tts_done` topic**; brain owns the True edge, TTS owns the False edge; **wakeword also gated** | streaming reply needs an explicit end-of-turn signal |
+| Hot-path TTFS | ~600–900 ms LLM TTFT, filler-masked | **~3.4 s** (Qwen prefill of the large grounded prompt); filler + prompt-trim tuning still pending | measured; see 12.9 |
+| Display (T9) | audio-only (no visual channel in §1–§11) | brain publishes the chosen figure crop as `sensor_msgs/Image` to the **existing `display_controll` node** on `/wini/display/image` (rgb8 480×320, ~5 Hz keepalive) | §9 "show, don't only tell" on the robot screen — see 12.11 |
+| Spoken budget (T10) | per-action only | brain `PacingController` caps each reply to an action-appropriate word/sentence budget | shorter voice turns under load — see 12.11 |
+| B1 models | 36-label classifier / 15 actions | **38-label (+`acknowledgment`) classifier / 14-action policy**, built from `exemplar_dataset_10000_fixed.json` | fixed-source rebuild — see 12.11 |
+
+### 12.2 Topic graph (as-built)
+
+```
+wakeword_node ──/wake_word──► fastwhisper_node ──/speech_text──► wini_brain_node
+ (openWakeWord ONNX, CPU)       (small.en, CT2 CUDA,             (TutorLoop + in-proc
+        ▲                        resident, halluc-filter)         Qwen-3B GPU; MiniLM CPU)
+        │ gated                                                        │
+        │                                                   /llm_out (one sentence/msg)
+        └──────────── /robot_speaking (half-duplex mic gate) ──┐   /tts_done
+                                                               │       │
+                              brain sets True on utterance ────┘       ▼
+                              TTS sets False after last sentence   wini_tts_node
+                                                                 (Kokoro GPU, ORT-CUDA,
+                                                                  callback stream → USB speaker)
+```
+**T9 display branch (Phase 6).** `wini_brain_node` also publishes the chosen figure crop to the
+**existing** display node (from the robot's display workspace, `~/Downloads/ros2_ws`), no new
+package:
+
+```
+wini_brain_node ──/wini/display/image (sensor_msgs/Image, rgb8 480×320, ~5 Hz keepalive)──►
+    display_controll/wini_display   (SPI screen; overrides the eyes while a figure is shown,
+    auto-reverts to the face ~0.5 s after frames stop). Brain clears it on the /robot_speaking
+    False edge at end of turn.
+```
+Retired and **not launched**: `llm_pkg` (ollama) and `intent_pkg` (their source is left in
+place). Bringup: `ros2 launch wini_brain_pkg wini_pipeline.launch.py`.
+
+### 12.3 Phase 0 — study core imports clean on the Jetson (no cloud deps) ✅
+
+- Created symlink **`wini_core` → `cloud CLI`** (flat modules, no package) so ROS nodes import
+  the study core by bare name (as `tutor_loop` already imports its siblings).
+- Made `faiss`, `google-genai`, `rank_bm25`, `rapidfuzz`, `python-dotenv` **lazy imports**
+  inside the functions that use them (`rag_core.py`, `query.py`) — they were top-level and
+  blocked import; `google-genai` is also forbidden by the Qwen-only mandate.
+- `load_store(store, with_index=False)` now skips the FAISS index (the loop ranks with the
+  local MiniLM index, so faiss is never needed on the Jetson).
+- Fixed `query.load_store` networkx call to pass `edges="edges"` (graph.json uses the "edges"
+  key; networkx 3.4.2 defaults to the deprecated "links").
+- Added stdlib-only **`device_config.py`** (env-resolved paths; `minilm_device` default `cpu`;
+  LLM GGUF path; Kokoro paths) — the device-config layer §7/§11 called for.
+- **Verified:** `import tutor_loop` succeeds with none of faiss/genai/bm25/rapidfuzz/dotenv
+  installed. Those 5 must **not** be installed.
+
+### 12.4 Phase 1 — MiniLM (B1) on CPU ✅
+
+- Installed `sentence-transformers 5.5.1` **`--no-deps`** (transitive deps already present;
+  torch/numpy/transformers pins untouched). `all-MiniLM-L6-v2` in the existing HF cache
+  (`HF_HOME=~/.cache/huggingface`). Analyzer smoke test ~84 ms/encode on CPU.
+- The classifier/resolver/HOPE detector load with `device="cpu"` from `device_config`.
+
+### 12.5 Phase 1.5 — CTranslate2 CUDA from source (STT runtime) ✅
+
+- No aarch64 CUDA wheel for CTranslate2 exists → built **v4.7.1** (matches faster-whisper
+  1.2.1) from source (`build_ct2_cuda.sh`): `-DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=OFF
+  -DCMAKE_CUDA_ARCHITECTURES=87 -DBUILD_CLI=OFF`, `make -j4`.
+- Python binding needs pybind11 ≥2.10 → pinned `pybind11==2.13.6`.
+- **Runtime:** vendored `libctranslate2.so*` into the venv `ctranslate2/` package dir +
+  `patchelf --set-rpath '$ORIGIN'` on `_ext*.so` → loads with **no `LD_LIBRARY_PATH`**.
+  `ctranslate2.get_cuda_device_count() == 1`. `fastwhisper_node` flipped to
+  `small.en / cuda / int8_float16`, **model resident** (loaded once in `__init__`, no
+  per-session load/unload).
+
+### 12.6 Phase 2 — in-process Qwen, fully streaming ✅
+
+- Built **`llama-cpp-python 0.3.29` from source with CUDA** (`build_llamacpp_cuda.sh`:
+  `CMAKE_ARGS="-DGGML_CUDA=on -DCMAKE_CUDA_ARCHITECTURES=87"`). **The jetson-ai-lab prebuilt
+  `0.3.14` cu126 wheel crashes on every generation** (`llama_kv_cache_unified::seq_rm` assert
+  — wrapper/llama.cpp API mismatch), so source build is mandatory.
+- New **`llm_local.py`** (in-proc singleton): `complete()` (blocking, for the grader/cohesion
+  judge), `stream_tokens()`, and `stream_sentences()` (pysbd, decimal-safe). One generation
+  lock (llama.cpp is not reentrant; the pipeline is half-duplex).
+- Patched `tutor_loop.py`: `qwen_chat` → `llm_local.complete` (the `:8080` `requests.post`
+  is gone); split `qwen_answer` into `build_answer_prompt` + `qwen_answer`; `turn(text,
+  on_sentence=None)` streams sentences to the callback and reassembles the full text for
+  book-keeping.
+- **Teardown-crash fix:** wired `device_config.minilm_device` into `TutorLoop` so MiniLM runs
+  on CPU. With torch-MiniLM **and** llama.cpp both opening CUDA contexts in one process,
+  process exit crashed (`Py_FinalizeEx → llama_free → ggml_cuda_error`). MiniLM-on-CPU leaves
+  llama.cpp as the only CUDA user → clean exit.
+- Toolchain gotchas: upgraded venv pip (old pip's build isolation broke scikit-build-core
+  metadata); that pulled setuptools 82 which breaks colcon → pinned **`setuptools<80`**.
+
+### 12.7 Phase 3 — `wini_brain_pkg` brain node ✅
+
+- New ament_python package; node `wini_brain_node` (entry `brain_node`). Adds `wini_core` to
+  `sys.path`, subscribes `/speech_text`, runs `TutorLoop.turn(text, on_sentence=cb)` on a
+  worker thread (one turn at a time), streams each sentence to `/llm_out`.
+- Half-duplex: publishes `/robot_speaking=True` the instant an utterance arrives, `/tts_done=
+  True` once generation completes; releases the gate itself on an empty reply / exception.
+- TutorLoop + **Qwen pre-warm** (`llm_local.complete("hi", max_tokens=4)`) run in a background
+  thread at startup (utterances before `ready` are dropped). Verified end-to-end; TTFS ≈ 3.4 s.
+
+### 12.8 Phase 4 — Kokoro TTS on the GPU ✅ (TensorRT ruled out)
+
+- **TensorRT investigation (decisive):** native Kokoro→TRT engine **fails** — TRT 10.3's ONNX
+  parser rejects the vocoder's `STFT` op (`checkSTFT`). Piper→TRT also fails (float `scales`
+  → `Range` shape-tensor type error). CPU Kokoro is too slow (**RTF ≈ 2.4**). Chosen path:
+  **Kokoro on GPU via onnxruntime CUDA EP** → **RTF ≈ 0.17** (~0.5–0.8 s/sentence, 14× CPU).
+- Installed `onnxruntime-gpu 1.24.0` (jetson-ai-lab `jp6/cu126`) **`--no-deps`** after
+  `pip uninstall onnxruntime` → **numpy stays 1.24.4**. Providers become
+  `[Tensorrt, CUDA, CPU]`; **openWakeWord hardcodes `CPUExecutionProvider`, so it's
+  unaffected.** `kokoro-onnx 0.5.0` + `phonemizer-fork` + `espeakng-loader` (bundles the
+  espeak-ng binary — no apt) installed `--no-deps` because kokoro pins a false `numpy>=2`
+  floor (runs fine on 1.24). Models: `kokoro-v1.0.onnx`, `voices-v1.0.bin`.
+- Rewrote `wini_tts_node` (Piper→Kokoro): resident model, `ONNX_PROVIDER=CUDAExecutionProvider`
+  (forces CUDA, skips the TRT-EP/STFT failure), **two-stage synth-ahead pipeline** (synth
+  worker → audio queue → play worker) so sentences play back-to-back, `_END` sentinel releases
+  the gate, and `clean_for_tts()` strips LaTeX/markdown (`\(3x^2\)` → "3 x to the power 2").
+
+### 12.9 Phase 5 — integration, audio output, and robustness fixes ✅
+
+- **Launch:** `src/wini_brain_pkg/launch/wini_pipeline.launch.py` brings up wakeword →
+  fastwhisper → brain → tts, sets `HF_HOME`, `WINI_MINILM_DEVICE=cpu`,
+  `ONNX_PROVIDER=CUDAExecutionProvider`. All 4 nodes ready ~9 s, no crashes, no OOM.
+- **VRAM (all resident):** Whisper-CUDA + Qwen-GPU + Kokoro-GPU + MiniLM-CPU ≈ **6.2 GB /
+  7.6 GB** — tight but stable. (Co-load is sensitive to stray processes holding GPU memory.)
+- **Audio:** the mic+speaker is one USB **C-Media PnP** device (ALSA card 0). It rejects 24 kHz
+  / 16 kHz raw, so everything routes through **PulseAudio** (USB set as default sink+source via
+  `pactl`); TTS plays via `output_device='pulse'` (Pulse resamples Kokoro's 24 kHz). Speaker
+  output **confirmed audible**.
+- **Self-trigger fix #1 (Whisper hallucination):** on near-silence Whisper emitted filler
+  ("Thank you."). `fastwhisper_node.process_command` now uses `no_speech_threshold=0.6,
+  condition_on_previous_text=False` and drops a transcript when empty, or
+  `max no_speech_prob>0.6 & min avg_logprob<-0.5`, or it matches a hallucination blocklist.
+- **Self-trigger fix #2 (acoustic feedback):** `wakeword_node` now subscribes
+  `/robot_speaking` (drains callbacks via `spin_once`) and **runs no detection while the robot
+  speaks** → 0 wakeword fires during playback.
+- **Wakeword false-fire root cause (12.7 model was fine; the node was wrong):** it fed
+  openWakeWord **discontinuously** (only when RMS≥0.02, replaying a 1 s buffer), which corrupts
+  the streaming model's rolling features; the ambient floor (~0.024 RMS) sat on the 0.02 gate
+  causing constant flapping; `THRESHOLD=0.15` was below the ambient score ceiling (~0.16–0.17;
+  digital silence scores ~0.001, the real word ~0.8+); and `hit_count>=1` fired on one frame.
+  **Fix:** feed `model.predict()` **every** chunk; `THRESHOLD=0.5`; `TRIGGER_FRAMES=2`
+  consecutive; `REFRACTORY_SEC=2.0`. **Verified: 0 fires over 40 s of silence** (was ~6/35 s).
+- **ALSA underrun fix:** `snd_pcm underrun occurred` during playback. Per-sentence `sd.play`,
+  then persistent blocking `write()` (even at 0.3 s buffer) still under-ran at stream
+  boundaries. **Final fix: callback-driven `sd.OutputStream(callback=…)`** — the play worker
+  appends float32 blocks to a lock-guarded `deque`; the pull callback fills each block from the
+  deque or **silence when empty**, so the device buffer cannot starve. **Verified: 0 underruns
+  over 41 sentences / 2 long turns under full GPU contention.** Param `playback_latency=0.3`.
+
+### 12.10 Remaining / open items
+
+1. **VAD divergence:** the spec's Silero v5 + `AdaptiveEndpointDetector` (A2) is **not** the
+   as-built path — `fastwhisper_node` uses RMS-energy endpointing. Reconcile (wire Silero) or
+   formally adopt the RMS approach in the spec.
+2. **Latency tuning (Qwen TTFS ~3.4 s):** add the filler bank (§6) on the B1→B5 gap, trim the
+   evidence prompt (≤3000 chars), and cap reply length. Reply length **is now capped (Phase 6
+   T10 governor)**; the **filler bank + prompt-trim are still pending** and remain the main
+   perceived-latency win.
+3. **Wakeword still false-fires on ambient occasionally** (THRESHOLD sensitivity) — now
+   **harmless** (the Whisper filter drops the resulting noise), but `THRESHOLD`/`TRIGGER_FRAMES`
+   are tunable if a live "weenee" is ever missed.
+4. **Session reset on wake:** `learner_state.json` persists across runs (by design), so a
+   prior session's transient context can leak into a fresh launch; consider clearing the
+   session context (not the learner model) on `/wake_word`.
+5. **Sub-100 ms TTS, AEC, full-duplex barge-in (C3), disfluency repair, wakeword pre-roll**
+   remain deferred (⏳) as in §11.
+6. **Live human voice test** is the one unverified path (injected `/speech_text` bypasses
+   Whisper) — only a person speaking can validate mic→STT accuracy. Everything **downstream**
+   of `/speech_text` (brain → Qwen → TTS → display) is verified by the Phase 6 topic-driven
+   10-utterance run (§12.11); only mic→STT remains.
+
+### 12.11 Phase 6 — study-core refresh, T9 display, T10 pacing (2026-06-22) ✅
+
+Ported the workspace's post-Phase-5 work onto the live Jetson (study core via the `wini_core`
+symlink; ROS pkgs are `--symlink-install` so `src/` edits are live without a rebuild). Because
+the Jetson runs the **in-process** branch (`llm_local` + streaming), the study-core changes were
+applied as a **3-way merge**, never a copy. `wini_core` + `src` are backed up under
+`_wini_backups/` and the prior models under `wini_core/_wini_model_backup_*`.
+
+- **T9 multimodal display channel (flagship).** `tutor_loop.turn()` now returns a `display` list
+  (≤1 figure crop/turn): `_build_display` picks the pedagogy-gated `figure` crop, or an incidental
+  `figure_caption` crop only for the visual actions (`REPRESENTATION_TRANSLATION` / `VISUAL_ANALOGY`).
+  `image_path` stays **store-relative**. The brain node resolves it against `tutor_loop.STORE`,
+  letterboxes the crop to **480×320 rgb8**, and publishes a `sensor_msgs/Image` to the **existing**
+  `display_controll/wini_display` node on `/wini/display/image`, **republished at ~5 Hz** (the
+  display reverts to the eyes if no frame arrives within its 0.5 s timeout); it is cleared on the
+  `/robot_speaking` False edge at end of turn. **No new package** — Wini's display already existed.
+  On display turns Qwen is cued to *refer to the figure on screen*.
+- **Grading-loop fixes** (merged from the workspace `f6b0071`): rule 1b (an explicit "I don't
+  understand / make it simpler" → re-explain, never a Socratic challenge or a re-probe); a
+  deterministic **non-attempt guard** so an ack / confusion-plea / fresh question is never graded
+  `wrong` and never moves mastery; and **`ct_probe` is HOPE-scored only**, never armed as a graded
+  misconception. New standalone cues `is_clarification_request` / `is_answer_attempt` (not in the
+  feature vector — no model rebuild needed).
+- **Fixed-source models.** Swapped in the artifacts built from `dataset/exemplar_dataset_10000_fixed.json`:
+  the **38-label classifier** (adds `acknowledgment`, test micro-F1 0.83) and the **14-action policy
+  shadow** (top-1 0.68). Runtime modules (`classifier.py`/`resolver.py`/`shadow.py`) were
+  byte-identical (device comes from `.load(device=…)`), so only the data artifacts + `label_space.py`
+  changed; classifier and policy are swapped **together** (the policy logreg width tracks the
+  38-label signal vector).
+- **T10 spoken-budget governor.** Copied the `pacing/` package and wired `PacingController` into the
+  brain node (`before_turn` → action-appropriate `answer_budget` + reused analysis;
+  `turn(answer_budget=…, precomputed_analysis=…)`; `after_turn` pace ledger). The streamed reply is
+  capped to the action's sentence budget. **Deliberate deviation:** the robot does **not** honour the
+  controller's `clarify`/`confirm_shift` *canned answers* — its triage canned-responds to any ≤1-word
+  input, which would block legitimate 1-word maths answers ("zero", "yes") from the grader, so every
+  turn goes through the tutor. All pacing is best-effort (falls back to a plain turn on any error).
+- **Streaming clip fix.** `stream_sentences` flushes its trailing buffer even with no terminal
+  punctuation; when the model stops mid-sentence that tail was spoken verbatim ("…parabolic graphs:
+  graph"). The streaming path now trims a non-terminated final item to its last complete clause via
+  `_clean_dangling_tail` (or drops a bare scrap), so TTS never ends a reply mid-thought.
+
+**Verification.** Study-core guard suite T6–T9 **11/11** (analyzer + retrieval + grading + display,
+Qwen stubbed). Live **topic-driven full-pipeline run, 10/10 turns** (wakeword/Whisper bypassed by
+publishing `/speech_text`): every turn was accepted, spoke through Kokoro, and cycled the half-duplex
+gate; the 2 graphical requests published the `jemh102` parabola crop to `/wini/display/image` (correct
+480×320 rgb8) and Qwen referred to it on screen; the other 8 were audio-only; pedagogy actions and the
+T10 budgets were applied throughout.
+
+**Still open after Phase 6:** the filler bank + prompt-trim for TTFS (§12.10.2), live mic→STT
+(§12.10.6), and the deferred AEC / full-duplex / barge-in set (§11).

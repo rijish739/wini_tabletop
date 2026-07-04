@@ -45,3 +45,6 @@ install_mode/
 venv/
 env/
 ENV/
+
+# Local voice-test artifacts
+.voice_runs/

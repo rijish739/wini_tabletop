@@ -129,7 +129,16 @@ CLARIFY_RE = re.compile(
     r"|\b(simpler|more simply|simply put|in simple (words|terms))\b"
     r"|explain (it |this )?(again|differently|another way|in a simpler)"
     r"|say (it|that) again|one more time|once more"
-    r"|still (confused|lost|stuck|do ?n'?t (get|understand))",
+    r"|still (confused|lost|stuck|do ?n'?t (get|understand))"
+    # frustration that the tutor is NOT teaching — keeps asking / not explaining /
+    # not answering / not complete. These must re-explain (rule 1b), not re-probe
+    # (transcript regression: "you keep asking me questions" -> another question).
+    r"|not (explain|answer|teach|telling|saying)(ing)?"
+    r"|(keep|keeps|just|only) (asking|questioning|repeating)"
+    r"|(asking|same question) (me )?(the same |again )"
+    r"|(not|isn'?t|is ?n'?t) (complete|helping|working|teaching)"
+    r"|you'?re not (talking|explaining|teaching|answering|helping)"
+    r"|\b(different|wrong|random|unrelated|off.?topic) (answer|answers|response|responses)\b",
     re.IGNORECASE,
 )
 
@@ -138,6 +147,134 @@ def is_clarification_request(text: str) -> bool:
     """True when the reply is a confusion / 'make it simpler' / 'you are repeating'
     plea rather than an answer attempt. Standalone runtime cue (see CLARIFY_RE)."""
     return bool(CLARIFY_RE.search(text or ""))
+
+
+# VISUALIZE_RE (standalone, like CLARIFY_RE — no feature-vector / rebuild impact):
+# the student cannot form a mental image ("I cannot imagine this", "can't picture
+# it", "how does it look?"). This is a representation gap, not generic confusion —
+# the tutor must respond with a concrete scene / figure, never another textual
+# definition (gemini_tutor_issues.md #3/#4: "I cannot imagine this" was answered
+# with a re-definition of triangle sides).
+VISUALIZE_RE = re.compile(
+    r"(can'?t|can ?not|could ?n'?t|do ?n'?t|not able to|unable to|hard to|difficult to) "
+    r"(really |quite |even )?(imagine|picture|visuali[sz]e|see (it|this|that))"
+    r"|(imagine|picture|visuali[sz]e) (it|this|that)\b.{0,20}(can'?t|not|hard)"
+    r"|in my (head|mind)"
+    r"|(how|what) (does|do|will|would) (it|this|that|they) look"
+    r"|show me (how|what) (it|this|that) looks",
+    re.IGNORECASE,
+)
+
+
+def is_visualization_request(text: str) -> bool:
+    """True when the student says they cannot picture / imagine the idea, or asks
+    what it looks like. Standalone runtime cue (see VISUALIZE_RE)."""
+    return bool(VISUALIZE_RE.search(text or ""))
+
+
+# PURPOSE_RE (standalone): the student asks WHY this is worth learning, what it is
+# for, or HOW something just shown connects to the topic — including the complaint
+# that their question was not answered. These must be ANSWERED directly, never met
+# with another problem or a definition (2026-07-03 transcript: "how is this related
+# to quadratic equation" drew a TRANSFER_PROBLEM, then two more deflections).
+PURPOSE_RE = re.compile(
+    r"why (do|does|should|must|would) (i|we|anyone|one)( even)? "
+    r"(have to |need to |got to )?(learn|study|know|care|use|do)"
+    r"|why (are we|am i) (learning|studying|doing)"
+    r"|what('s| is) the (use|point|purpose|need) of"
+    r"|what (do|will|would) (i|we) (ever )?use (it|this|that) for"
+    r"|when (will|would|do) (i|we) (ever )?use"
+    r"|\bhave to do with\b"
+    r"|(how|why) .{0,50}\b(related|connected|linked|relevant)\b"
+    r"|(real.?(life|world|time)) (use|application)s?\b|use in real.?(life|world)"
+    r"|(did ?n'?t|didn'?t|do ?n'?t|not|never|haven'?t) answer(ed)? (my|the) question"
+    r"|answer my question",
+    re.IGNORECASE,
+)
+
+
+def is_purpose_question(text: str) -> bool:
+    """True for a why-learn-this / what-is-it-for / how-is-this-connected question,
+    or an explicit 'you didn't answer my question' complaint. Standalone runtime cue."""
+    return bool(PURPOSE_RE.search(text or ""))
+
+
+# LEARN_REQUEST_RE (standalone): the student explicitly asks to be TAUGHT a topic.
+# The reply must teach (explain/recap), never open with a cold quiz (2026-07-03
+# transcript: "I want to learn about the quadratic equation" -> QUIZ, because the
+# perception signals were empty and the deterministic side had no cue).
+LEARN_REQUEST_RE = re.compile(
+    r"\bi (want|wanted|would like|wish) to (learn|study|know|understand)\b"
+    r"|\bteach me\b|\bcan you (teach|explain)\b|\blet'?s (learn|study)\b",
+    re.IGNORECASE,
+)
+
+
+def is_learning_request(text: str) -> bool:
+    """True when the student explicitly asks to learn / be taught something.
+    Standalone runtime cue."""
+    return bool(LEARN_REQUEST_RE.search(text or ""))
+
+
+# Topic-shift request extraction (standalone). Two shapes:
+#  * explicit — "i asked about X", "i want to learn about X", "switch to X",
+#    "teach me X", "let's do X": TOPIC_REQUEST_RE captures the X span so the
+#    runtime can resolve the REQUESTED topic (never the negated mention — the
+#    2026-07-03 regression resolved "I asked about natural numbers, you are
+#    explaining me quadratic equation" to the quadratic concept).
+#  * bare — a short noun-phrase turn ("Natural numbers.", "Trigonometry") with no
+#    question/answer/ack shape: is_bare_topic. The caller must gate this on "no
+#    pending question" because a bare phrase can be a legitimate answer.
+_TOPIC_SPAN = r"([a-z][a-z \-']{2,40}?)(?=[,.;!?]| not\b| instead\b| please\b| you\b| na\b|$)"
+TOPIC_REQUEST_RE = re.compile(
+    r"\bi (?:was )?ask(?:ed|ing)? (?:you )?(?:about|for) " + _TOPIC_SPAN
+    + r"|\bi want(?:ed)? to (?:learn|know|study|do|understand) (?:about |more about )?" + _TOPIC_SPAN
+    + r"|\b(?:can|shall) we (?:do|learn|study|try|talk about) " + _TOPIC_SPAN
+    + r"|\blet'?s (?:do|learn|study|try) " + _TOPIC_SPAN
+    + r"|\bswitch (?:to|the topic to) " + _TOPIC_SPAN
+    + r"|\bteach me (?:about )?" + _TOPIC_SPAN
+    + r"|\btell me about " + _TOPIC_SPAN,
+    re.IGNORECASE,
+)
+
+# words that mean the captured span is not actually a topic name ("about" appears
+# when the span regex backtracks over a too-short pronoun: "learn about it")
+_TOPIC_STOP = {"it", "this", "that", "them", "these", "those", "more", "again",
+               "something", "anything", "maths", "math", "everything", "about"}
+
+
+def extract_topic_request(text: str):
+    """Return the requested-topic span for an explicit topic request / correction
+    ("i asked about NATURAL NUMBERS", "teach me TRIANGLES"), else None. The span is
+    capped at 6 words; pronouns and empty fillers return None."""
+    m = TOPIC_REQUEST_RE.search(text or "")
+    if not m:
+        return None
+    span = next((g for g in m.groups() if g), "").strip()
+    words = span.split()[:6]
+    if not words or " ".join(words).lower() in _TOPIC_STOP or words[0].lower() in _TOPIC_STOP:
+        return None
+    return " ".join(words)
+
+
+def is_bare_topic(text: str) -> bool:
+    """True for a short bare noun-phrase turn that looks like a topic label
+    ("Natural numbers.", "Trigonometry"). Deliberately narrow: no question form,
+    no answer/ack/hint cue, no digits or operators. The caller must additionally
+    require that no diagnostic/micro question is open."""
+    t = (text or "").strip().rstrip(".!").strip()
+    if not t or "?" in text:
+        return False
+    words = t.split()
+    if not (1 <= len(words) <= 4):
+        return False
+    if re.search(r"[\d=+*/^<>]", t):
+        return False
+    if is_question(t) or is_pure_ack(t) or ANSWER_RE.search(t) or HINT_RE.search(t):
+        return False
+    if re.match(r"^(yes|yeah|ya|yep|no|nope|nah|ok|okay|hmm+|uh+|um+)\b", t, re.IGNORECASE):
+        return False
+    return bool(re.fullmatch(r"[a-zA-Z][a-zA-Z \-']*", t))
 
 
 def is_answer_attempt(text: str) -> bool:

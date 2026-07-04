@@ -18,7 +18,7 @@ DEFAULT_PACE: dict[str, Any] = {
     "expected_response_type": "free",
     "pending_micro_check": None,
     "explanation_step": 0,
-    "max_words": 35,
+    "max_words": 60,
     "last_explanation_summary": "",
     "last_spoken_answer": "",
     "last_voice_latency_ms": {},

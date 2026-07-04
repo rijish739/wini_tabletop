@@ -1,59 +1,63 @@
 # Dataset Curation Report
 
-Source: `exemplar_dataset_10000.json` (untouched) -> `exemplar_dataset_10000_curated.json`
-Rows changed: 8793 / 10000
+Source: `exemplar_dataset_10000_fixed.json` (untouched) -> `exemplar_dataset_10000_curated.json`
+Rows changed: 1791 / 10800
 
 ## Operations
 
 | op | rows |
 |---|---|
-| +question | 5335 |
-| +simplification_request | 705 |
-| +request_hint | 440 |
-| -request_hint | 266 |
-| +example_request | 223 |
-| -simplification_request | 148 |
-| -question | 16 |
-| +request_representation | 5 |
+| -question | 854 |
+| +request_hint | 441 |
+| -simplification_request | 254 |
+| +example_request | 189 |
+| +simplification_request | 173 |
+| +acknowledgment | 73 |
+| -request_hint | 68 |
+| +question | 51 |
+| -confusion | 6 |
+| -low_confidence | 4 |
+| +request_representation | 2 |
 
 ## Post-curation label support
 
 | label | rows |
 |---|---|
-| question | 7718 |
-| confusion | 3807 |
-| low_confidence | 2377 |
-| procedural_focus | 1942 |
-| curiosity | 1907 |
-| frustration | 1672 |
-| request_representation | 1590 |
-| skepticism | 1389 |
-| anxiety | 1339 |
-| shortcut_seeking | 1320 |
-| physical | 1138 |
-| cognitive_overload | 1109 |
-| disengagement | 1051 |
-| conflict | 840 |
-| transfer_attempt | 830 |
-| topic_shift | 746 |
-| self_monitoring | 731 |
-| graphical | 663 |
-| ready_for_next | 637 |
-| diagrammatic | 563 |
-| simplification_request | 557 |
-| verbal_analogy | 506 |
-| example_request | 506 |
-| request_hint | 453 |
-| representation_shift | 425 |
-| abstraction_attempt | 382 |
-| misconception_clue | 353 |
-| high_confidence | 221 |
-| hint_dependency | 174 |
-| environmental_feedback | 152 |
-| self_correction | 131 |
-| prerequisite_weakness | 108 |
-| algebraic | 85 |
-| recurring_error | 82 |
-| answer_attempt | 62 |
-| prerequisite_awareness | 62 |
-| tabular | 40 |
+| curiosity | 8725 |
+| question | 7994 |
+| algebraic | 5024 |
+| procedural_focus | 3033 |
+| self_monitoring | 2783 |
+| request_representation | 2531 |
+| representation_shift | 2529 |
+| diagrammatic | 2467 |
+| low_confidence | 2092 |
+| confusion | 2056 |
+| physical | 1577 |
+| anxiety | 1477 |
+| abstraction_attempt | 1385 |
+| cognitive_overload | 1346 |
+| conflict | 947 |
+| answer_attempt | 905 |
+| shortcut_seeking | 897 |
+| transfer_attempt | 888 |
+| recurring_error | 886 |
+| environmental_feedback | 806 |
+| high_confidence | 732 |
+| graphical | 667 |
+| example_request | 579 |
+| simplification_request | 572 |
+| frustration | 570 |
+| request_hint | 537 |
+| prerequisite_awareness | 514 |
+| prerequisite_weakness | 514 |
+| ready_for_next | 457 |
+| disengagement | 374 |
+| acknowledgment | 373 |
+| topic_shift | 371 |
+| self_correction | 209 |
+| tabular | 196 |
+| verbal_analogy | 190 |
+| hint_dependency | 164 |
+| skepticism | 114 |
+| misconception_clue | 85 |

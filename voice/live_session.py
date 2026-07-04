@@ -124,13 +124,19 @@ class LiveTutorSession:
             out = self.handler.respond(transcript, decision)
             ft.join()
 
-            print(f"action> {out['action']} | qwen={out['latency_ms'].get('qwen_ms')}ms")
+            gen_tag = out.get("gen_backend") or "gen"
+            print(f"action> {out['action']} | {gen_tag}={out['latency_ms'].get('qwen_ms')}ms")
             print(f"wini> {out['say']}")
             t_spk = now_ms()
             audio_ms = self._speak_chunked(out["say"]) if out["say"] else 0
             self._log_row({"event": "turn", "transcript": transcript, "filler": phrase,
                            "filler_state": pick_bucket(decision), "stt_ms": stt_ms,
                            "speak_wall_ms": now_ms() - t_spk, "audio_ms": audio_ms, **out})
+            if out.get("session_ended"):
+                # SESSION_CONTROL hard stop: the farewell was already spoken above;
+                # honoring the goodbye means actually stopping the mic loop.
+                print("(student ended the session — stopping)")
+                break
 
         self._log.close()
         print("Voice session closed.")

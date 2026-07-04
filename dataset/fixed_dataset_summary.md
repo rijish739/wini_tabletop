@@ -1,0 +1,123 @@
+# Fixed Dataset Summary
+
+- Source: exemplar_dataset_10000_curated.json
+- Output: exemplar_dataset_10000_fixed.json
+- Rows: 10000
+- Rows changed vs curated source: 10000
+- Rows touched by final self-doubt override: 136
+- Utterances mechanically cleaned: 2065
+- miniLM label rows changed: 9993
+- hope signal rows changed: 9997
+- target policy rows changed: 7014
+
+## Unique Counts
+- miniLM individual labels: 37
+- hope individual labels: 29
+- target_policy_action exact values: 16
+
+## target_policy_action Counts
+- EXPLAIN: 3915
+- REPRESENTATION_TRANSLATION: 2171
+- ENCOURAGE: 902
+- SOCRATIC_Q: 877
+- REVIEW: 604
+- BRIDGE_RECAP: 346
+- RESUME_STATE: 249
+- WORKED_EXAMPLE: 238
+- METACOGNITIVE_REFLECT: 179
+- QUIZ: 136
+- TRANSFER_PROBLEM: 114
+- VERBAL_ANALOGY: 113
+- REQUEST_HINT: 48
+- ANALOGOUS_EXAMPLE: 46
+- MISCONCEPTION_PROBE: 37
+- ISOMORPHIC_PRACTICE: 25
+
+## Category Action Counts
+- Category 1: REPRESENTATION_TRANSLATION:556, EXPLAIN:280, WORKED_EXAMPLE:85, REVIEW:55, SOCRATIC_Q:52, VERBAL_ANALOGY:36
+- Category 2: EXPLAIN:427, SOCRATIC_Q:290, REPRESENTATION_TRANSLATION:181, VERBAL_ANALOGY:61, WORKED_EXAMPLE:44, TRANSFER_PROBLEM:41
+- Category 3: EXPLAIN:452, ENCOURAGE:238, SOCRATIC_Q:105, METACOGNITIVE_REFLECT:83, RESUME_STATE:76, REVIEW:61
+- Category 4: BRIDGE_RECAP:257, EXPLAIN:215, SOCRATIC_Q:157, RESUME_STATE:153, QUIZ:97, ENCOURAGE:58
+- Category 5: ENCOURAGE:369, EXPLAIN:365, REPRESENTATION_TRANSLATION:144, REVIEW:143, BRIDGE_RECAP:41, SOCRATIC_Q:19
+- Category 6: EXPLAIN:800, WORKED_EXAMPLE:70, SOCRATIC_Q:65, METACOGNITIVE_REFLECT:55, REPRESENTATION_TRANSLATION:28, REVIEW:16
+- Category 7: EXPLAIN:958, SOCRATIC_Q:80, REVIEW:27, REPRESENTATION_TRANSLATION:23, ENCOURAGE:12, METACOGNITIVE_REFLECT:5
+- Category 8: EXPLAIN:314, REVIEW:258, REPRESENTATION_TRANSLATION:203, ENCOURAGE:181, SOCRATIC_Q:81, REQUEST_HINT:34
+- Category 9: REPRESENTATION_TRANSLATION:964, EXPLAIN:104, SOCRATIC_Q:28, VERBAL_ANALOGY:5, REVIEW:4, ENCOURAGE:3
+
+## miniLM Labels
+- abstraction_attempt: 1354
+- algebraic: 4861
+- answer_attempt: 792
+- anxiety: 1477
+- cognitive_overload: 1262
+- conflict: 947
+- confusion: 1899
+- curiosity: 8501
+- diagrammatic: 2408
+- disengagement: 374
+- environmental_feedback: 706
+- example_request: 374
+- frustration: 570
+- graphical: 626
+- high_confidence: 532
+- hint_dependency: 64
+- low_confidence: 1976
+- misconception_clue: 85
+- physical: 1806
+- prerequisite_awareness: 514
+- prerequisite_weakness: 514
+- procedural_focus: 2773
+- question: 8527
+- ready_for_next: 330
+- recurring_error: 886
+- representation_shift: 2405
+- request_hint: 64
+- request_representation: 2405
+- self_correction: 149
+- self_monitoring: 2313
+- shortcut_seeking: 897
+- simplification_request: 622
+- skepticism: 114
+- tabular: 196
+- topic_shift: 330
+- transfer_attempt: 838
+- verbal_analogy: 198
+
+## hope Signals
+- Active engagement: 7437
+- Active hint_dependency: 64
+- Active misconception: 22
+- Active misconception check: 1146
+- Anxiety: 1477
+- Cognitive overload: 1262
+- High confidence: 516
+- High confidence opportunity: 194
+- High ct_score: 6476
+- High engagement: 0
+- High ki_score: 2044
+- High ki_score opportunity: 1839
+- High kt_score: 98
+- High load_risk: 1822
+- High productive_struggle: 0
+- Low confidence: 1976
+- Low ct_score: 0
+- Low engagement: 0
+- Low ki_score: 0
+- Low productive_struggle: 1055
+- Mastery threshold met: 628
+- Misconception clue: 70
+- Moderate confidence: 315
+- Moderate ct_score: 518
+- Moderate ki_score: 2447
+- Moderate kt_score: 647
+- Moderate load_risk: 3044
+- Moderate productive_struggle: 0
+- Partial mastery: 0
+- Prerequisite awareness: 328
+- Prerequisite weakness: 264
+- Procedural focus: 113
+- Productive struggle: 0
+- Recurring Misconception: 627
+- Recurring error: 853
+- Recurring misconception: 133
+- Surface engagement: 1243

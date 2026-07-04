@@ -1,0 +1,48 @@
+{"kind": "behavior", "utterance": "i don't get it, this makes no sense to me", "pred": {"intent": "LEARNING", "signal_scores": {"confusion": 0.9}}}
+{"kind": "behavior", "utterance": "wait i'm confused, where did the 4 come from", "pred": {"intent": "LEARNING", "signal_scores": {"confusion": 0.9, "question": 0.8}}}
+{"kind": "behavior", "utterance": "my brain hurts, there are way too many steps at once", "pred": {"intent": "EMOTIONAL", "signal_scores": {"cognitive_overload": 0.9}}}
+{"kind": "behavior", "utterance": "stop, that's too much information at once, i can't keep up", "pred": {"intent": "SESSION_CONTROL", "signal_scores": {"cognitive_overload": 0.9}}}
+{"kind": "behavior", "utterance": "can you say that again more slowly, it's a lot to take in", "pred": {"intent": "LEARNING", "signal_scores": {"simplification_request": 0.8, "verbal_analogy": 0.3}}}
+{"kind": "behavior", "utterance": "whoa why does that trick always work? can we see more examples", "pred": {"intent": "LEARNING", "signal_scores": {"curiosity": 0.8, "question": 0.9, "simplification_request": 0.3, "transfer_attempt": 0.4, "verbal_analogy": 0.2}}}
+{"kind": "behavior", "utterance": "that's so interesting, what happens if we use negative numbers instead", "pred": {"intent": "LEARNING", "signal_scores": {"curiosity": 0.8, "question": 0.7, "transfer_attempt": 0.6}}}
+{"kind": "behavior", "utterance": "just tell me the steps so i can finish my homework", "pred": {"intent": "LEARNING", "signal_scores": {"hint_dependency": 0.8, "procedural_focus": 0.7}}}
+{"kind": "behavior", "utterance": "i'm sure the answer is 42, i checked it twice", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9, "high_confidence": 0.8}}}
+{"kind": "behavior", "utterance": "easy! the area is 24, i did it in my head", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9, "high_confidence": 0.8}}}
+{"kind": "behavior", "utterance": "i don't think i can do this one, it's too hard for me", "pred": {"intent": "EMOTIONAL", "signal_scores": {"low_confidence": 0.8, "prerequisite_weakness": 0.4}}}
+{"kind": "behavior", "utterance": "i'll probably get this wrong but maybe x is 5?", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9, "low_confidence": 0.7}}}
+{"kind": "behavior", "utterance": "i'm so scared i'll fail the maths test tomorrow", "pred": {"intent": "EMOTIONAL", "signal_scores": {"anxiety": 0.9}}}
+{"kind": "behavior", "utterance": "my heart races and i always freeze on word problems", "pred": {"intent": "EMOTIONAL", "signal_scores": {"anxiety": 0.9, "low_confidence": 0.7}}}
+{"kind": "behavior", "utterance": "multiplying always makes numbers bigger, right?", "pred": {"intent": "LEARNING", "signal_scores": {"misconception_clue": 0.8, "question": 0.7}}}
+{"kind": "behavior", "utterance": "i divided by the smaller number because you always divide by the smaller one", "pred": {"intent": "LEARNING", "signal_scores": {"misconception_clue": 0.7, "procedural_focus": 0.6}}}
+{"kind": "behavior", "utterance": "so a bigger denominator means a bigger fraction", "pred": {"intent": "LEARNING", "signal_scores": {"misconception_clue": 0.8, "question": 0.5}}}
+{"kind": "behavior", "utterance": "i keep making the same sign mistake every single time", "pred": {"intent": "LEARNING", "signal_scores": {"recurring_error": 0.9, "self_monitoring": 0.6}}}
+{"kind": "behavior", "utterance": "i got it wrong the same way again, i forgot the minus sign again", "pred": {"intent": "LEARNING", "signal_scores": {"recurring_error": 0.9, "self_monitoring": 0.7, "transfer_attempt": 0.4}}}
+{"kind": "behavior", "utterance": "this is just like the ratio problems we did with recipes, i can use the same idea here", "pred": {"intent": "LEARNING", "signal_scores": {"verbal_analogy": 0.95}}}
+{"kind": "behavior", "utterance": "oh, so i can use the area formula from rectangles to figure out this garden problem", "pred": {"intent": "LEARNING", "signal_scores": {"acknowledgment": 0.8, "physical": 0.6, "transfer_attempt": 0.5}}}
+{"kind": "behavior", "utterance": "i bet i can solve the next one using the distributive trick again", "pred": {"intent": "LEARNING", "signal_scores": {"high_confidence": 0.7, "ready_for_next": 0.5}}}
+{"kind": "behavior", "utterance": "oh wait, i made a mistake, it should be 15 not 12", "pred": {"intent": "LEARNING", "signal_scores": {"self_correction": 0.9, "self_monitoring": 0.6}}}
+{"kind": "behavior", "utterance": "hold on, i forgot to carry the one. let me fix that, it's 132", "pred": {"intent": "LEARNING", "signal_scores": {"self_correction": 0.9, "self_monitoring": 0.7}}}
+{"kind": "behavior", "utterance": "oh! i see it now, i was adding when i should have multiplied", "pred": {"intent": "LEARNING", "signal_scores": {"acknowledgment": 0.9, "self_correction": 0.7}}}
+{"kind": "behavior", "utterance": "can you give me a hint please", "pred": {"intent": "LEARNING", "signal_scores": {"request_hint": 0.9}}}
+{"kind": "behavior", "utterance": "just a small clue, don't tell me the whole answer", "pred": {"intent": "LEARNING", "signal_scores": {"request_hint": 0.9}}}
+{"kind": "behavior", "utterance": "i never really learned my times tables properly", "pred": {"intent": "LEARNING", "signal_scores": {"prerequisite_awareness": 0.8}}}
+{"kind": "behavior", "utterance": "i still don't know how to add fractions from last year", "pred": {"intent": "LEARNING", "signal_scores": {"prerequisite_awareness": 0.9, "prerequisite_weakness": 0.7, "procedural_focus": 0.6, "question": 0.3}}}
+{"kind": "behavior", "utterance": "ugh i hate this, i've tried five times and it's still wrong!", "pred": {"intent": "EMOTIONAL", "signal_scores": {"frustration": 0.9, "low_confidence": 0.6, "recurring_error": 0.5}}}
+{"kind": "behavior", "utterance": "this is so annoying, nothing i do ever works", "pred": {"intent": "EMOTIONAL", "signal_scores": {"frustration": 0.8}}}
+{"kind": "behavior", "utterance": "whatever. can we just be done", "pred": {"intent": "SESSION_CONTROL", "signal_scores": {"disengagement": 0.7}}}
+{"kind": "behavior", "utterance": "this is boring, i don't care about fractions", "pred": {"intent": "SESSION_CONTROL", "signal_scores": {"disengagement": 0.8}}}
+{"kind": "behavior", "utterance": "i give up. just tell me the answer", "pred": {"intent": "LEARNING", "signal_scores": {"hint_dependency": 0.9, "low_confidence": 0.6, "request_hint": 0.5}}}
+{"kind": "behavior", "utterance": "that was easy, give me a harder one!", "pred": {"intent": "LEARNING", "signal_scores": {"high_confidence": 0.8, "ready_for_next": 0.7}}}
+{"kind": "behavior", "utterance": "got it. what's next?", "pred": {"intent": "LEARNING", "signal_scores": {"acknowledgment": 0.8, "ready_for_next": 0.7, "request_hint": 0.3}}}
+{"kind": "behavior", "utterance": "can we do more of these puzzle ones? i love these", "pred": {"intent": "LEARNING", "signal_scores": {"ready_for_next": 0.7, "request_hint": 0.3, "verbal_analogy": 0.2}}}
+{"kind": "behavior", "utterance": "the answer is 12", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9}}}
+{"kind": "behavior", "utterance": "x equals 7", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9, "procedural_focus": 0.5, "verbal_analogy": 0.2}}}
+{"kind": "behavior", "utterance": "i think it's one half", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9}}}
+{"kind": "behavior", "utterance": "the perimeter is 18 centimeters", "pred": {"intent": "LEARNING", "signal_scores": {"answer_attempt": 0.9}}}
+{"kind": "behavior", "utterance": "what is a prime number?", "pred": {"intent": "LEARNING", "signal_scores": {"question": 0.9, "request_hint": 0.4, "simplification_request": 0.3}}}
+{"kind": "behavior", "utterance": "how do i find the lcm of 4 and 6?", "pred": {"intent": "LEARNING", "signal_scores": {"question": 0.9, "request_hint": 0.6, "simplification_request": 0.3, "verbal_analogy": 0.2}}}
+{"kind": "behavior", "utterance": "thanks, that explanation made sense", "pred": {"intent": "LEARNING", "signal_scores": {"acknowledgment": 0.9}}}
+{"kind": "behavior", "utterance": "okay let's try the next question", "pred": {"intent": "LEARNING", "signal_scores": {"ready_for_next": 0.9}}}
+{"kind": "behavior", "utterance": "i tried the way you showed me on the new problem and i think it works, is that right?", "pred": {"intent": "LEARNING", "signal_scores": {"question": 0.9, "transfer_attempt": 0.7, "verbal_analogy": 0.3}}}
+{"kind": "behavior", "utterance": "wait, is it always true that the angles add up to 180? even for really big triangles?", "pred": {"intent": "LEARNING", "signal_scores": {"question": 0.9, "self_correction": 0.5, "transfer_attempt": 0.4, "verbal_analogy": 0.3}}}
+{"kind": "behavior", "utterance": "so the rule is you flip the second fraction and multiply, did i say it right?", "pred": {"intent": "LEARNING", "signal_scores": {"procedural_focus": 0.7, "question": 0.9, "self_monitoring": 0.5}}}

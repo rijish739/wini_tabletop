@@ -2,12 +2,13 @@
 
 Pipeline:
   1. load dataset/exemplar_dataset_10000_curated.json (run curate_dataset.py
-     first); canonicalize labels, drop labels below MIN_SUPPORT
-  2. splits: REUSE the frozen row_ids from models/exemplar_classifier/splits.json
-     when present (the shared evaluation contract for every model trained on
-     this dataset); otherwise create a seeded stratified 80/10/10 split.
-     dataset/augmented_rare_labels.json rows (if built) are appended to the
-     TRAIN bank only.
+     first — it is the gold-rule projection of the canonical _fixed.json);
+     canonicalize labels, drop labels below MIN_SUPPORT
+  2. splits: REUSE the row_ids from models/exemplar_classifier/splits.json when
+     present (the shared evaluation contract for every model trained on this
+     dataset); otherwise create a seeded stratified 80/10/10 split over the
+     10000 base rows. The 800 supplementary rows (split=="train") and
+     dataset/augmented_rare_labels.json rows are appended to the TRAIN bank only.
   3. embed with all-MiniLM-L6-v2 (normalized); the logistic head additionally
      sees the 9 binary cue features (cues.py) that pooling dilutes
   4. tune k/m on validation; calibrate per-label thresholds on OUT-OF-FOLD
@@ -54,12 +55,24 @@ OOF_FOLDS = 5
 
 
 def load_rows() -> tuple[list[dict], list[str], int]:
-    """Returns (rows, kept_labels, n_original). Augmented rows sit after the
-    originals and carry source='augmented'; they may only enter the train bank."""
+    """Returns (rows, kept_labels, n_original).
+
+    The curated dataset is the gold-rule projection of `_fixed.json`: 10000
+    audit-corrected base rows followed by 800 T2/T3 supplementary rows that
+    declare split=="train". Supplementary rows — like augmented_rare_labels.json
+    rows (source='augmented') — are TRAIN-ONLY and never enter val/test, so only
+    the base rows count toward n_original (the splittable pool)."""
     if not DATASET.exists():
         raise SystemExit(f"{DATASET.name} missing — run: python -m cognitive_classifier.curate_dataset")
-    raw = json.loads(DATASET.read_text(encoding="utf-8"))
-    n_original = len(raw)
+    curated = json.loads(DATASET.read_text(encoding="utf-8"))
+    base = [r for r in curated if r.get("split") != "train"]
+    supp = [r for r in curated if r.get("split") == "train"]
+    for r in supp:
+        r["source"] = "supplementary"  # train-only; excluded from threshold calibration
+    n_original = len(base)
+    raw = base + supp
+    if supp:
+        print(f"{n_original} base rows + {len(supp)} supplementary rows (train bank only)")
     if AUGMENTED.exists():
         aug = json.loads(AUGMENTED.read_text(encoding="utf-8"))
         print(f"appending {len(aug)} augmented rows (train bank only)")

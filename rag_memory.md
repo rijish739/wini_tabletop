@@ -458,3 +458,295 @@ Two pieces of work in one session, both touching the runtime loop (build-plan Pa
   the dummy state are legacy artifacts; no current code path writes them and `mastery()` handles
   them. `learner_state.json` (developer dummy data, corrupted by the above) reset to a clean
   baseline. Lockstep: architecture §6.4 grading contract + §6.6 rule 1b, build-plan Part 7 v5.
+
+- **Cloud voice latency spike: STT/Flash/TTS, pre-Part-11 (2026-07-01).** Before starting the
+  real `PART11_GEMINI_PERCEPTION_LAYER.md` build, measured a throwaway pipeline
+  (`voice_latency_spike.py`, `llm_vertex.py`, `voice/gemini_live_stt.py` — none wired into
+  `tutor_loop.py`/`PERCEPTION_BACKEND`) to get real numbers per hop: Cloud STT → Gemini 2.5
+  Flash (`asia-south1`) → Cloud TTS, with a Gemini Live STT-only leg run in parallel for
+  comparison. **Warm steady-state per turn ≈ 3.8 s** (Cloud STT ~1.0-1.5 s, Flash ~0.9-1.1 s,
+  Cloud TTS ~1.1-1.5 s) — but a **cold process pays ~4-9 s per client** (Vertex/Cloud
+  channel+ADC setup dominates, not the API call), ~20-30 s total if every client is built
+  fresh; fixed by memoizing the Gemini client in `llm_vertex.py` (was rebuilding it every
+  call). **Gemini Live STT re-tested (STT-only, no audio-out) got the transcript right this
+  time** (no repeat of the 2026-06-18 wrong-script bug) **but measured ~7.7-8.4 s/turn, 5-6x
+  slower than Cloud STT** — a Live session still runs a full model turn even when only input
+  transcription is read, so **Cloud STT remains the STT choice, now on latency, not just
+  correctness**. Also hit a fresh gotcha: Gemini 2.5 Flash's default `thinking` budget can
+  consume all of `max_output_tokens` and return empty text (`finish_reason=MAX_TOKENS`) —
+  fixed with `thinking_config=ThinkingConfig(thinking_budget=0)`. Both findings logged as
+  gotchas in CLAUDE.md. **Also found & fixed**: a prior session's cloud-pivot edit to
+  CLAUDE.md's hard mandates had landed in `D:\Data\My Dnlds\CLAUDE.md` (not a repo, unrelated
+  downloads folder) instead of this repo's `CLAUDE.md`, leaving the real file still saying
+  "LOCAL Qwen only, no Gemini/Vertex clients" — merged the cloud-pivot mandate into the real
+  file. Lockstep: none of the 4 architecture docs changed (no schema/contract touched); this
+  is prep evidence for Part 11 Stage 0, not an implementation.
+
+- **Part 11 increment 1 — Gemini generation backend (built, headless-verified 2026-07-01).**
+  Wired Gemini 2.5 Flash generation into the real tutor brain behind a `GEN_BACKEND=qwen|gemini`
+  flag. **One-seam change**: `tutor_loop.qwen_chat` now dispatches to `llm_vertex.generate_reply`
+  when `GEN_BACKEND=gemini`, so all three generation call sites (`qwen_answer`,
+  `qwen_cohesion_check`, `judge_answer`) switch at once with the **manifest-grounded prompt
+  byte-identical** across backends. `llm_vertex.py` promoted to the shared Vertex client
+  (memoized per-location, hard `ThreadPoolExecutor` timeout 20 s, `thinking_budget=0`). New
+  `voice_cloud_tutor.py`: push-to-talk cloud tutor (Cloud STT → real brain → Gemini gen → Cloud
+  TTS, warm clients, per-hop timing) reusing `voice.live_tools.TutorTurnHandler` (no brain-code
+  duplication). **Verified**: `tutor_loop.py --once` with `GEN_BACKEND=gemini` and **no Qwen
+  server running** produced a correct, manifest-grounded answer (concept resolved 0.979, 6
+  evidence); the runner spoke a budgeted, speech-sanitized 2-sentence reply. **Latency (warm):**
+  gen ~0.9-1.2 s, full brain turn ~1.3 s, Cloud TTS ~1.9 s → brain+TTS ~3.2 s (+~1.2 s STT for a
+  mic turn ≈ ~4.4 s); cold ~5-9 s is one-time client construction paid at startup. **Gotcha
+  confirmed at brain scale**: Flash's default `thinking` budget must be disabled or short replies
+  return empty (`finish_reason=MAX_TOKENS`). Lockstep: build plan **Part 11** section added +
+  the two stale "Qwen-only" standing rules (§3, §8) annotated as superseded; report/architecture
+  model numbers unchanged (generation transport only, no neural model touched). **Pending:** user
+  mic test on live speech; increment 2 = the perception layer (`PART11_GEMINI_PERCEPTION_LAYER.md`).
+
+- **Part 11 increment 2 — Gemini perception layer (built, promotion gate pending 2026-07-01).**
+  Implemented the front door from `PART11_GEMINI_PERCEPTION_LAYER.md`: **Gemini perceives;
+  deterministic code decides and writes state.** New `perception/` package — `gates.py`
+  (model-free SAFETY+NONSENSE, always on), `route.py` (`RouteResult` + 8 intents + `INHERIT`
+  sentinel), `build_perception.py` (generates the enum-constrained schema + cached context block
+  from `label_space.json` + `concepts_meta.json`, with a drift-guard asserting the authored signal
+  definitions cover EXACTLY the 38 shipped labels), `gemini_perception.py` (`GeminiPerception`:
+  ONE memoized Gemini call exposing classify/resolve/route/embed/score_matrix/embedder + the OOV
+  validation belt), `config.py`, `test_perception.py`. Added `persona.json` (canned/scripted
+  non-learning replies; SAFETY/NONSENSE never model-improvised), `llm_vertex.generate_json` (the
+  structured-JSON seam: `response_schema`, `temperature=0`, `thinking_budget=0`, hard timeout), and
+  `eval/perception_eval.py` (Stage-2 harness over the frozen TEST split + intent/adversarial-SAFETY
+  probes). `tutor_loop.py` gained a **step-0 front door** (gates → Gemini route → `_handle_nonlearning`
+  for non-LEARNING with **no state move** and `pending_check` preserved), `_log_safety` (persisted
+  `safety_alerts` + supervisor notification), the `PERCEPTION_BACKEND` wiring (inject
+  `GeminiPerception` as classifier+resolver — the design's zero-edit seam), the §7.4 `answer_attempt`
+  guard, and a flagged Stage-1 shadow hook. `analyzer.py`/`learner_state.py`/`query.py`/classifier/
+  resolver/HOPE **unmodified**. **Verified**: Stage 0 live structured call GREEN (~8 s cold, G2);
+  **gate coverage SAFETY 1.0 (20/20) / NONSENSE 1.0 (9/9) / 0 false-gates** (offline, final);
+  front-door integration test passes (SAFETY/NONSENSE scripted, no state move, LEARNING passes
+  through); **8-row live Gemini smoke** = 0 errors, intent macro-F1 1.0, safety recall 1.0.
+  **Gotchas (new):** (G9) enums stop *invented* concepts, not *wrong* ones — correctness is a
+  threshold/eval problem, so signals fire on `PERCEPTION_SIGNAL_THRESHOLD`, not raw score, and are
+  calibrated on TEST; (G10) the deterministic gate must be near-total on its own — first pass hit
+  only 0.75 SAFETY recall (missed gerunds "ending my life" and oblique phrasings), broadened to
+  1.0, measure gate recall directly; (G11) `GeminiPerception.score_matrix` is turn-scoped (returns
+  the last-`embed()`-ed text's Gemini vector for the policy shadow); (G12) one call/turn is memoized
+  by *normalized* text, so keep `normalize_input` idempotent. **Pending (blocks Stage 4 promotion):**
+  the full 999-row TEST eval (concept top-1/top-3 vs **0.895/0.971**, signal micro/macro-F1 vs
+  **0.77/0.62**) + threshold calibration — do NOT flip `PERCEPTION_BACKEND=gemini` or remove the
+  MiniLM heads until green (CLAUDE.md: re-measure, never edit a number blind). Lockstep: build plan
+  §13.2, `PART11_GEMINI_PERCEPTION_LAYER.md` status header, `CLOUD_VOICE_STATUS_AND_GOTCHAS.md` §10,
+  architecture §6.2 perception seam, report + RAG-plan exception notes, CLAUDE.md commands+gotchas.
+
+- **Voice-teaching quality fixes from a real mic transcript (2026-07-01).** First live trig
+  session (`cloud_education.txt`) was "not good for learning": opening "I want to learn
+  trigonometry" got **QUIZ**ed; every frustrated follow-up got an **apology that consumed the whole
+  spoken budget** ("Namaste! I'm Wini…", "My apologies! Let's focus…"), same question repeated 3×.
+  Diagnosed 4 root causes and fixed (owner chose fuller explanations): (1) **budgets too tight** —
+  teaching actions raised (EXPLAIN 35→65 w/4 s, WORKED_EXAMPLE 60→85/5, ANALOGOUS/REPRESENTATION
+  60/4, etc.; probes/QUIZ/SOCRATIC/REFLECT stay tight) in `pacing/pacing_controller.py` + ledger
+  default. (2) **no intro path** — new **rule 1c** in `rules_decide`: not-yet-mastered concept +
+  learn intent (curiosity/question, no distress) → EXPLAIN-introduce, never QUIZ. (3) **frustration
+  mishandled** — `CLARIFY_RE` extended (standalone cue, no classifier rebuild) to catch "not
+  explaining / keep asking questions / different answers" → re-explain (rule 1b). (4) **filler +
+  repetition** — hard STYLE block in `qwen_answer`: no greeting/self-intro/apology/announcing,
+  never re-ask a question already in history; intro tone for rule-1c EXPLAIN. **Gotcha (cost me a
+  debug loop):** `is_known(concept_id)` is True as soon as `apply_deltas` writes a concept-state
+  row on the FIRST turn — it means "has a state row", NOT "taught". rule 1c must gate on
+  **`mastery(primary) <= COLD_START_MASTERY`** (0.30), which only rises on graded evidence. A
+  standalone probe that only calls `analyze_only` (never `apply_deltas`) sees `is_known=False` and
+  hides the bug — reproduce routing through the FULL `turn()`/handler path. **Verified**: replaying
+  the same 5 inputs (`GEN_BACKEND=gemini`, fresh state) now teaches trigonometry progressively
+  (hypotenuse → right angle → application → ratios), zero apologies, zero repeats, warm latency
+  intact. Lockstep: build plan §13.1a added; report/architecture untouched (pacing + rule tweak,
+  no schema/model change).
+
+- **Part 11 Stage 4 PROMOTED: perception default flipped to Gemini (2026-07-02).** The 2026-07-01
+  999-row TEST run came back NO-GO but diagnostic: intent 1.0 / SAFETY 1.0 PASS, concept 0.882/0.933
+  near-miss, and signal label-F1 failing STRUCTURALLY (gold averages 5.4 signals/row, Gemini emits
+  2.6 by conservative design; `curiosity` gold-labeled on 85% of rows -> heads recall 0.95 by
+  training-set memorization vs Gemini 0.06 by definition). Re-scoping to the 16 state-material
+  labels did not close it -> conclusion: the label-reproduction gate, not Gemini, was the wrong
+  arbiter. **Superseding signals arbiter = behavioral state-trajectory eval**
+  (`eval/behavioral_eval.py`): both backends' signals pushed through the UNCHANGED
+  `derive_cognitive_update`/`derive_state_deltas` math, graded on the STATE MOVES over 48 authored
+  probes (bands + must-fire/must-not-fire flags, gates fixed before measurement) -> **PASS: Gemini
+  0.857/0.833 vs heads 0.607/0.500, forbidden-rate equal**; heads systematically miss
+  misconception/transfer/prereq/frustration flags. **Concept fixed by S5.5 hardening**: (a) prompt
+  rule ALWAYS fill 2-3 `secondary_concepts` (74% of rows had them empty -> top-3 collapsed to
+  top-1; now 0.990), (b) top-8 MiniLM `candidate_concepts` hints per turn (resolver
+  `anchor_embeddings.npy`, `PERCEPTION_CANDIDATE_K`), (c) deterministic **resolver cross-check**
+  `fuse_primary` in `GeminiPerception.resolve` (confident resolver top-1 promoted ONLY if already in
+  Gemini's primary+secondaries set; never overrides INHERIT; `PERCEPTION_CONCEPT_CROSSCHECK`):
+  top-1 0.890 -> **0.930** (beats resolver-alone 0.895 - the two rankers fix each other's
+  same-chapter granularity confusions, 58/66 raw misses). Full re-collect 999/999, 0 errors, into
+  `perception_eval_raw2.jsonl` (v2 = prompt of record; v1 kept as provenance; NEVER mix caches
+  across prompt versions). All promotion checks green -> `PERCEPTION_BACKEND` default = `gemini`
+  (perception/config.py), verified by offline+integration tests and a headless E2E `--once` turn.
+  Heads stay on disk as fallback/baseline (Stage 6 removal = owner decision after stability).
+  **Gotchas:** (G13) an eval gate that grades a model against labels ANOTHER model was trained on
+  is memorization-biased - grade on downstream behavior instead; (G14) Gemini leaves optional
+  schema arrays empty unless the prompt says ALWAYS fill them - an instruction, not a capability
+  gap; (G15) grading fusion rules offline from a cached collect is free - measure deterministic
+  post-processing (cross-check) from the cache before paying for another collect. Still open:
+  Stage 5 Vertex context cache (cost/latency), Stage 6 head removal, stability watch. Lockstep
+  DONE this session: build plan S13/S13.2, architecture S6.2, report S3.3 note, status doc S7,
+  CLAUDE.md mandate, WINI_ARCHITECTURE.
+
+- **Part 11 Stages 5+6 COMPLETE (2026-07-02, owner-directed) - Part 11 is done.** Stage 5:
+  `perception/vertex_cache.py` puts the 6,062-token static block (taxonomy + 38 signal defs +
+  108-concept catalog + anchors) in a Vertex cached-content resource; per-call now sends only the
+  dynamic prompt + response schema. Graceful by construction: `active_name()` checks expiry
+  (2-min margin) AND a context sha (a `build_perception` rebuild invalidates the cache - never
+  serve a stale block) AND model id; `GeminiPerception._gemini_call` retries a failed cached call
+  once with the full system instruction then drops the cache for the process. Measured gate
+  (warm, real schema): correctness identical; ~1.0-1.1 s/call cached vs ~1.3-1.5 s uncached;
+  66% of prompt tokens (6,062/9,155) at the cached rate; ~$0.0014/turn input. **Gotchas:** (G16)
+  the per-call `response_schema` is generation CONFIG and cannot go in the cached content - with
+  a 108-enum concept schema it is ~3k tokens of un-cacheable prompt every call; (G17) implicit
+  Gemini 2.5 prefix caching showed up in the meter (cached_tokens=9036 on an uncached repeat
+  call) - do not mistake it for the explicit cache working, and do not rely on it (not
+  guaranteed); (G18) recreate the cache after any prompt rebuild or TTL expiry
+  (`python -m perception.vertex_cache --create`); superseded resources are deleted to stop
+  storage billing. Stage 6: MiniLM-heads runtime path RETIRED from `tutor_loop.py` - always
+  injects `GeminiPerception`; stale `PERCEPTION_BACKEND=qwen_heads` prints a notice and uses
+  gemini (never crashes); Stage-1 shadow hook (`PERCEPTION_SHADOW`) removed; learning-path
+  fallback on a failed Gemini call = gates + inherit-concept + neutral signals. Head artifacts
+  RETAINED (`models/exemplar_classifier/`, `models/concept_resolver/`) - the evals load them as
+  baselines and the resolver artifacts serve the runtime S5.5 cross-check; MiniLM itself stays
+  in-process for retrieval + HOPE (mandate unchanged). Verified: perception tests offline +
+  `--integration` PASS; E2E `tutor_loop.py --once` hint turn on the cached+retired stack
+  (request_hint -> rule 3 hint, correct concept + secondaries). Lockstep DONE: build plan S13,
+  architecture S6.2, WINI_ARCHITECTURE, CLAUDE.md mandate + commands, CLOUD_VOICE S1/S9/S10,
+  both PART11 docs. Standing watch: production firing rates during the stability window.
+
+- **Front-door UX fixes from agent transcript review (2026-07-03).** `gemini_tutor_issues.md`
+  (owner's reviewing agent) flagged 5 defects in a live tutoring transcript; all fixed +
+  offline-tested (`python -m perception.test_perception` 5/5 PASS, includes 2 new tests).
+  (1) **SESSION_CONTROL retention — the big one**: "No, I want to go. Bye." drew "let's just
+  quickly finish this one small sum". Root cause was OUR OWN persona/contract text: "secure a
+  small win" + the unconditional "if you steer back to maths..." line in `_persona_prompt` —
+  the LLM read them as licence to retain. Fix: persona rewritten (accept immediately, praise,
+  NEVER ask a maths question); **end-of-session hard rule** in `_apply_session_control`
+  (explicit bye OR 2nd leave request in a row -> `status="ended"` via `session.leave_requests`
+  counter, reset on LEARNING resume); ended sessions reply with a **scripted farewell, never
+  the LLM**; `session_ended=True` propagates through `TutorTurnHandler` and stops the turn
+  loop in ALL runners (CLI, `voice_cloud_tutor.py`, `voice/live_session.py`). (2) **SOCIAL
+  context-blindness** ("I was right!" -> "what did you get right?"): `_persona_prompt` now
+  carries the last 6 `session.context` turns + "never ask about something it already tells
+  you". (3+4) **visualization pleas** ("I cannot imagine this") were re-defined, not pictured:
+  new standalone `VISUALIZE_RE` cue (no rebuild), **rule 1a-vis** outranks rule 1b ->
+  `REPRESENTATION_TRANSLATION` + a generation cue that builds ONE concrete everyday scene (or
+  walks the on-screen T9 figure); plain representation signals stay at rule 6 priority so the
+  probe/hint rules are not starved. (5) end-of-session policy = the hard rule in (1).
+  **Gotcha (G19):** persona instructions are executed by the LLM literally — a pedagogically
+  well-meant phrase like "secure a small win" IS a retention instruction after a goodbye;
+  session-ending replies must be deterministic/scripted, not generated. Also fixed in passing:
+  interactive CLI crashed on non-learning turns (`out['shadow']['action']` with shadow=None).
+  Lockstep: build plan §13.1b, architecture "Decision examples" (rule 1a-vis), PART11 §4.3
+  SESSION_CONTROL contract + intent table row.
+
+- **Second transcript pass: purpose questions, topic shift, backend observability (2026-07-03
+  afternoon).** The owner re-tested `--live` (Gemini generation — no local Qwen server was
+  running) and hit 4 more defects; all fixed offline-tested 7/7 (`perception.test_perception`).
+  (1) **"how is this related to quadratic equation" was never answered**: Gemini emitted
+  `transfer_attempt` -> rule 5 served ANOTHER problem; follow-ups fell to confusion/frustration
+  rules. Fix: `PURPOSE_RE` (incl. "you didn't answer my question") -> **rule 1w** ->
+  `WHY_IT_MATTERS` action, tone = answer the exact question FIRST. (2) **topic shift broken**:
+  "Natural numbers." abstained -> INHERIT -> silently continued the marble expansion; the
+  correction resolved to the NEGATED concept (quadratic, 0.7). Fix: `TOPIC_REQUEST_RE` span
+  extraction + `is_bare_topic` + `GeminiPerception.topic_candidates` (anchor sims) +
+  `_maybe_topic_shift`/`_consume_pending_shift` in turn(): >=.45 direct switch (re-enters as
+  "I want to learn about {name}", `_allow_shift=False` guard), .25-.45 confirm (pending_shift,
+  bare yes/no next turn), <.25 honest off-catalog offer. Thresholds MEASURED on shipped anchors
+  (topics .45-.69, "natural numbers" .31, noise <=.14). Pacing confirm_shift now speaks the
+  human name (was raw id!) and arms the same pending_shift (the old offer was never executable).
+  (3) **"I want to learn about X" -> QUIZ**: signals empty + warm mastery gated rule 1c; new
+  `LEARN_REQUEST_RE` makes explicit learn requests always teach (intro tone still cold-only).
+  (4) **mid-number cutoffs**: `_truncate_to_spoken_budget` split sentences at DECIMAL POINTS
+  ("20 / 0.2" -> "...20 / 0." + "2 ..."), the real cause of the "0. 2 square metres...divide
+  20 / 0." reply; splitter now requires whitespace/end after the terminator; token cap 90-240.
+  **Gotcha (G20):** transcripts/logs never recorded which LLM generated a reply and the --live
+  labels hard-said "qwen" (seam name) — attribution was impossible. Now: startup banner +
+  per-turn `gen_backend` in learning_log/turn results/voice logs + `answer_source` for persona
+  replies. **G21:** the sentence splitter regex `[^.!?]*[.!?]` treats decimals as boundaries —
+  any word/sentence budgeting over maths text must require whitespace after the terminator.
+  Lockstep: build plan §13.1c, architecture "Decision examples" (rule 1w + topic-shift
+  contract). SESSION_CONTROL 13.1b fixes verified live in the same transcript (soft pause clean,
+  2nd leave -> scripted farewell + hard stop).
+
+## 2026-07-03 — Jetson cloud-brain port (Part 11 pipeline on the robot) + ESP32 display contract
+
+Owner directive: run the SAME cloud pipeline (Gemini perception + generation) from the
+Jetson because ROS + the SPI display work there; wire the T9 visual-cue channel to the
+robot screen; document the ESP32 thin-client image plan; board IP is now 172.20.10.2
+(hotspot — old 192.168.29.x retired, do not use).
+
+Done (all measured on the board):
+- **Branch unification:** workspace adopted the Jetson's `query.py` (lazy faiss/dotenv,
+  `load_store(with_index=False)`, nx `edges=` fix — pure superset, diff was ONLY the Part 9
+  device adaptations). `tutor_loop.py` gained an optional `device_config` import (Jetson-only
+  module → MiniLM pinned CPU there, absent on Windows) + `with_index=False`; `GeminiPerception
+  .load(device=…)`/`HopeDetector.load(device=…)` take the pin. One tutor_loop source now runs
+  on BOTH platforms — the 3-way merge shrank to `llm_local.py` + `device_config.py` + brain node.
+- **Sync:** tutor_loop, perception/ (+ build artifacts + vertex_cache.json), llm_vertex.py,
+  persona.json, cues.py, pacing/{ledger,controller}, build-time scripts → board (backups in
+  `_wini_backups`). `google-genai` 2.10.0 + `python-dotenv` into the venv; ADC creds →
+  `~/.config/gcloud/`; `.env` (project) + `export GEN_BACKEND=gemini` in the env prelude
+  (GEN_BACKEND is read BEFORE dotenv loads — must be a real env var, not .env-only).
+- **Brain node (gemini mode):** no llama.cpp import/prewarm (OOM squeeze gone — full pipeline
+  4.4 GB used / 2.8 GB free); Vertex clients warmed at startup (~6 s); whole cloud reply
+  sentence-split and published per sentence to /llm_out; T9 figure up BEFORE speech.
+- **Verified E2E:** perception tests 5/5 offline; headless --once cloud turn correct; live ROS
+  turn ~4 s utterance→first TTS sentence; /wini/display/image 5.0 Hz; "i cannot imagine the
+  graph…" → rule 1a-vis → REPRESENTATION_TRANSLATION + Fig 2.2 crop on the panel.
+- **ESP32 forward contract** (runbook §14.3): store-relative `image_path` = stable image ID;
+  thin client keeps `figure_crops/` on SD card, cloud sends metadata only ({figure_id,
+  image_path, alt_text}); unknown ID ⇒ keep the face. Jetson brain node is the reference
+  consumer of exactly that metadata.
+
+Gotchas:
+- **G22:** the naive sentence splitter split "Fig. 2.2." into "Fig." + "2." TTS clips —
+  abbreviation periods (Fig./e.g./Dr.) pass the whitespace-after-terminator rule; the brain
+  node splitter re-joins abbreviation/lowercase/digit-initial fragments.
+- **G23:** `pkill -f brain_node` issued from an ssh one-liner whose OWN command string contains
+  "brain_node" kills the ssh shell itself (exit 255). Put pkill last or use a launcher script.
+- Lockstep: build plan §11.1 (new), runbook §0/§1/§5/§12/§14 (new §14). Architecture/report
+  untouched — no schema/model change, transport + deployment only.
+
+## 2026-07-03 (evening) — Jetson THIN-CLIENT split: wakeword/fastwhisper/Kokoro retired
+
+Owner directive (same day as the cloud-brain port, superseding its ROS-node shape): nothing
+model-shaped on the device — no wakeword, no local ASR/TTS; device = mic + speaker + display
++ future touch; everything in the cloud; the client package must be trivially portable.
+
+Built + verified on the board:
+- **`wini_server.py`** — whole pipeline behind HTTP (stdlib http.server, zero new server
+  deps): Cloud STT (en-US + maths hints) → TutorLoop (Gemini) → sanitize → Cloud TTS.
+  `GET /health`, `POST /turn`, `POST /voice_turn` (raw 16 kHz PCM in → base64 24 kHz PCM +
+  display METADATA out). Hard timeouts on every cloud call. Same file = future Cloud Run
+  artifact (PORT env). google-cloud-speech/texttospeech installed in the Jetson venv.
+- **`wini_client/`** — portable thin client, deps = numpy + sounddevice + requests. RMS VAD
+  endpointing (~40 lines) replaces wakeword+Whisper; half-duplex by construction; display via
+  pluggable sinks — `RosDisplaySink` publishes 480×320 rgb8 to /wini/display/image (~5 Hz,
+  message built once per figure), resolving `image_path` against the local rag_store copy
+  (the ESP32 SD-card image-ID contract, verbatim). `--once-text`, `--trigger enter`
+  (= the future touch-sensor shape), README.md with the HTTP contract + 4 porting seams.
+- **Retired from runtime** (files kept, legacy `run_pipeline.sh`): wakeword_node,
+  fastwhisper_node, wini_tts_node, wini_brain_pkg node. New bring-up `run_thin.sh`
+  (audio pin + display node + server + client, all detached per §2.1 pattern, python -u).
+- **Verified:** Windows first (server + client --once-text + fake-voice /voice_turn), then
+  Jetson: canned-utterance /voice_turn → exact transcript, REPRESENTATION_TRANSLATION +
+  Fig 2.2 metadata, ~834 KB TTS audio; client one-shot → crop on the panel (3.6–5 Hz
+  measured) + speech on the USB speaker; VAD client left listening (PULSE_SOURCE pinned).
+
+Gotchas:
+- **G24:** PulseAudio's default sink/source revert to the onboard card even after
+  select_usb_audio.sh ran — belt = eval `select_usb_audio.sh --export` into the launcher env
+  AND open sounddevice streams with device="pulse" (raw ALSA default = onboard, no mic).
+- **G25:** a client blocked in a PortAudio read ignores SIGTERM — pkill -9 the thin procs.
+- **G26:** detached `python > log` buffers stdout — launch with `python -u` or logs look dead.
+- **G27:** `ros2 topic hz` under a short `timeout` from a cold CLI prints nothing (daemon
+  spin-up) — warm with `ros2 topic list` first; cost a whole phantom-bug hunt (the sink was
+  publishing fine all along).
+- Lockstep: build plan §11.2 (new), runbook §0 rewrite + §5 legacy note + §13 + new §15;
+  wini_client/README.md is the client contract doc. Architecture/report untouched (transport +
+  deployment only; T9 display contract unchanged in shape).

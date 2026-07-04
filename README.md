@@ -1,57 +1,58 @@
-# SOTA Graph RAG for NCERT Math Textbooks
+# Wini — Pedagogy-First Tutoring System (NCERT Class 10 Maths)
 
-This project builds a proper study RAG database with:
+Wini models a student's **cognitive state** during learning — what they understand,
+misunderstand, feel, and are ready for — and chooses a teaching move from that state, instead
+of routing a message to one chatbot intent. Every reply is grounded in retrieved NCERT
+evidence, and the learner model moves only on evidence (probe/bridge outcomes, HOPE scores),
+never on text inference alone.
 
-- semantic retrieval with Gemini embeddings
-- graph traversal over curriculum concepts
-- PDF page image understanding with Gemini vision
-- page-level text + figure summaries
-- concept seed graph for Chapter 2: Polynomials
-- retrieval restricted by concept neighborhood
-
-## What the NCERT chapter contains
-
-The uploaded chapter is Chapter 2, *Polynomials*. It defines linear, quadratic, and cubic polynomials; explains zeroes as x-axis intersections; shows line/parabola/cubic graphs; and proves coefficient relationships for quadratic and cubic polynomials. The figures and tables on pages 3 to 8 are especially important because they connect algebraic form to geometric meaning. fileciteturn6file11L1-L26 fileciteturn6file6L1-L25 fileciteturn6file1L1-L24 fileciteturn6file5L1-L20 fileciteturn6file8L1-L14
-
-The relations between zeroes and coefficients are on pages 19 to 22, including the quadratic sum/product formulas and the cubic pairwise-sum/product formulas. fileciteturn6file9L1-L21 fileciteturn6file19L1-L19
-
-## Install
-
-```bat
-python -m venv .venv
-.venv\Scripts\activate
-pip install -r requirements.txt
+```
+message → cognitive analyzer → learner-state update → pedagogy decision
+        → grounded response (local Qwen) → state write-back
 ```
 
-## Authenticate
+## Start here
 
-```bat
-gcloud auth application-default login
-set GOOGLE_CLOUD_PROJECT=YOUR_PROJECT_ID
-set GOOGLE_CLOUD_LOCATION=global
-set GOOGLE_GENAI_USE_ENTERPRISE=True
+- **[WINI_ARCHITECTURE.md](WINI_ARCHITECTURE.md)** — end-to-end overview and index to every
+  other document. Read this first.
+
+Detailed docs (kept in lockstep — see `CLAUDE.md`):
+
+- [learner_cognitive_state_architecture.md](learner_cognitive_state_architecture.md) — what the system models
+- [RAG_upgrade_plan.md](RAG_upgrade_plan.md) — how the store was built
+- [model_dataset_architecture_report.md](model_dataset_architecture_report.md) — datasets + neural models
+- [complete_architecture_build_plan.md](complete_architecture_build_plan.md) — build status (Parts 1–10)
+- [WINI_VOICE_STUDY_ARCHITECTURE.md](WINI_VOICE_STUDY_ARCHITECTURE.md) — voice-to-voice runtime
+- [rag_memory.md](rag_memory.md) — append-only work log
+
+## What is built
+
+- **Knowledge store** (`rag_store/`): 108 NCERT Class-10 Maths concepts, schema v2, 1,017
+  grounded chunks, 3,562 graph nodes (concepts, Class-9 bridges, problem schemas, hint chains,
+  enriched misconceptions, CT probes, cropped figures). `verify_store.py` scorecard: 18/18 PASS.
+- **Models** (Parts 1–5): MiniLM cognitive classifier, concept resolver, cognitive analyzer,
+  ordinal HOPE detectors, shadow pedagogy policy.
+- **Runtime** (`tutor_loop.py`): the closed learner-state loop — bridge gate, misconception
+  probe→correct, 7-term learner-state-aware retrieval, provenance manifest, write-backs.
+- **Voice**: Jetson Orin Nano deployment (fully local) and a Windows hybrid test rig
+  (cloud STT/TTS edges, local brain).
+
+## Hard mandates
+
+- **LLM = local Qwen only** (qwen2.5-3b-instruct via llama.cpp). Embeddings = local MiniLM.
+  No Gemini/Vertex in the runtime brain.
+- **Class 10 Mathematics only** (Science attaches later without schema change).
+- Canonical dataset = `dataset/exemplar_dataset_10000_fixed.json` (raw archived under
+  `dataset/archive/`); `curate_dataset.py` projects it to `_curated.json`, the build input.
+  `models/.../splits.json` is the shared train/val/test contract (regenerated 2026-06-19).
+
+## Quick commands
+
+```bash
+python tutor_loop.py                       # tutor chat (Qwen server must be up)
+python tutor_loop.py --once "msg"          # scripted single turn
+python voice_hybrid_runner.py --live       # Windows voice rig
+python verify_store.py --fail-under 90      # store scorecard
 ```
 
-## Ingest your folder
-
-```bat
-python build_index.py --docs "F:\Projects\Pedagogical_study_pkg\database\Maths" --out rag_store
-```
-
-## Ask a question
-
-```bat
-python query.py --store rag_store --question "Explain zeroes of a quadratic polynomial using the graph"
-```
-
-## Why this is better than the first prototype
-
-The architecture in your learning-system spec says the system should model cognition, use a curriculum knowledge graph, and retrieve evidence only after concept resolution. It also says the graph is not just a content index; it is the teaching-order map. This implementation follows that structure instead of doing a flat vector search over every chunk. fileciteturn6file12L1-L29 fileciteturn6file17L1-L24
-
-## Files
-
-- `chapter_seed_polynomials.json` — concept graph seed for Chapter 2
-- `build_index.py` — builds the database
-- `query.py` — queries the database
-- `pdf_vision.py` — page rendering and multimodal page summaries
-- `rag_core.py` — retrieval and answer orchestration
+See `CLAUDE.md` for the full command list, project rules, and known gotchas.

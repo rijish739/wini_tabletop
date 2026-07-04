@@ -1701,11 +1701,11 @@ gate bridges → decide pedagogy → retrieve+rank → generate from manifest �
 | Part | Component (arch §) | Code module | Status | Headline result |
 |---|---|---|---|---|
 | — | Curriculum Knowledge Graph (§6.5) | `rag_store/` (`build_index.py`) | **DONE** | 108 concepts, 1,017 chunks, 3,562 nodes, scorecard 18/18 |
-| 1 | Cognitive Analyzer / classifier (§6.2) | `cognitive_classifier/` | **DONE** | test micro-F1 **0.77**, macro-F1 **0.62** (curated gold) |
+| 1 | Cognitive Analyzer / classifier (§6.2) | `cognitive_classifier/` | **DONE** | test micro-F1 **0.83**, macro-F1 **0.69** (fixed-source rebuild 2026-06-19, 38 labels incl. `acknowledgment`) |
 | 2 | Concept Resolver (§6.3) | `concept_resolver/` | **DONE** | top-1 **0.894** / top-3 **0.964** / abstain-F1 **0.968**; 108/108 covered |
 | 3 | Cognitive Analyzer assembly (§6.2) | `cognitive_analyzer/` | **DONE** | 4/4 unit + 3-turn integration; text never moves mastery |
 | 4 | HOPE detectors KI/KT/CT (§5) | `hope_detector/` | **DONE** | discrimination gate **PASS** all 3 (1.65/1.29/1.81); QWK 0.45–0.65 |
-| 5 | Pedagogy policy (§6.6) | `policy_shadow/` | **SHADOW** | top-1 **0.558** / top-2 0.745 (logs beside rules) |
+| 5 | Pedagogy policy (§6.6) | `policy_shadow/` | **SHADOW** | top-1 **0.680** / top-2 0.844 (fixed-source rebuild 2026-06-19; logs beside rules) |
 | 6 | Neural knowledge tracing (§7.1) | *(deferred)* | **WAITING** | needs real `learning_log.jsonl`; no synthetic KT |
 | 7 | Runtime loop (§7) | `tutor_loop.py` | **DONE (v4)** | all loops closed + verified end-to-end |
 | 8 | Evaluation & monitoring | `verify_store.py` + frozen splits | **DONE** | 18/18 scorecard; holdout-chapter check defined |
@@ -1733,15 +1733,16 @@ MiniLM + an exemplar bank + calibrated thresholds:
 
 ```text
 utterance → all-MiniLM-L6-v2 embedding (normalized, 384-d)
-         → shipped scorer = knn+logreg ENSEMBLE
-            (weighted 8-NN posterior  ⊕  one-vs-rest logistic head)
+         → shipped scorer = evidence+logreg ENSEMBLE   (was knn+logreg pre-2026-06-19;
+            cleaner fixed-source labels flipped the val-macro-F1 winner)
+            (weighted similarity-evidence posterior  ⊕  one-vs-rest logistic head)
             logreg input = [384-d embedding | 9 binary surface-cue features]
          → per-label thresholds (5-fold out-of-fold calibrated, clamped [0.10, 0.90])
          → thresholded multi-label cognitive signal set  (+ top evidence exemplars)
 ```
 
-- **Label space:** 48 raw → **~36 canonical** labels (`label_space.py`, `MIN_SUPPORT=40`).
-  Head labels reliable; long tail thin.
+- **Label space:** 48 raw → **38 canonical** labels (`label_space.py`, `MIN_SUPPORT=40`;
+  `acknowledgment` added 2026-06-19). Head labels reliable; long tail thin.
 - **Deterministic gold rules (outrank the classifier):** `question` (interrogative rule),
   `request_hint` (explicit hint/steps/answer ask, `HINT_RE`), `simplification_request`, and
   `is_pure_ack` (acknowledgment phrase, no `?`, no WH-word, no "but") live in `cues.py`. These
@@ -1750,13 +1751,17 @@ utterance → all-MiniLM-L6-v2 embedding (normalized, 384-d)
 - **Cue features matter** because pooled sentence embeddings dilute 1–2-token signals
   (wait/actually, answer-attempt phrasing, hint asks).
 
-| metric (test, n≈999, curated gold) | target | build 1 | **build 2 (shipped)** |
-|---|---|---|---|
-| micro-F1 | ≥ 0.75 | 0.64 | **0.77 ✓** |
-| macro-F1 | ≥ 0.60 | 0.49 | **0.62 ✓** |
-| `question` F1 | ≥ 0.75 | 0.62 | **1.00** (rule) |
-| `request_hint` F1 | — | 0.33 | **1.00** (rule) |
-| `confusion` / `curiosity` F1 | ≥ 0.75 | 0.75/0.76 | **0.79 / 0.79 ✓** |
+| metric (test, n≈999) | target | build 1 | build 2 | **build 3 (shipped)** |
+|---|---|---|---|---|
+| micro-F1 | ≥ 0.75 | 0.64 | 0.77 | **0.83 ✓** |
+| macro-F1 | ≥ 0.60 | 0.49 | 0.62 | **0.69 ✓** |
+| `question` F1 | ≥ 0.75 | 0.62 | 1.00 | **1.00** (rule) |
+| `request_hint` F1 | — | 0.33 | 1.00 | **1.00** (rule) |
+| `confusion` / `curiosity` F1 | ≥ 0.75 | 0.75/0.76 | 0.79/0.79 | **0.67 / 0.95** (confusion ↓ on relabeled gold) |
+
+Build 3 (2026-06-19) = fixed-source re-point + T2/T3 (acknowledgment + weak-label pass),
+scorer flipped to evidence+logreg; gold is now fixed-derived. See
+`complete_architecture_build_plan.md` §2.5.2.
 
 **Honest weak spots (test support too small to measure, not model failure):**
 `answer_attempt` (7 rows), `self_correction` (19), `high_confidence` (21 — MiniLM polarity
@@ -1922,8 +1927,8 @@ re-explanation — the classifier misreads acks as confusion.
 **Policy shadow (Part 5):** a multinomial logreg over [MiniLM emb | Part-1 label scores | §6.2
 aggregates], **shadow mode only** — `tutor_loop` logs `shadow_suggestion` beside the rules'
 choice every turn; promotion only after it beats rules on **logged real turns**. Modest by
-design (top-1 0.558) because the right action depends on learner history a single utterance
-can't carry. Rebuild: `python -m policy_shadow.build_policy`.
+design (top-1 0.680, fixed-source rebuild 2026-06-19) because the right action depends on
+learner history a single utterance can't carry. Rebuild: `python -m policy_shadow.build_policy`.
 
 ---
 

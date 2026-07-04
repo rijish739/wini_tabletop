@@ -58,7 +58,13 @@ def main() -> None:
     )
 
     print("Loading local TutorLoop. This may take a moment the first time.")
-    from tutor_loop import TutorLoop
+    from tutor_loop import GEN_BACKEND, TutorLoop
+
+    # Say which LLM will generate the answers — the transcript labels used to say
+    # "qwen" even when Gemini was serving (qwen_chat is only the seam name).
+    print(f"generation backend: {GEN_BACKEND}"
+          + ("  (Gemini Flash on Vertex — no local Qwen server needed)"
+             if GEN_BACKEND == "gemini" else "  (local llama.cpp :8080 — server must be running)"))
 
     # For live voice the cohesion judge (an extra big-prompt Qwen call per turn)
     # is disabled to cut generation latency; deep-state grading still runs.
@@ -70,15 +76,16 @@ def main() -> None:
     loop.analyze_only("warmup")
     print(f"analyzer warm: {now_ms() - _t0} ms")
     if args.live and not args.no_answer:
-        # Warm Qwen's generation path so the FIRST real turn is not a ~11s cold
-        # start (llama.cpp's first prompt eval after idle is very slow).
+        # Warm the generation path so the FIRST real turn is not a cold-start
+        # cliff (llama.cpp first prompt eval after idle ~11s; Gemini client
+        # construction ~4-9s per the CLAUDE.md gotcha).
         from tutor_loop import qwen_chat
         try:
             _t0 = now_ms()
             qwen_chat("Reply with: ok", max_tokens=4)
-            print(f"qwen warm: {now_ms() - _t0} ms")
+            print(f"gen warm ({GEN_BACKEND}): {now_ms() - _t0} ms")
         except Exception as exc:  # noqa: BLE001
-            print(f"qwen warm skipped: {exc}")
+            print(f"gen warm ({GEN_BACKEND}) skipped: {exc}")
     if args.live:
         from voice.live_session import LiveTutorSession
 

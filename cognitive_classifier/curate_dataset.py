@@ -1,7 +1,14 @@
 """Dataset curation: fix the label-ontology problems found in evaluation.
 
-Reads  dataset/exemplar_dataset_10000.json  (never modified)
+Reads  dataset/exemplar_dataset_10000_fixed.json  (THE canonical dataset:
+       10000 audit-corrected base rows + 800 T2/T3 supplementary rows that
+       carry split=="train"; never modified by this script)
 Writes dataset/exemplar_dataset_10000_curated.json + dataset/curation_report.md
+
+`_curated.json` is a DERIVED BUILD ARTIFACT — the gold-rule projection of
+`_fixed.json` — not a competing source of truth. `_fixed.json` is the single
+dataset of record; the raw `exemplar_dataset_10000.json` is archived under
+dataset/archive/ (provenance only).
 
 Fixes applied (see complete_architecture_build_plan.md section 2.5):
 
@@ -32,11 +39,11 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from .cues import EXAMPLE_RE, HINT_RE, MODALITY_RE, SIMPLIFY_RE, is_question
+from .cues import EXAMPLE_RE, HINT_RE, MODALITY_RE, SIMPLIFY_RE, is_pure_ack, is_question
 from .label_space import canonicalize_labels
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "dataset" / "exemplar_dataset_10000.json"
+SRC = ROOT / "dataset" / "exemplar_dataset_10000_fixed.json"
 DST = ROOT / "dataset" / "exemplar_dataset_10000_curated.json"
 REPORT = ROOT / "dataset" / "curation_report.md"
 
@@ -86,6 +93,24 @@ def curate_row(utterance: str, raw_labels) -> tuple[list[str], list[str]]:
     if EXAMPLE_RE.search(utterance) and "example_request" not in labels:
         labels.append("example_request")
         changes.append("+example_request")
+
+    # T2 gold rule — acknowledgment from is_pure_ack. Pure acks must carry the
+    # `acknowledgment` label and must NOT carry `confusion`/`low_confidence`
+    # (MiniLM embeds "makes sense now" near "not making sense now" and the bank
+    # systematically mislabels acks; see PHASE1_QUERY_RESPONSES.md T2.Q2).
+    if is_pure_ack(utterance):
+        if "acknowledgment" not in labels:
+            labels.append("acknowledgment")
+            changes.append("+acknowledgment")
+        for forbidden in ("confusion", "low_confidence"):
+            if forbidden in labels:
+                labels.remove(forbidden)
+                changes.append(f"-{forbidden} (acknowledgment)")
+    elif "acknowledgment" in labels:
+        # Conservative: keep ack-label only on utterances that pass the rule.
+        # A reason-bearing reply ("yes because D<0…") is no longer a pure ack.
+        labels.remove("acknowledgment")
+        changes.append("-acknowledgment (not pure)")
 
     return labels, changes
 

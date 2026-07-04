@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import time
 from pathlib import Path
 
@@ -35,7 +36,7 @@ import requests
 
 from cognitive_analyzer import CognitiveAnalyzer
 from hope_detector import HopeDetector
-from learner_state import load_learner_state
+from learner_state import COLD_START_MASTERY, load_learner_state
 from policy_shadow import PolicyShadow
 from query import (
     Snapshot,
@@ -54,6 +55,21 @@ STORE = ROOT / "rag_store"
 CHUNK_INDEX_DIR = ROOT / "models" / "local_chunk_index"
 QWEN = "http://127.0.0.1:8080"
 
+# Generation backend (CLAUDE.md cloud pivot): "qwen" = local llama.cpp server at
+# :8080 (legacy/fallback), "gemini" = Vertex Gemini 2.5 Flash via llm_vertex.
+# The manifest-grounded prompt is IDENTICAL for both — only the transport changes,
+# so every qwen_chat call site (answer, cohesion judge, grader) switches at once.
+GEN_BACKEND = os.getenv("GEN_BACKEND", "qwen").strip().lower()
+
+# Perception (Part 11, PART11_GEMINI_PERCEPTION_LAYER.md): ONE structured Gemini
+# call (intent + signals + concept). Promoted Stage 4 (2026-07-02); the local
+# MiniLM heads were retired from the runtime path at Stage 6 — artifacts stay on
+# disk as the eval baseline, and the learning-path fallback on a failed Gemini
+# call is gates + inherit-concept + neutral signals (a turn never hard-fails).
+# The deterministic SAFETY/NONSENSE gates run before any model (§4.2).
+from perception import gate as _front_gate  # noqa: E402  (model-free, cheap regex)
+from perception.config import PERCEPTION_BACKEND  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Rule-based pedagogy decision v1 (architecture section 6.6 / section 13).
 # First matching rule wins; each returns (action_label, query.py need mode).
@@ -64,8 +80,27 @@ QWEN = "http://127.0.0.1:8080"
 
 
 def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
-                 acknowledged: bool = False, clarification: bool = False) -> tuple[str, str, str]:
+                 acknowledged: bool = False, clarification: bool = False,
+                 learning_start: bool = False, visual: bool = False,
+                 purpose: bool = False) -> tuple[str, str, str]:
     s = set(signals)
+    # rule 1a-vis (deterministic, outranks rule 1b): the student said they cannot
+    # PICTURE it ("I cannot imagine this") or asked what it looks like. That is a
+    # representation gap, not generic confusion — re-explaining the same words is
+    # exactly the failure gemini_tutor_issues.md #3/#4 flagged. Switch modality:
+    # a concrete scene / figure (rule 6 machinery, KI need).
+    if visual and not acknowledged:
+        return "REPRESENTATION_TRANSLATION", "integrate", \
+            "rule 1a-vis: learner cannot picture it -> switch representation, never re-define"
+    # rule 1w (deterministic): the student asked WHY this is worth learning, what
+    # it is for, or HOW something shown connects to the topic — or complained that
+    # their question was not answered. ANSWER THAT question; never respond with a
+    # new problem or another definition (2026-07-03 transcript: "how is this
+    # related to quadratic equation" drew a TRANSFER_PROBLEM, then two deflections
+    # until the student gave up).
+    if purpose and not acknowledged:
+        return "WHY_IT_MATTERS", "explain", \
+            "rule 1w: purpose/connection question -> answer the why directly, never deflect"
     # rule 1b (deterministic, outranks the inferred-misconception probe): the
     # student EXPLICITLY signalled they did not understand / it is too hard / we
     # are repeating ourselves. Re-explain the SAME idea more simply — never answer
@@ -74,6 +109,14 @@ def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
     if clarification and not acknowledged:
         return "EXPLAIN", "explain", \
             "rule 1b: learner did not understand -> re-explain more simply (no challenge, no re-probe)"
+    # rule 1c (learning start): the student is opening a NEW / never-taught topic and
+    # asking to learn it (curiosity / a bare question, no distress, no pending check).
+    # Introduce and EXPLAIN it — never QUIZ or Socratically challenge a topic that has
+    # not been taught yet (the transcript regression: "I want to learn trigonometry"
+    # -> QUIZ "which angle is 90 degrees?").
+    if learning_start and not acknowledged:
+        return "EXPLAIN", "explain", \
+            "rule 1c: fresh topic + wants to learn -> introduce and explain (never quiz first)"
     if "misconception_suspected" in flags:
         return "MISCONCEPTION_PROBE", "explain", "rule 2: probe before correcting (section 13 rule 8)"
     if "hint_requested" in flags:
@@ -134,6 +177,12 @@ def load_chunk_index(chunks: list, embedder) -> np.ndarray:
 
 
 def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> str:
+    """Single generation seam. Despite the name, dispatches to Gemini Flash when
+    GEN_BACKEND=gemini (the CLAUDE.md cloud pivot); the local Qwen server path is
+    unchanged when GEN_BACKEND=qwen. Callers pass the same manifest-grounded prompt
+    either way."""
+    if GEN_BACKEND == "gemini":
+        return _gemini_chat(prompt, temperature=temperature, max_tokens=max_tokens)
     resp = requests.post(
         f"{QWEN}/v1/chat/completions",
         json={"model": "qwen2.5-3b-instruct",
@@ -145,10 +194,24 @@ def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> s
     return resp.json()["choices"][0]["message"]["content"].strip()
 
 
+def _gemini_chat(prompt: str, temperature: float, max_tokens: int) -> str:
+    """Gemini Flash generation via the shared Vertex client (hard wall-clock
+    timeout inside llm_vertex). Imported lazily so the default Qwen path pulls in
+    no cloud deps. The token floor keeps tiny-cap JSON callers (grader max_tokens=40)
+    from being starved once Flash's own overhead is counted."""
+    import llm_vertex
+
+    return llm_vertex.generate_reply(
+        prompt,
+        temperature=temperature,
+        max_output_tokens=max(64, max_tokens),
+    ).text
+
+
 def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter_hint: str,
                 writeback_note: str = "", history: list[dict] | None = None,
                 answer_budget: dict | None = None, figure_on_screen: bool = False,
-                clarify: bool = False) -> str:
+                clarify: bool = False, intro: bool = False, visualize: bool = False) -> str:
     tone = {
         "ENCOURAGE": "The student is frustrated or overloaded. Be warm and brief; acknowledge effort first.",
         "MISCONCEPTION_PROBE": "Ask the diagnostic question from the evidence FIRST. Do not reveal the correction yet.",
@@ -156,7 +219,25 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         "METACOGNITIVE_REFLECT": "The student just confirmed understanding. One short reflection question "
                                  "(e.g. 'explain it back in your own words') OR offer the next step. "
                                  "Do NOT re-explain anything already covered.",
+        "REPRESENTATION_TRANSLATION": "Translate the idea into a different representation the student "
+                                      "can picture — a scene, a figure, a drawing — not more words about "
+                                      "the same definition.",
+        "WHY_IT_MATTERS": "The student asked WHY this is worth learning, what it is for, or HOW "
+                          "something connects to the topic (or said you did not answer their "
+                          "question). ANSWER THAT EXACT QUESTION FIRST in one plain sentence. If "
+                          "they asked how an example connects, state the connection explicitly "
+                          "('that marble problem IS a quadratic equation because...'). If they "
+                          "asked why learn it, give ONE concrete reason from a Class 10 student's "
+                          "real life. Do NOT start a new problem, do NOT continue a previous "
+                          "calculation, do NOT give a definition instead of the answer.",
     }.get(action, "Teach clearly and briefly at Class 10 level.")
+    if intro:
+        # Learning-start (rule 1c): the student is opening a brand-new topic. Give a
+        # real welcoming overview that DELIVERS content, not a quiz or a one-liner.
+        tone = ("The student is just starting this topic for the first time. Give a clear, "
+                "friendly overview that actually teaches: say what it is and its ONE core idea "
+                "in plain words, using the evidence, then end with a single inviting question to "
+                "begin. Do NOT quiz them or assume prior knowledge of this topic.")
     hist_text = ""
     if history:
         hist_text = "RECENT CONVERSATION (do not repeat explanations already given here; build on them):\n" + \
@@ -171,11 +252,12 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         max_sentences = int(answer_budget.get("max_sentences", 2))
         micro = answer_budget.get("micro_check_type", "yes_no")
         must_end = answer_budget.get("must_end_with", "micro_check")
-        # Token cap is generous enough to let Qwen FINISH its sentences (a too-tight
-        # cap cuts mid-sentence and the fragment gets spoken). Real brevity is
-        # enforced by _truncate_to_spoken_budget below, which keeps only whole
-        # sentences within the word budget.
-        max_tokens = max(70, min(180, round(max_words * 3.0)))
+        # Token cap is generous enough to let the model FINISH its sentences (a
+        # too-tight cap cuts mid-sentence and the fragment gets spoken — 2026-07-03
+        # transcript: "...you divide 20 / 0." cut mid-division at the old 180 cap).
+        # Real brevity is enforced by _truncate_to_spoken_budget below, which keeps
+        # only whole sentences within the word budget.
+        max_tokens = max(90, min(240, round(max_words * 3.5)))
         pacing = (
             "PACING CONTRACT FOR SPOKEN VOICE:\n"
             f"- Speak at most {max_words} words and {max_sentences} sentence(s).\n"
@@ -210,7 +292,20 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             pacing += "- Do not add an extra pacing question after the required diagnostic/problem.\n"
         pacing += "\n"
     clarify_cue = ""
-    if clarify:
+    if visualize:
+        # Outranks the generic clarify cue: the student's problem is that they
+        # cannot form a MENTAL IMAGE, so a re-worded definition is still a failure.
+        clarify_cue = (
+            "THE STUDENT SAID THEY CANNOT PICTURE / IMAGINE IT. Do NOT restate the "
+            "definition in different words. Build ONE concrete scene from everyday "
+            "life, step by step, that they can see in their head (e.g. 'Imagine you "
+            "are standing 30 metres from a lamp post. Look up at its top. Your eyes, "
+            "the top, and the base of the post make three corners of a right "
+            "triangle.'). Name each part of the scene and say which part of the "
+            "maths it is. If a figure is on the screen, walk them through that "
+            "instead of inventing a new scene.\n"
+        )
+    elif clarify:
         clarify_cue = (
             "THE STUDENT SAID THEY DID NOT UNDERSTAND YOUR PREVIOUS REPLY (or that you "
             "are repeating yourself). Explain the SAME idea a DIFFERENT, simpler way: "
@@ -225,10 +320,25 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             "can see…') and use it to make your point. Do NOT describe the picture in words "
             "as if they cannot see it — point them to it.\n"
         )
+    # Hard style rules: the spoken budget is small, so filler is fatal. A greeting,
+    # a self-introduction, or an apology eats the whole reply and teaches nothing
+    # (transcript regression: "Namaste! I'm Wini…" / "My apologies! Let's focus…").
+    style_cue = (
+        "STYLE (strict):\n"
+        "- Every reply must DELIVER maths content. Do NOT greet, do NOT introduce "
+        "yourself, do NOT apologise or say sorry — no 'Namaste', 'I'm Wini', "
+        "'My apologies', 'Sorry'. Even if the student is upset, respond by actually "
+        "teaching, not by apologising.\n"
+        "- Do NOT announce what you are about to do ('let's focus on…', 'let me "
+        "explain…', 'let's try this'); just teach the thing itself.\n"
+        "- NEVER re-ask a question you already asked in RECENT CONVERSATION, and do "
+        "not repeat a sentence you already said; move the explanation forward.\n"
+    )
     prompt = (
         f"You are Wini, a friendly Class 10 Maths tutor ({chapter_hint}).\n"
         f"Pedagogical action for this turn: {action}. {tone}\n"
         + (f"Context: {writeback_note}\n" if writeback_note else "")
+        + style_cue
         + clarify_cue
         + screen_cue
         + pacing
@@ -287,7 +397,11 @@ def _truncate_to_spoken_budget(text: str, max_words: int, max_sentences: int) ->
     """
     import re as _re
 
-    sentences = [s.strip() for s in _re.findall(r"[^.!?]*[.!?]", text.strip()) if s.strip()]
+    # A terminator only ends a sentence when followed by whitespace/end — a "." with
+    # a digit right after is a DECIMAL POINT ("20 / 0.2"), not a boundary. The old
+    # pattern split inside decimals, so the sentence cap cut replies mid-number and
+    # re-joined "0." + "2 square metres" (2026-07-03 transcript, brick-wall reply).
+    sentences = [s.strip() for s in _re.findall(r"[^.!?]*[.!?]+(?=\s|$)", text.strip()) if s.strip()]
     if not sentences:
         # no terminator at all (rare) — return the raw text, trimmed of any
         # obvious dangling open paren from a hard token cut.
@@ -380,19 +494,52 @@ class TutorLoop:
     def __init__(self, state_path: Path = ROOT / "learner_state.json", want_answer: bool = True,
                  use_judge: bool = True):
         self.use_judge = use_judge
-        self.chunks, self.concepts, self.graph, _ = load_store(STORE)
+        # with_index=False: the loop ranks chunks with the local MiniLM index, not
+        # the FAISS index (query.py standalone path) — and faiss is not installed
+        # on the Jetson at all.
+        self.chunks, self.concepts, self.graph, _ = load_store(STORE, with_index=False)
         self.concepts_by_id = {c["concept_id"]: c for c in self.concepts}
         self.chunks_by_id = {c["chunk_id"]: c for c in self.chunks}
         self.figure_misconceptions = {
             n: (a.get("disambiguates_misconceptions") or [])
             for n, a in self.graph.nodes(data=True) if a.get("image_path")
         }
-        self.analyzer = CognitiveAnalyzer()
+        # Perception (Part 11 §7.1): inject ONE GeminiPerception as both the
+        # classifier and resolver stubs so CognitiveAnalyzer.analyze() runs unchanged.
+        # Its .embedder is a lazily-loaded MiniLM, so the HOPE + chunk-index wiring
+        # below keeps working with zero edits. The MiniLM-heads runtime path was
+        # retired at Stage 6 (2026-07-02) — a stale PERCEPTION_BACKEND=qwen_heads
+        # env var is honored with a warning-free upgrade to gemini, never a crash.
+        if PERCEPTION_BACKEND not in ("gemini", ""):
+            print(f"[perception] PERCEPTION_BACKEND={PERCEPTION_BACKEND!r} is retired "
+                  "(Stage 6, 2026-07-02) — using gemini. Heads remain eval-only.")
+        from perception.gemini_perception import GeminiPerception
+        # MiniLM device: on the Jetson, device_config.py (a Jetson-only module) pins
+        # MiniLM to CPU (Part 9 — avoids a second CUDA context beside the other GPU
+        # residents). On Windows/cloud the module is absent and the default applies.
+        try:
+            from device_config import get_config as _dev_cfg
+            _minilm_device = _dev_cfg().minilm_device
+        except ImportError:
+            _minilm_device = None
+        gp = GeminiPerception.load(device=_minilm_device)
+        self.analyzer = CognitiveAnalyzer(classifier=gp, resolver=gp)
+        # Persona / scripted replies for the non-learning intents (front door).
+        self.persona = json.loads((ROOT / "persona.json").read_text(encoding="utf-8"))
         self.shadow = PolicyShadow.load()
         # HOPE detector shares the analyzer's MiniLM embedder (one model in VRAM)
-        self.hope = HopeDetector.load()
+        self.hope = HopeDetector.load(device=_minilm_device)
         self.hope.embedder = self.analyzer.classifier.embedder
         self.state = load_learner_state(state_path)
+        # A fresh TutorLoop IS a fresh session: clear the transient lifecycle flags a
+        # previous run left in the persisted state (a stale "ended"/leave count must
+        # not hard-stop or fast-end the NEW session's first turns). pending_check,
+        # context and all cognitive state deliberately survive (§4.3 resume contract).
+        _sess = self.state.data.setdefault("session", {})
+        _sess.pop("break_requested", None)
+        _sess.pop("leave_requests", None)
+        if _sess.get("status") in ("paused", "ended"):
+            _sess["status"] = "active"
         self.chunk_emb = load_chunk_index(self.chunks, self.analyzer.classifier.embedder)
         self.want_answer = want_answer
 
@@ -461,8 +608,354 @@ class TutorLoop:
             "figure_id": chosen["id"],
         }]
 
+    # ------------------------------------------------------------------
+    # Front door: non-learning intents (Part 11 §4.3 / §7.3)
+    # ------------------------------------------------------------------
+    def _handle_nonlearning(self, route, text: str, answer_budget: dict | None = None) -> dict:
+        """Handle a non-LEARNING intent WITHOUT moving cognitive state (§3/§7.3).
+
+        Contract: never call analyze_and_apply; never arm/grade pending_check or
+        pending_hope; PRESERVE an open pending_check so the next learning turn
+        returns to the question; no retrieval; persona/scripted reply; still log to
+        learning_log.jsonl with the resolved intent; same result-dict shape as
+        turn() with display: [].
+        """
+        session = self.state.data.setdefault("session", {})
+        intent = route.primary
+        # SESSION_CONTROL sets lightweight session flags (autonomy support) while
+        # preserving pending_check + all learner cognitive state (§4.3).
+        if intent == "SESSION_CONTROL":
+            self._apply_session_control(session, text)
+
+        reply, reply_source = self._nonlearning_reply(route, text, session)
+
+        # transient session memory only — no cognitive-state channel is touched
+        ctx = session.setdefault("context", [])
+        ctx.append({"role": "student", "text": text[:250]})
+        if reply:
+            ctx.append({"role": "wini", "text": reply[:250]})
+        session["context"] = ctx[-8:]
+
+        self._log_nonlearning(text, route, reply, reply_source)
+        if self.state.path:
+            self.state.save()
+
+        pc = session.get("pending_check") or {}
+        ph = session.get("pending_hope") or {}
+        return {
+            "action": intent, "action_reason": route.reason, "need": "none",
+            "shadow": None,
+            "concept": {"concept_id": route.concept_id,
+                        "concept_confidence": route.concept_confidence,
+                        "abstained": route.concept_id is None},
+            "signals": [], "cognitive_update": {}, "n_evidence": 0, "bridge_ids": [],
+            "writeback": None, "hope_update": None,
+            "pending_check": pc.get("id"), "pending_hope": ph.get("signal"),
+            "answer_budget": answer_budget, "pace": session.get("pace", {}),
+            "display": [], "answer": reply,
+            "intent": intent, "route_source": route.source,
+            "answer_source": reply_source,
+            "gen_backend": GEN_BACKEND if reply_source not in ("scripted", "farewell", "canned") else None,
+            # runners speak the farewell, then stop taking turns (§4.3 hard stop)
+            "session_ended": session.get("status") == "ended",
+        }
+
+    def _apply_session_control(self, session: dict, text: str) -> None:
+        """A few lightweight flags, not a state machine (§4.3). pending_check and all
+        learner cognitive state are left untouched; a later LEARNING turn resumes.
+
+        End-of-session hard rule (gemini_tutor_issues.md #1/#5): every SESSION_CONTROL
+        turn counts as a leave request. An explicit goodbye ends the session at once;
+        a second leave request in a row ends it too — the tutor never gets a third
+        chance to squeeze in "one small sum". The counter resets when a LEARNING turn
+        actually resumes (see turn() resume block)."""
+        import re as _re
+        low = (text or "").lower()
+        ended = _re.search(
+            r"\b(bye|goodbye|good ?night|see you|that'?s all|i'?m done|we'?re done|"
+            r"stop for (today|now)|end (the )?(session|lesson)|finish for|"
+            r"i (want|have|need) to go(?! (over|through|back|on))|let me go|going now)\b", low)
+        session["leave_requests"] = int(session.get("leave_requests", 0)) + 1
+        session["status"] = "ended" if (ended or session["leave_requests"] >= 2) else "paused"
+        session["break_requested"] = True
+
+    def _nonlearning_reply(self, route, text: str, session: dict) -> tuple[str, str]:
+        """Scripted for SAFETY/NONSENSE (fixed, human-reviewed, never model); persona
+        for the rest (LLM via the shared seam when generating, else canned).
+
+        Returns (reply, source) where source is "scripted" | "farewell" | "canned"
+        | the generation backend name — so logs can prove where a reply came from
+        (the 2026-07-03 transcript could not be attributed to qwen vs gemini)."""
+        intent = route.primary
+        spec = self.persona.get("intents", {}).get(intent, {})
+        if "scripted" in spec:                    # SAFETY, NONSENSE
+            return spec["scripted"], "scripted"
+        # Session END is deterministic: a scripted warm farewell, never the LLM —
+        # the model must get zero chance to append "just one quick question"
+        # (gemini_tutor_issues.md #1: retention attempts after an explicit bye).
+        if intent == "SESSION_CONTROL" and session.get("status") == "ended":
+            fw = spec.get("farewell") or self._fill_persona(spec.get("canned", []), session)
+            return fw, "farewell"
+        canned = self._fill_persona(spec.get("canned", []), session)
+        if not self.want_answer:
+            return canned, "canned"
+        try:
+            prompt = self._persona_prompt(route, text, session, spec)
+            reply = qwen_chat(prompt, temperature=0.5, max_tokens=90)
+            reply = _truncate_to_spoken_budget(reply, 45, 2)
+            return (reply, GEN_BACKEND) if reply else (canned, "canned")
+        except Exception:  # noqa: BLE001 — generation down -> canned persona line
+            return canned, "canned"
+
+    def _persona_prompt(self, route, text: str, session: dict, spec: dict) -> str:
+        p = self.persona
+        concept = self._friendly_concept(session)
+        instruction = spec.get("instruction", "Reply warmly and gently steer back to maths.")
+        # SESSION_CONTROL (pause path — end is scripted upstream): the child asked to
+        # stop, so the prompt must not invite a steer-back; every other persona intent
+        # keeps the gentle redirect to the current topic.
+        if route.primary == "SESSION_CONTROL":
+            steer = ("Do NOT ask any question and do NOT mention a sum or problem to try. "
+                     "Accept the pause warmly in one sentence.")
+        else:
+            steer = f"If you steer back to maths, the current topic is: {concept}."
+        # Recent conversation so the reply can refer to what just happened ("I was
+        # right!" -> confirm WHAT was right) instead of asking about it
+        # (gemini_tutor_issues.md #2).
+        ctx = session.get("context", [])[-6:]
+        hist = ""
+        if ctx:
+            hist = "RECENT CONVERSATION (use it; never ask about something it already tells you):\n" + \
+                "\n".join(f"{h['role'].upper()}: {h['text']}" for h in ctx) + "\n\n"
+        return (
+            f"{p.get('identity', '')}\n{p.get('style', '')}\n"
+            f"Situation: {instruction}\n"
+            f"{steer}\n\n"
+            f"{hist}CHILD SAID: {text}\n\nWINI (one or two short spoken sentences):"
+        )
+
+    def _fill_persona(self, canned: list, session: dict) -> str:
+        if not canned:
+            return ""
+        return str(canned[0]).replace("{concept}", self._friendly_concept(session))
+
+    def _friendly_concept(self, session: dict) -> str:
+        cid = session.get("current_concept")
+        if cid:
+            return self.concept_name(cid)
+        return "our maths"
+
+    def concept_name(self, cid: str | None) -> str:
+        """Human-speakable name for a catalog concept id (never speak raw ids)."""
+        if not cid:
+            return "our maths"
+        card = self.concepts_by_id.get(cid) or {}
+        node = self.graph.nodes.get(cid, {})
+        name = card.get("name") or card.get("display_name") or node.get("name")
+        return str(name) if name else cid.split("__")[-1].replace("_", " ")
+
+    # ------------------------------------------------------------------
+    # Topic shift (deterministic; 2026-07-03 transcript fixes)
+    # ------------------------------------------------------------------
+    # MiniLM anchor-similarity thresholds for grounding a requested topic:
+    # >= HI: switch directly (the request was explicit); >= LO: offer the match
+    # and ask; below LO: the topic is off-catalog — say so honestly and offer
+    # the nearest chapter topic instead of silently continuing the old one.
+    # Calibrated 2026-07-03 on the shipped anchors: clean topic names score
+    # 0.45-0.69 ("triangles" .507, "trigonometry" .548, "quadratic equations"
+    # .686), vague-but-real "natural numbers" .313, noise ("pizza", "how are
+    # you", "cricket score") <= .14.
+    SHIFT_TAU_HI = 0.45
+    SHIFT_TAU_LO = 0.25
+
+    def _maybe_topic_shift(self, text: str, analysis: dict, session: dict,
+                           answer_budget: dict | None) -> dict | None:
+        """Detect and handle a topic-shift attempt the perception could not ground.
+
+        Returns a completed turn result (confirm question / direct switch) or None
+        to continue the normal pipeline. Never blocks the pipeline on failure —
+        every fallible step degrades to `return None`.
+        """
+        from cognitive_classifier.cues import extract_topic_request, is_bare_topic
+
+        concept = analysis["concept"]
+        primary = concept["concept_id"]
+        current = session.get("current_concept")
+        span = extract_topic_request(text)
+        # A bare label ("Natural numbers.") only counts when no GRADED question is
+        # open — a bare phrase can be a legitimate answer to a diagnostic. An open
+        # pace-only micro-check does NOT block it: micro checks never grade, and the
+        # 2026-07-03 shift happened exactly while one was open; worst case the
+        # confirm question below lets the student say no.
+        graded_pending = bool(session.get("pending_check") or session.get("pending_hope"))
+        bare = is_bare_topic(analysis["normalized_text"]) and not graded_pending
+        if not span and not bare:
+            return None
+        # When perception confidently resolved a DIFFERENT catalog concept the
+        # normal pipeline already shifts (current_concept := primary) — no friction.
+        if primary and not concept["abstained"] and primary != current \
+                and concept["concept_confidence"] >= 0.6:
+            return None
+        target_text = span or analysis["normalized_text"]
+        cands = getattr(self.analyzer.classifier, "topic_candidates", None)
+        cands = cands(target_text, 3) if callable(cands) else []
+        if not cands:
+            return None            # no resolver artifacts — never block the turn
+        cid, name, sim = cands[0]
+        if cid == current and sim >= self.SHIFT_TAU_LO:
+            return None            # they asked for what we are already doing
+        cur_name = self._friendly_concept(session)
+        if span and sim >= self.SHIFT_TAU_HI:
+            # explicit request, confidently grounded -> switch NOW (asking again
+            # after "I asked about X" is exactly the friction that annoyed the kid)
+            session["current_concept"] = cid
+            session.pop("pending_check", None)
+            session.pop("pending_hope", None)
+            self._log_shift(text, "TOPIC_SHIFT", f"explicit request grounded to {cid} (sim {sim:.2f})")
+            return self.turn(f"I want to learn about {name}", answer_budget=answer_budget,
+                             _allow_shift=False)
+        if sim >= self.SHIFT_TAU_LO:
+            reply = (f"We're doing {cur_name} right now. Do you want to switch to "
+                     f"{name}? Say yes or no.")
+        else:
+            asked = span or target_text
+            reply = (f"Hmm, '{asked}' isn't one of our Class 10 topics. The closest I "
+                     f"have is {name} — want to try that? Or say no to continue {cur_name}.")
+        session["pending_shift"] = {"concept_id": cid, "name": name}
+        return self._shift_reply(text, reply, "TOPIC_SHIFT_CONFIRM",
+                                 f"shift request; top match {cid} (sim {sim:.2f})",
+                                 session, answer_budget)
+
+    def _consume_pending_shift(self, session: dict, text: str,
+                               answer_budget: dict | None) -> dict | None:
+        """Resolve last turn's 'switch to X?' offer. Bare yes -> execute the switch
+        and open the new topic; bare no -> continue the current one; anything else
+        -> cancel the offer and let the utterance take the normal path."""
+        import re as _re
+        low = (text or "").strip().lower()
+        words = low.split()
+        target = session.pop("pending_shift", None) or {}
+        if not target.get("concept_id"):
+            return None
+        if _re.match(r"^(yes|yeah|ya|yep|ok(ay)?|sure|haan|ha)\b", low) and len(words) <= 3:
+            session["current_concept"] = target["concept_id"]
+            session.pop("pending_check", None)
+            session.pop("pending_hope", None)
+            self._log_shift(text, "TOPIC_SHIFT", f"confirmed switch to {target['concept_id']}")
+            return self.turn(f"I want to learn about {target['name']}",
+                             answer_budget=answer_budget, _allow_shift=False)
+        if _re.match(r"^(no|nope|nah|not now)\b", low) and len(words) <= 3:
+            reply = f"No problem — let's continue with {self._friendly_concept(session)}."
+            return self._shift_reply(text, reply, "TOPIC_SHIFT_DECLINED",
+                                     "shift offer declined; continuing current topic",
+                                     session, answer_budget)
+        return None    # neither: offer cancelled, normal pipeline handles the text
+
+    def _shift_reply(self, text: str, reply: str, action: str, reason: str,
+                     session: dict, answer_budget: dict | None) -> dict:
+        """Deterministic (no-LLM) shift turn: context + log + save + result shape."""
+        ctx = session.setdefault("context", [])
+        ctx.append({"role": "student", "text": text[:250]})
+        ctx.append({"role": "wini", "text": reply[:250]})
+        session["context"] = ctx[-8:]
+        self._log_shift(text, action, reason, reply)
+        if self.state.path:
+            self.state.save()
+        pc = session.get("pending_check") or {}
+        return {
+            "action": action, "action_reason": reason, "need": "none", "shadow": None,
+            "concept": {"concept_id": session.get("current_concept"),
+                        "concept_confidence": 0.0, "abstained": True},
+            "signals": [], "cognitive_update": {}, "n_evidence": 0, "bridge_ids": [],
+            "writeback": None, "hope_update": None,
+            "pending_check": pc.get("id"), "pending_hope": None,
+            "answer_budget": answer_budget, "pace": session.get("pace", {}),
+            "display": [], "session_ended": False, "answer": reply,
+            "answer_source": "scripted", "gen_backend": None,
+        }
+
+    def _log_shift(self, text: str, action: str, reason: str, reply: str | None = None) -> None:
+        log_row = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
+            "question": text, "action": action, "action_reason": reason,
+            "need": "none", "signals": [], "answer": reply,
+        }
+        with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
+
+    def _log_safety(self, text: str, route) -> None:
+        """Persist a safety_alert record + notify the supervising adult (§4.3 Q2).
+
+        The alert is NOT cognitive state; it is a supervision record. In cloud this
+        is a flagged Firestore write that fires a push/email/dashboard alert; on the
+        quick-test rig it is an append-only log + an unmissable console signal.
+        """
+        record = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "learner_id": self.state.data.get("learner_id"),
+            "utterance": text,
+            "source": route.source,
+            "handled": "scripted_reply+persisted_alert+supervisor_notify",
+        }
+        self.state.data.setdefault("safety_alerts", []).append(record)
+        self.state.data.setdefault("session", {})["safety_alert"] = record
+        try:
+            with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
+                f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        except Exception:  # noqa: BLE001 — logging must never break the safety reply
+            pass
+        self._notify_supervisor(record)
+
+    def _notify_supervisor(self, record: dict) -> None:
+        """Active supervisor notification over the most reliable channel available.
+        Cloud deployment overrides this with a Firestore write -> push/email/dashboard."""
+        line = "=" * 64
+        print(f"\n{line}\n  [!] SAFETY ALERT — a supervising adult must be notified now.\n"
+              f"      utterance: {record.get('utterance')!r}\n{line}\n")
+
+    def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
+        log_row = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
+            "question": text, "action": route.primary, "action_reason": route.reason,
+            "need": "none", "intent": route.primary, "route_source": route.source,
+            "safety_alert": bool(route.safety_alert),
+            "concept": {"concept_id": route.concept_id,
+                        "concept_confidence": route.concept_confidence,
+                        "abstained": route.concept_id is None},
+            "signals": [], "answer": reply,
+            "answer_source": reply_source,
+        }
+        with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
+
     def turn(self, text: str, answer_budget: dict | None = None,
-             precomputed_analysis: dict | None = None) -> dict:
+             precomputed_analysis: dict | None = None, _allow_shift: bool = True) -> dict:
+        # -1. Pending topic-shift confirmation from the previous turn: a bare
+        # yes/no answers the "switch to X?" offer deterministically (no model
+        # call); anything longer falls through with the offer cancelled.
+        session = self.state.data.setdefault("session", {})
+        if session.get("pending_shift"):
+            out = self._consume_pending_shift(session, text, answer_budget)
+            if out is not None:
+                return out
+
+        # 0. Front door (Part 11 §7.2): deterministic gates FIRST (model-free,
+        # regardless of backend), then the Gemini intent route when perception is
+        # authoritative. Only LEARNING enters the state-moving pipeline (§3). The
+        # Gemini call is memoized by normalized text, so route() and the later
+        # analyze() share ONE network round-trip.
+        route = _front_gate(text)
+        if route is None:
+            route = self.analyzer.classifier.route(text, self.state.data.setdefault("session", {}))
+        if route is not None:
+            if route.safety_alert:
+                # The gate owns the safety decision; a model `safety` flag may only
+                # ADD recall, never remove it (§4.2). Escalate to the scripted path.
+                route.primary = "SAFETY"
+                self._log_safety(text, route)
+            if route.primary != "LEARNING":
+                return self._handle_nonlearning(route, text, answer_budget)
+
         # 1-2. cognitive analysis + state update (Parts 1+2+3)
         if precomputed_analysis is None:
             analysis = self.analyzer.analyze_and_apply(text, self.state, current_concept=self.current_concept)
@@ -473,6 +966,17 @@ class TutorLoop:
             analysis["new_global_state"] = apply_deltas(self.state, analysis["state_deltas"])
         concept = analysis["concept"]
         primary = concept["concept_id"]
+        # 1a-shift. Topic-shift attempt the perception could NOT ground: a bare
+        # topic label or an explicit "i asked about X / teach me X" whose resolved
+        # concept is INHERIT or the (possibly negated) current concept. Runs BEFORE
+        # current_concept is overwritten so the comparison is against the OLD topic.
+        # 2026-07-03 regression: "Natural numbers." abstained -> silently continued
+        # quadratics; "I asked about natural numbers, you are explaining me
+        # quadratic equation" resolved to the negated quadratic concept.
+        if _allow_shift:
+            shifted = self._maybe_topic_shift(text, analysis, session, answer_budget)
+            if shifted is not None:
+                return shifted
         if primary:
             self.state.data.setdefault("session", {})["current_concept"] = primary
 
@@ -484,11 +988,26 @@ class TutorLoop:
         # regression: "i can not understand" graded wrong → mastery dropped).
         from cognitive_classifier.cues import (
             is_pure_ack, is_question, is_clarification_request, is_answer_attempt,
+            is_visualization_request, is_purpose_question, is_learning_request,
         )
         _sig = set(analysis["signals"])
         _norm = analysis["normalized_text"]
         clarification = is_clarification_request(text) or "simplification_request" in _sig
-        answer_try = ("answer_attempt" in _sig) or is_answer_attempt(text)
+        # A visualization plea ("I cannot imagine this") is a representation gap:
+        # the explicit deterministic cue always counts; a generic confusion plea
+        # counts too when perception saw a representation signal on the same turn.
+        # Plain representation signals without distress stay at rule 6 priority.
+        wants_visual = is_visualization_request(text) or (
+            clarification and bool(_sig & {"request_representation", "representation_shift"}))
+        # A purpose/connection question ("why do I have to learn this", "how is
+        # this related to X", "you didn't answer my question") must be ANSWERED,
+        # not met with a probe/problem — rule 1w.
+        wants_why = is_purpose_question(text)
+        # §7.4: Gemini's answer_attempt is the primary signal when perception is
+        # authoritative, with the classifier signal + surface cue as fallback. This
+        # attacks the logged regression where "i can not understand" was graded wrong.
+        answer_try = bool(route and route.answer_attempt) \
+            or ("answer_attempt" in _sig) or is_answer_attempt(text)
         wants_hint = ("hint_requested" in analysis["state_deltas"]["concept_flags"]
                       or "request_hint" in _sig)
         fresh_request = wants_hint or bool(_sig & {
@@ -503,6 +1022,13 @@ class TutorLoop:
         # a hint request escalates the hint chain (never past it, rule 10); any
         # other reply is graded by Qwen and written back via the evidence APIs.
         session = self.state.data.setdefault("session", {})
+        # A LEARNING turn resumes a session paused/ended by SESSION_CONTROL. The
+        # preserved pending_check is graded normally below, so the question the child
+        # left open is picked back up automatically (§4.3 resume contract).
+        if session.get("status") in ("paused", "ended") or session.get("break_requested"):
+            session["status"] = "active"
+            session.pop("break_requested", None)
+            session.pop("leave_requests", None)  # the child chose to come back
         pending = session.get("pending_check")
         writeback = None
         if pending:
@@ -577,12 +1103,37 @@ class TutorLoop:
                     known.append(rep)
 
         # 3. pedagogy: rules decide, shadow suggests (logged only)
+        # A "learning start" is a not-yet-mastered concept the student is asking to
+        # learn (curiosity or a bare question), with no distress, no pending check, and
+        # no answer attempt — introduce it rather than quiz it (rule 1c). Gate on
+        # MASTERY, not is_known: apply_deltas creates a concept-state row on the first
+        # turn, so is_known() is already True by here even for a brand-new topic;
+        # mastery stays at COLD_START until graded evidence moves it.
+        # An EXPLICIT "I want to learn / teach me" request always teaches (never a
+        # cold quiz), even when the concept carries prior mastery — the 2026-07-03
+        # transcript opened with "I want to learn about the quadratic equation" and
+        # got QUIZ because perception's signals were empty and mastery was warm.
+        # The welcoming-intro TONE stays reserved for genuinely new topics.
+        explicit_learn = is_learning_request(text)
+        learning_start = (
+            bool(primary)
+            and (self.state.mastery(primary) <= COLD_START_MASTERY or explicit_learn)
+            and not answer_try and not acknowledged and not pending
+            and (("curiosity" in _sig) or ("question" in _sig) or is_question(text)
+                 or explicit_learn or bool(_sig & {"example_request", "learning_goal"}))
+            and analysis["cognitive_update"].get("frustration_risk", 0.0) < 0.6
+        )
         action, need, why = rules_decide(
             analysis["cognitive_update"], analysis["signals"],
             analysis["state_deltas"]["concept_flags"], concept["abstained"],
             acknowledged=acknowledged,
             clarification=(clarification and not answer_try),
+            learning_start=learning_start,
+            visual=(wants_visual and not answer_try),
+            purpose=(wants_why and not answer_try),
         )
+        intro = (learning_start and action == "EXPLAIN"
+                 and bool(primary) and self.state.mastery(primary) <= COLD_START_MASTERY)
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
 
         # 4. retrieval over the local index, reusing query.py machinery
@@ -707,7 +1258,8 @@ class TutorLoop:
             answer = qwen_answer(text, action, blocks, chapter_hint, writeback_note=note,
                                  history=session.get("context", [])[-6:],
                                  answer_budget=gen_budget, figure_on_screen=bool(display),
-                                 clarify=(clarification and not answer_try))
+                                 clarify=(clarification and not answer_try), intro=intro,
+                                 visualize=(wants_visual and not answer_try))
 
         # 6. session memory (section 12.3 transient context) + bookkeeping for
         # the next turn's acknowledgment handling
@@ -738,6 +1290,8 @@ class TutorLoop:
             }
 
         # 7. log + persist (section 12.2; rules + shadow logged side by side)
+        # (The Stage-1 perception shadow hook was removed with the heads at Stage 6 —
+        # Gemini IS the authoritative perception now; _log keeps the field for old rows.)
         self._log(text, action, why, need, shadow, analysis, manifest, writeback, hope_update)
         self.state.mark_served([e["id"] for e in evidence])
         if self.state.path:
@@ -753,10 +1307,12 @@ class TutorLoop:
                 "answer_budget": answer_budget,
                 "pace": session.get("pace", {}),
                 "display": display,
+                "session_ended": False,
+                "gen_backend": GEN_BACKEND if self.want_answer else None,
                 "answer": answer}
 
     def _log(self, text, action, why, need, shadow, analysis, manifest, writeback=None,
-             hope_update=None) -> None:
+             hope_update=None, perception_shadow=None) -> None:
         concept = analysis["concept"]
         log_row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
@@ -765,8 +1321,13 @@ class TutorLoop:
             "cognitive_update": analysis["cognitive_update"],
             "concept": {k: concept[k] for k in ("concept_id", "concept_confidence", "abstained")},
             "writeback": writeback, "hope_update": hope_update,
+            # which LLM produced this turn's answer — qwen (local llama.cpp) or
+            # gemini (Vertex); None when generation was skipped (--no-answer)
+            "gen_backend": GEN_BACKEND if self.want_answer else None,
             "manifest": manifest,
         }
+        if perception_shadow is not None:
+            log_row["perception_shadow"] = perception_shadow
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
@@ -794,10 +1355,14 @@ def main() -> None:
         if not text or text.lower() in {"quit", "exit"}:
             break
         out = loop.turn(text)
+        shadow_action = (out.get("shadow") or {}).get("action")
         print(f"[{out['action']} | {out['concept']['concept_id']} | {out['n_evidence']} evidence"
-              f" | shadow: {out['shadow']['action']}]")
+              f" | shadow: {shadow_action}]")
         if out["answer"]:
             print(f"wini> {out['answer']}")
+        if out.get("session_ended"):
+            print("(session ended by the student — hard stop)")
+            break
 
 
 if __name__ == "__main__":

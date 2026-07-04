@@ -1,220 +1,349 @@
 {
   "learner_id": "demo_student_01",
   "concept_states": {
-    "jemh101__fundamental_theorem_of_arithmetic": {
-      "mastery": 0.88,
-      "misconceptions": [],
-      "representations_known": [
-        "symbolic",
-        "verbal"
-      ],
-      "hint_dependency": 0.12,
-      "last_practiced": "2026-06-08T10:00:00Z"
+    "jemh102__quadratic_zero_geometry": {
+      "flags": [
+        "transfer_ready_evidence"
+      ]
     },
-    "jemh101__irrational_numbers_definition": {
-      "mastery": 0.81,
-      "misconceptions": [],
-      "representations_known": [
-        "verbal"
-      ],
-      "hint_dependency": 0.2,
-      "last_practiced": "2026-06-08T10:10:00Z"
+    "jemh104__solving_by_factorization": {
+      "flags": [
+        "misconception_suspected"
+      ]
     },
-    "jemh102__zero_of_polynomial": {
-      "mastery": 0.55,
-      "misconceptions": [
-        "zero_means_number"
-      ],
-      "representations_known": [
-        "symbolic"
-      ],
-      "representations_missing": [
-        "graphical"
-      ],
-      "hint_dependency": 0.4,
-      "last_practiced": "2026-06-07T09:00:00Z"
-    },
+    "jemh104__discriminant_nature_of_roots": {},
+    "jemh108__intro_trigonometry": {},
     "jemh102__quadratic_coefficients": {
-      "mastery": 0.48,
-      "misconceptions": [
-        "sum_is_b_over_a"
-      ],
-      "representations_known": [
-        "symbolic"
-      ],
-      "hint_dependency": 0.5,
-      "last_practiced": "2026-06-07T09:20:00Z"
+      "flags": [
+        "misconception_suspected"
+      ]
     },
-    "jemh104__quadratic_equation_definition": {
-      "mastery": 0.22,
-      "misconceptions": [],
-      "representations_known": [
-        "verbal"
-      ],
-      "hint_dependency": 0.7,
-      "last_practiced": "2026-06-06T11:00:00Z"
-    },
-    "jemh104__roots_of_quadratic_equation": {
-      "mastery": 0.18,
-      "misconceptions": [],
-      "representations_known": [],
-      "hint_dependency": 0.8,
-      "last_practiced": "2026-06-06T11:15:00Z"
+    "jemh102__zero_of_polynomial": {},
+    "jemh101__prime_factorization_hcf_lcm": {
+      "flags": [
+        "hint_requested"
+      ]
     },
     "jemh108__fundamental_trig_ratios": {},
-    "jemh108__intro_trigonometry": {},
-    "grade9::right_triangles": {
-      "mastery": 0.19999999999999998,
-      "last_practiced": "2026-06-12T12:44:43.304152+00:00"
+    "jemh104__quadratic_equation_definition": {
+      "flags": [
+        "transfer_ready_evidence",
+        "frustration_risk"
+      ]
     },
-    "grade9::ratios": {
+    "jemh1a2__mathematical_modelling": {},
+    "grade9::quadratic_polynomials": {
       "mastery": 0.19999999999999998,
-      "last_practiced": "2026-06-12T12:47:39.667867+00:00"
+      "last_practiced": "2026-07-03T07:57:50.171650+00:00"
     },
-    "jemh106__similar_figures": {},
-    "jemh105__ap_applications": {},
-    "grade9::congruence_of_triangles": {
-      "mastery": 0.19999999999999998,
-      "last_practiced": "2026-06-15T13:18:34.865071+00:00"
-    },
-    "jemh105__nth_term_formula": {},
-    "jemh104__quadratic_formula": {}
+    "jemh110__lines_and_circles_definitions": {},
+    "jemh111__applications_circle_areas": {}
   },
-  "global": {
-    "confidence": 0.4715,
-    "curiosity": 0.0499,
-    "cognitive_load": 0.1978,
-    "engagement": 0.5274
-  },
+  "misconception_states": {},
   "session": {
-    "current_concept": "jemh104__quadratic_formula",
+    "current_concept": "jemh102__zero_of_polynomial",
     "served_items": [
+      "bridge::grade9::graph_of_a_quadratic_polynomial::jemh102",
+      "grade9::graph_of_a_quadratic_polynomial",
+      "jemh102__zero_of_polynomial",
+      "fig::jemh102::fig_2_2",
+      "figcap::fig::jemh102::fig_2_2",
+      "jemh102::page_004::summary",
+      "figcap::fig::jemh102::fig_2_3_ii",
+      "figcap::table::jemh102::table_2_1",
+      "figcap::fig::jemh102::fig_2_3_i",
+      "figcap::fig::jemh102::fig_2_4_ii",
+      "jemh102::page_003::chunk_001",
+      "jemh102::page_004::chunk_000",
+      "jemh102::page_005::chunk_000",
+      "jemh104::page_008::summary",
+      "jemh104::page_002::summary",
+      "jemh102::page_006::chunk_000",
+      "figcap::fig::jemh102::fig_2_10",
+      "figcap::fig::jemh102::fig_2_5",
+      "figcap::fig::jemh102::fig_2_9",
+      "jemh102::page_003::summary",
+      "jemh102::page_005::summary",
+      "jemh102::page_004::chunk_001",
+      "jemh102::page_002::summary",
+      "figcap::fig::jemh104::fig_4_2",
+      "jemh102::page_007::chunk_000",
+      "jemh102::page_003::chunk_000",
+      "figcap::fig::jemh102::fig_2_4_i",
+      "jemh102::page_007::summary",
+      "jemh102::page_009::summary",
+      "jemh102::page_010::chunk_000",
+      "jemh102::page_006::summary",
+      "jemh102__linear_zero_geometry",
+      "jemh104__roots_of_quadratic_equation",
+      "application::jemh104::example_8_provides_a_rea",
+      "application::jemh1an::formulating_quadratic_eq",
+      "application::jemh1an::setting_up_quadratic_equ",
+      "application::jemh1an::using_quadratic_equation",
+      "application::jemh1an::applying_quadratic_equat",
+      "jemh102::page_002::chunk_001",
+      "jemh102::page_011::summary",
+      "ct_probe::jemh102__quadratic_zero_geometry::0",
+      "ct_probe::jemh102__quadratic_zero_geometry::1",
+      "ct_probe::jemh102__quadratic_zero_geometry::2",
+      "jemh102::page_010::chunk_001",
+      "jemh102::page_009::chunk_000",
+      "jemh102::page_011::chunk_001",
+      "jemh102::page_010::summary",
+      "misconception::incorrectly_factoring_polynomials_or_splitting_the_middle_term",
+      "bridge::grade9::factorisation_of_quadratic_polynomials_by_splitting_the_middle_term::jemh104",
+      "grade9::factorisation_of_quadratic_polynomials_by_splitting_the_middle_term",
+      "jemh104::page_005::summary",
+      "jemh104::page_006::summary",
+      "jemh104::page_005::chunk_001",
+      "jemh104::page_008::chunk_000",
+      "jemh104::page_010::summary",
+      "jemh104::page_009::chunk_001",
+      "jemh1an::page_004::summary",
+      "jemh104::page_010::chunk_001",
+      "jemh104::page_007::chunk_001",
+      "jemh104::page_007::summary",
+      "jemh104::page_005::chunk_002",
+      "jemh104::page_006::chunk_000",
       "bridge::grade9::right_triangles::jemh108",
       "grade9::right_triangles",
-      "bridge::grade9::ratios::jemh108",
-      "grade9::ratios",
+      "jemh108::page_009::summary",
       "jemh108::page_013::summary",
+      "jemh108::page_002::summary",
+      "jemh108::page_001::summary",
+      "jemh108::page_015::summary",
       "jemh108::page_003::summary",
-      "jemh108::page_004::summary",
+      "figcap::fig::jemh108::fig_8_18",
       "jemh108::page_005::chunk_000",
       "jemh108::page_020::summary",
-      "jemh108::page_012::chunk_000",
       "jemh108::page_005::summary",
-      "figcap::fig::jemh108::fig_8_18",
-      "jemh108::page_002::summary",
-      "figcap::fig::jemh108::fig_8_16",
-      "jemh108::page_003::chunk_000",
-      "figcap::fig::jemh108::fig_8_17",
-      "figcap::fig::jemh108::fig_8_4",
+      "jemh108::page_002::chunk_000",
+      "jemh1an::page_007::summary",
+      "meta::jemh108__intro_trigonometry::after_success",
+      "jemh108::page_004::summary",
       "jemh108::page_002::chunk_001",
+      "figcap::fig::jemh108::fig_8_17",
+      "figcap::fig::jemh108::fig_8_16",
       "figcap::fig::jemh108::fig_8_21",
       "jemh108::page_007::summary",
-      "figcap::fig::jemh108::fig_8_19",
-      "jemh1an::page_007::summary",
-      "jemh108::page_012::chunk_001",
-      "jemh108::page_010::summary",
-      "jemh108::page_009::chunk_001",
-      "jemh108::page_009::summary",
+      "ct_probe::jemh108__intro_trigonometry::0",
+      "ct_probe::jemh108__intro_trigonometry::1",
+      "ct_probe::jemh108__intro_trigonometry::2",
       "figcap::fig::jemh108::fig_8_15",
-      "figcap::fig::jemh108::fig_8_3",
-      "jemh108::page_015::summary",
-      "figcap::fig::jemh108::fig_8_12",
-      "bridge::grade9::congruence_of_triangles::jemh106",
-      "grade9::congruence_of_triangles",
-      "bridge::grade9::pythagoras_theorem::jemh106",
-      "grade9::pythagoras_theorem",
-      "jemh106__triangle_similarity_criteria_intro",
-      "jemh106::page_016::summary",
-      "jemh106::page_017::summary",
-      "jemh106::page_014::summary",
-      "jemh106::page_004::summary",
-      "jemh106::page_005::summary",
-      "figcap::fig::jemh106::fig_6_6",
-      "jemh105::page_007::summary",
-      "jemh105::page_007::chunk_001",
-      "jemh105::page_014::chunk_001",
-      "jemh105::page_014::chunk_000",
-      "jemh1an::page_006::summary",
-      "jemh108::page_001::summary",
-      "jemh108::page_002::chunk_000",
-      "jemh108::page_006::summary",
       "figcap::table::jemh108::table_8_1",
-      "figcap::fig::jemh108::fig_8_7",
-      "figcap::fig::jemh108::fig_8_8",
-      "jemh108::page_006::chunk_000",
-      "jemh108::page_011::summary",
-      "jemh108::page_012::summary",
-      "figcap::fig::jemh108::fig_8_9",
-      "figcap::fig::jemh108::fig_8_13",
-      "jemh108::page_016::chunk_000",
-      "jemh108::page_014::chunk_000",
-      "figcap::fig::jemh108::fig_8_20",
-      "jemh108::page_020::chunk_000",
-      "jemh108::page_001::chunk_000",
-      "jemh1an::page_008::summary",
-      "jemh108::page_016::summary",
+      "jemh108::page_003::chunk_000",
+      "figcap::fig::jemh108::fig_8_12",
+      "figcap::fig::jemh108::fig_8_4",
+      "figcap::fig::jemh108::fig_8_19",
       "figcap::fig::jemh108::fig_8_14",
       "figcap::fig::jemh108::fig_8_10",
       "figcap::fig::jemh108::fig_8_11",
-      "meta::jemh108__intro_trigonometry::after_success",
-      "jemh108::page_014::summary",
+      "jemh108::page_006::summary",
+      "figcap::fig::jemh104::fig_4_1",
+      "jemh104::page_002::chunk_000",
+      "jemh1an::page_008::summary",
+      "misconception::sum_is_b_over_a",
+      "bridge::grade9::zeroes_of_a_linear_polynomial::jemh102",
+      "grade9::zeroes_of_a_linear_polynomial",
+      "bridge::grade9::factorisation_of_quadratic_polynomials::jemh102",
+      "grade9::factorisation_of_quadratic_polynomials",
+      "jemh102::page_014::chunk_001",
+      "jemh102::page_011::chunk_000",
+      "jemh102::page_014::summary",
+      "bridge::grade9::value_of_a_polynomial_at_a_specific_point::jemh102",
+      "grade9::value_of_a_polynomial_at_a_specific_point",
+      "figcap::fig::jemh102::fig_2_1",
+      "figcap::fig::jemh102::fig_2_8",
+      "jemh102::page_008::chunk_000",
+      "jemh102::page_008::summary",
+      "figcap::fig::jemh102::fig_2_6",
+      "figcap::fig::jemh102::fig_2_7",
+      "jemh102::page_001::chunk_001",
+      "jemh102::page_014::chunk_000",
+      "jemh104::page_010::chunk_000",
+      "jemh104::page_008::chunk_001",
+      "bridge::grade9::zeroes_of_a_quadratic_polynomial::jemh104",
+      "grade9::zeroes_of_a_quadratic_polynomial",
+      "jemh104::page_001::chunk_000",
+      "jemh104::page_004::chunk_001",
+      "jemh104::page_005::chunk_000",
+      "jemh104::page_007::chunk_000",
+      "bridge::grade9::prime_factorisation::jemh101",
+      "grade9::prime_factorisation",
+      "bridge::grade9::hcf_and_lcm_using_prime_factorisation::jemh101",
+      "grade9::hcf_and_lcm_using_prime_factorisation",
+      "bridge::grade9::relationship_between_hcf_lcm_and_product_of_two_numbers::jemh101",
+      "grade9::relationship_between_hcf_lcm_and_product_of_two_numbers",
+      "schema::jemh101__prime_factorization_hcf_lcm::hcf_lcm_two_numbers_prime_factorization",
+      "schema::jemh101__prime_factorization_hcf_lcm::hcf_lcm_three_plus_numbers_prime_factorization",
+      "schema::jemh101__prime_factorization_hcf_lcm::hcf_lcm_product_relationship",
+      "jemh101::page_004::chunk_001",
+      "jemh101::page_005::chunk_000",
+      "jemh101::page_005::summary",
+      "jemh101::page_004::chunk_002",
+      "jemh101::page_005::chunk_001",
+      "jemh101::page_004::summary",
+      "bridge::grade9::ratios::jemh108",
+      "grade9::ratios",
+      "bridge::grade9::trigonometric_ratios::jemh109",
+      "grade9::trigonometric_ratios",
+      "bridge::grade9::properties_of_right_angled_triangles::jemh109",
+      "grade9::properties_of_right_angled_triangles",
+      "bridge::grade9::values_of_irrational_numbers::jemh109",
+      "grade9::values_of_irrational_numbers",
+      "jemh109::page_009::summary",
+      "jemh109::page_001::summary",
+      "figcap::fig::jemh109::fig_9_4",
+      "jemh109::page_003::summary",
+      "jemh109::page_005::summary",
+      "figcap::fig::jemh108::fig_8_3",
+      "jemh108::page_001::chunk_000",
+      "jemh108::page_011::summary",
+      "jemh108::page_010::summary",
+      "jemh108::page_012::summary",
       "jemh108::page_008::summary",
-      "jemh105::page_010::summary",
-      "jemh105::page_008::summary",
-      "jemh105::page_009::summary",
-      "jemh105::page_004::summary",
-      "jemh105::page_024::summary",
-      "jemh105::page_009::chunk_001",
-      "jemh1an::page_005::summary",
-      "jemh1an::page_004::summary",
-      "jemh104::page_002::summary",
-      "jemh105::page_010::chunk_000",
-      "jemh105::page_007::chunk_000"
+      "jemh108::page_014::summary",
+      "jemh108::page_016::summary",
+      "bridge::grade9::pythagorean_theorem::jemh108",
+      "grade9::pythagorean_theorem",
+      "jemh109::page_010::chunk_000",
+      "jemh109::page_009::chunk_001",
+      "jemh109::page_010::chunk_001",
+      "jemh109::page_009::chunk_000",
+      "jemh109::page_003::chunk_000",
+      "jemh109::page_003::chunk_001",
+      "figcap::fig::jemh108::fig_8_5",
+      "figcap::fig::jemh108::fig_8_7",
+      "jemh108::page_003::chunk_001",
+      "figcap::fig::jemh108::fig_8_8",
+      "figcap::fig::jemh108::fig_8_6",
+      "figcap::fig::jemh108::fig_8_9",
+      "bridge::grade9::quadratic_polynomials::jemh104",
+      "grade9::quadratic_polynomials",
+      "jemh104::page_004::summary",
+      "jemh104::page_004::chunk_000",
+      "jemh104::page_001::summary",
+      "jemh104::page_002::chunk_001",
+      "jemh104::page_003::summary",
+      "jemh104::page_003::chunk_001",
+      "bridge::grade9::mathematical_modelling_process_introduction::jemh1a2",
+      "grade9::mathematical_modelling_process_introduction",
+      "figcap::fig::jemh1a2::fig_a2_1",
+      "jemh1a2::page_004::summary",
+      "jemh1a2::page_001::summary",
+      "jemh1a2::page_011::chunk_001",
+      "jemh1a2::page_002::summary",
+      "jemh1a2::page_004::chunk_000",
+      "jemh102__polynomial_degree",
+      "jemh104::page_003::chunk_000",
+      "jemh1an::page_003::summary",
+      "jemh104::page_002::chunk_002",
+      "jemh104::page_011::summary",
+      "jemh104::page_009::summary",
+      "jemh104::page_009::chunk_000",
+      "bridge::grade9::basic_definitions_of_a_circle_and_its_parts::jemh110",
+      "grade9::basic_definitions_of_a_circle_and_its_parts",
+      "bridge::grade9::relative_positions_of_a_line_and_a_circle::jemh110",
+      "grade9::relative_positions_of_a_line_and_a_circle",
+      "bridge::grade9::sector_and_segment_of_a_circle::jemh111",
+      "grade9::sector_and_segment_of_a_circle",
+      "bridge::grade9::area_of_a_circle::jemh111",
+      "grade9::area_of_a_circle",
+      "figcap::fig::jemh110::fig_10_4",
+      "figcap::fig::jemh111::fig_11_4",
+      "figcap::fig::jemh110::fig_10_5",
+      "jemh110::page_003::summary",
+      "figcap::fig::jemh111::fig_11_3",
+      "figcap::fig::jemh110::fig_10_2",
+      "bridge::grade9::surface_areas_and_volumes_of_basic_3d_shapes::jemh112",
+      "grade9::surface_areas_and_volumes_of_basic_3d_shapes",
+      "bridge::grade9::probability::jemh1a2",
+      "grade9::probability",
+      "jemh111::page_005::summary",
+      "figcap::fig::jemh111::fig_11_5",
+      "figcap::fig::jemh112::fig_12_3",
+      "jemh111::page_002::chunk_000",
+      "ct_probe::jemh111__applications_circle_areas::0",
+      "ct_probe::jemh111__applications_circle_areas::1",
+      "ct_probe::jemh111__applications_circle_areas::2",
+      "jemh111::page_006::chunk_001",
+      "figcap::fig::jemh112::fig_12_1",
+      "jemh111::page_002::chunk_001",
+      "jemh112::page_004::chunk_001",
+      "jemh112::page_001::summary",
+      "figcap::fig::jemh111::fig_11_8",
+      "jemh111::page_003::chunk_000"
     ],
     "bridges_served": [
-      "grade9::right_triangles",
-      "grade9::ratios",
-      "grade9::congruence_of_triangles"
+      "grade9::quadratic_polynomials"
     ],
     "context": [
       {
         "role": "student",
-        "text": "ok i understood now next topic"
+        "text": "Okay, fine. Now, let's go to sleep. I am tired. We'll talk about this tomorrow. Bye."
       },
       {
         "role": "wini",
-        "text": "Great to hear you understood! Now, let's move on to polynomials. A polynomial is an expression consisting of variables and coefficients, involving operations of addition, subtraction, multiplication, and non-negative integer exponents of variables. F"
+        "text": "Sure! Nice work today — see you next time!"
       },
       {
         "role": "student",
-        "text": "yes explain in deeail"
+        "text": "explain the zeroes of a quadratic polynomial using the graph"
       },
       {
         "role": "wini",
-        "text": "Great! Let's go into more detail about polynomials. A polynomial is an expression consisting of variables and coefficients, involving operations of addition, subtraction, multiplication, and non-negative integer exponents of variables. For example, \\"
+        "text": "Look at the figure on the screen. The curve you see is a parabola, which is the graph of a quadratic polynomial. The points where this parabola touches or crosses the horizontal line (the x-axis) are the zeroes of the polynomial. These are the x-coor"
       },
       {
         "role": "student",
-        "text": "what is the second term is called. if highest term is the degree, is there any name for 2nd highest power"
+        "text": "can you show me the graph of a quadratic polynomial"
       },
       {
         "role": "wini",
-        "text": "In an Arithmetic Progression (AP), the second term is often referred to as the second term of the sequence. If we were talking about polynomials, the second term would be the term that has the second highest power of the variable. However, in an AP, "
+        "text": "Look at the figure on the screen. Imagine a ball being thrown upwards and then falling back down. The path it traces in the air is exactly what the graph of a quadratic polynomial looks like. This curve is called a parabola. The points where this bal"
       },
       {
         "role": "student",
-        "text": "i asked about the second term in the quadratic equation not AP problem"
+        "text": "What are the zeros of a quadratic polynomial?"
       },
       {
         "role": "wini",
-        "text": "In a polynomial, the second term is called the term with the second highest power of the variable. For example, in the polynomial \\(3x^4 + 2x^3 - x^2 + 5x - 7\\), the second term is \\(2x^3\\), which has the second highest power of \\(x\\).\n\nFor a quadrat"
+        "text": "The zeroes of a quadratic polynomial are the x-coordinates where its graph intersects the x-axis. These are the same as the roots of the quadratic equation ax² + bx + c = 0. A quadratic polynomial can have at most two zeroes."
       }
     ],
     "last_action": "QUIZ",
-    "last_repr_targets": []
+    "last_repr_targets": [],
+    "pace": {
+      "mode": "explain",
+      "current_micro_goal": "",
+      "expected_response_type": "free",
+      "pending_micro_check": null,
+      "explanation_step": 44,
+      "max_words": 65,
+      "last_explanation_summary": "Nice work today — see you next time!",
+      "last_spoken_answer": "Sure! Nice work today — see you next time!",
+      "last_voice_latency_ms": {
+        "qwen_ms": 6
+      }
+    },
+    "status": "active",
+    "pending_check": {
+      "kind": "bridge",
+      "id": "grade9::value_of_a_polynomial_at_a_specific_point",
+      "concept_id": "jemh102__zero_of_polynomial",
+      "question": "If p(x) = x² - 3x - 4, what is p(0)?",
+      "expected_answer": "-4",
+      "hint_chain": null
+    }
   },
-  "misconception_states": {},
+  "global": {
+    "confidence": 0.4999,
+    "curiosity": 0.0512,
+    "cognitive_load": 0.0562,
+    "engagement": 0.5203
+  },
   "hope_rolling": {
-    "KI": 0.3029
+    "CT": 0.3661,
+    "KT": 0.4028
   }
 }

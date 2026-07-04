@@ -7,9 +7,13 @@ import sys
 import codecs
 sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
 
+# raw 10k was re-pointed to dataset/archive/ when _fixed.json became canonical;
+# fall back to the archived copy so this provenance verifier still runs.
 data_path = Path("dataset/exemplar_dataset_10000.json")
 if not data_path.exists():
-    print("Error: exemplar_dataset_10000.json not found.")
+    data_path = Path("dataset/archive/exemplar_dataset_10000.json")
+if not data_path.exists():
+    print("Error: exemplar_dataset_10000.json not found (checked dataset/ and dataset/archive/).")
     sys.exit(1)
 
 data = json.loads(data_path.read_text(encoding="utf-8"))

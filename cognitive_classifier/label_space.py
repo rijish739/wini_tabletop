@@ -1,10 +1,13 @@
 """Canonical label space for the exemplar cognitive classifier.
 
-The raw dataset (dataset/exemplar_dataset_10000.json) carries 48 distinct
-labels in `miniLM_labels`, with a long tail of near-duplicates and one-off
-variants produced during generation. This module folds the tail into the
-nearest canonical label and drops anything that still lacks the minimum
-support needed for a usable exemplar bank + threshold calibration.
+The raw dataset (now archived at dataset/archive/exemplar_dataset_10000.json)
+carries 48 distinct labels in `miniLM_labels`, with a long tail of
+near-duplicates and one-off variants produced during generation. This module
+folds the tail into the nearest canonical label and drops anything that still
+lacks the minimum support needed for a usable exemplar bank + threshold
+calibration. (The canonical dataset of record is now
+dataset/exemplar_dataset_10000_fixed.json; curate_dataset.py projects it to
+_curated.json.)
 
 Merge rationale (raw count in parentheses):
   recurring_misconception (4)      -> recurring_error        same phenomenon, two spellings
@@ -19,6 +22,16 @@ Merge rationale (raw count in parentheses):
   strategic_learning (1)           -> self_monitoring
   productive_struggle (1)          -> self_monitoring
   active_engagement (1)            -> curiosity
+
+Added canonical labels (T2 — acknowledgment, IMPLEMENTATION_TASKS.md):
+  acknowledgment                                              positive-confirmation utterances
+    ("yes got it", "makes sense now", "understood"). Authored as supplementary
+    augmented rows (≥300) because the original 10k bank had almost no
+    positive-confirmation examples; MiniLM otherwise embeds "makes sense now"
+    next to "not making sense now" and the classifier mislabels acks as
+    `confusion`. Gold rule: see cues.is_pure_ack + curate_dataset.curate_row —
+    is_pure_ack(utt) ⇒ ensure `acknowledgment` ∧ remove `confusion`/`low_confidence`.
+    DO NOT add to LABEL_MERGE_MAP — it is its own canonical label.
 """
 
 from __future__ import annotations

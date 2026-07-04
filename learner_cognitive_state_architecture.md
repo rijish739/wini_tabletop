@@ -217,6 +217,34 @@ Each of these contains more than one signal.
 
 This is the central replacement for the intent router.
 
+> **Perception backend (Part 11; PROMOTED 2026-07-02).** *How* these signals are produced is
+> feature-flagged (`PERCEPTION_BACKEND`). **Default is `gemini`**: ONE structured Gemini 2.5
+> Flash call (`temperature=0`, enum-constrained `response_schema`) emits intent +
+> `signal_scores` + `concept` in a single round-trip (`perception/gemini_perception.py`),
+> injected as the analyzer's classifier+resolver so **this layer's contract and the
+> `derive_*`/`apply_deltas` state math are unchanged** — Gemini changes *what is perceived*,
+> not *how perception moves state*. The pre-promotion local MiniLM classifier + resolver were
+> **retired from the runtime path at Stage 6 (2026-07-02)** — artifacts stay on disk as eval
+> baselines, and a failed Gemini call degrades to gates + inherit-concept + neutral signals
+> (a turn never hard-fails). The 6,062-token static block (taxonomy + signal definitions +
+> concept catalog) is served from a Vertex context cache (`perception/vertex_cache.py`,
+> sha-guarded). A model-free front door runs FIRST:
+> deterministic SAFETY/NONSENSE gates and an 8-way **intent** router where **only `LEARNING`
+> may move learner state** (mastery, misconception status, HOPE rolling averages, global EMAs)
+> or trigger retrieval; every other intent gets a persona/scripted reply and leaves cognitive
+> state untouched. `concept_id = INHERIT_CURRENT_CONCEPT` is the abstain sentinel (maps to the
+> resolver's abstain branch). Concept resolution is **hybrid** (§5.5): the per-turn prompt
+> carries top-8 MiniLM-similar `candidate_concepts` hints, and a deterministic **resolver
+> cross-check** (`fuse_primary`) promotes the local resolver's confident top-1 only when it
+> already sits in Gemini's {primary+secondaries} — never introducing a concept Gemini didn't
+> list, never overriding INHERIT. Promotion evidence (2026-07-02): concept top-1/top-3
+> **0.930/0.990** (vs 0.895/0.971 head baselines) on the frozen 999-row TEST split; signals
+> gated by the **behavioral state-trajectory eval** (state moves through this layer's math,
+> not label-F1) — Gemini 0.857/0.833 vs heads 0.607/0.500 on field-direction/must-fire-flags;
+> intent macro-F1 1.0; SAFETY gate recall 1.0. Numbers live in
+> `model_dataset_architecture_report.md`; measurement docs `eval/perception_eval_report.md` +
+> `eval/behavioral_eval_report.md`. Design of record: `PART11_GEMINI_PERCEPTION_LAYER.md`.
+
 ### Responsibilities
 
 Estimate the following signals from the student utterance:
@@ -496,6 +524,37 @@ The engine uses:
 - ZPD target range
 
 ### Decision examples and explicit contracts
+
+If the student says they cannot **picture** the idea ("I cannot imagine this", "how does it
+look?" — deterministic visualization cue, or a clarification plea carrying a representation
+signal):
+
+- **switch representation (`REPRESENTATION_TRANSLATION`, KI need): build one concrete
+  everyday scene step by step, or walk the on-screen figure — never restate the definition
+  in different words.** This override (`rule 1a-vis`) outranks the generic re-explain,
+  because a re-worded definition still fails a learner whose gap is the mental image
+  (2026-07-03 transcript regression: "I cannot imagine this" was answered with another
+  textual definition of triangle sides).
+
+If the student asks WHY this is worth learning, what it is for, or HOW something just shown
+connects to the topic — or complains that their question was not answered (deterministic
+purpose cue):
+
+- **answer that exact question first (`WHY_IT_MATTERS`): state the connection explicitly or
+  give one concrete real-life reason — never respond with a new problem, a definition, or bare
+  encouragement.** This override (`rule 1w`) outranks the transfer/curiosity/frustration rules
+  (2026-07-03 transcript regression: "how is this related to quadratic equation" drew a
+  TRANSFER_PROBLEM, then two more deflections before the connection was finally stated).
+
+If the student names a different topic (a bare label like "Natural numbers." with no graded
+question open, or an explicit "i asked about X / teach me X / switch to X"):
+
+- **honor the shift, never silently continue the old topic.** When perception grounds the new
+  concept confidently the pipeline shifts as normal; when it abstains or resolves the *negated*
+  mention, the deterministic handler grounds the requested span against the resolver anchors:
+  confident match → switch and introduce; moderate → ask ("switch to {name}? yes/no",
+  `pending_shift` consumed by a bare yes/no next turn); off-catalog → say so honestly and offer
+  the nearest catalog topic. Raw concept ids are never spoken.
 
 If the student explicitly signals they did not understand (an "I don't understand / make it
 simpler / you keep repeating yourself" plea — deterministic clarification cue):

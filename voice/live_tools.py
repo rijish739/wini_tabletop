@@ -92,6 +92,12 @@ class TutorTurnHandler:
             "triage": decision.triage.as_dict(),
             "budget": decision.answer_budget.as_dict(),
             "latency_ms": lat,
+            # which LLM (qwen|gemini) generated the answer; None for scripted/canned
+            "gen_backend": (result or {}).get("gen_backend"),
+            "answer_source": (result or {}).get("answer_source"),
+            # the student ended the session (SESSION_CONTROL hard stop): the runner
+            # speaks this farewell and then stops taking turns
+            "session_ended": bool((result or {}).get("session_ended")),
         }
 
     def handle(self, transcript: str, stt_uncertain: bool = False) -> dict[str, Any]:

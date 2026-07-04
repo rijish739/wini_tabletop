@@ -231,6 +231,36 @@ Production:
 - balanced across all 16 Class 10 Maths chapters (algebra, geometry, trigonometry, statistics, probability),
 - multilingual/noisy variants if the UI allows Indian English, Hindi-English, or shorthand.
 
+**Realized (2026-06-19).** Canonical dataset = `dataset/exemplar_dataset_10000_fixed.json`:
+10,000 audit-corrected base rows + 800 supplementary `split:"train"` rows (T2 acknowledgment
++ T3 weak-label pass). 38 canonical labels (incl. `acknowledgment`). `curate_dataset.py`
+projects it to `_curated.json` (the build input); raw is archived under `dataset/archive/`.
+Shipped exemplar classifier: evidence+logreg+cues, test micro/macro-F1 **0.83 / 0.69**
+(build status + history in `complete_architecture_build_plan.md` §2.5.2). The Optional
+second stage above is now shipped as part of the selected ensemble.
+
+> **Repurposed as the perception eval contract (Part 11; measured + PROMOTED 2026-07-02).**
+> The frozen TEST split (`models/exemplar_classifier/splits.json` → 999 rows of
+> `_curated.json`) is ALSO the promotion gate for the Gemini perception layer
+> (`PART11_GEMINI_PERCEPTION_LAYER.md`), and the full 999-row run is now measured. **Runtime
+> perception is Gemini (`PERCEPTION_BACKEND=gemini` default since 2026-07-02):**
+> - **Concept (hybrid, §5.5-hardened): top-1 0.930 / top-3 0.990** vs the resolver baselines
+>   0.895/0.971 — raw Gemini primary is 0.890/0.990; the deterministic MiniLM-resolver
+>   cross-check (`fuse_primary`) adds the final +0.04 top-1.
+> - **Signals: gated by the behavioral state-trajectory eval, not label-F1.** Gemini's
+>   label-reproduction micro-F1 vs this dense gold is 0.39 — structurally unwinnable for a
+>   conservative perceiver because the heads (0.83) were *trained* on this gold (`curiosity`
+>   is gold-labeled on 85% of rows; heads recall it 0.95 by memorization, Gemini 0.06 by
+>   definition). On state moves through the unchanged `derive_*` math (48 authored probes),
+>   Gemini beats the heads 0.857-vs-0.607 (field direction) and 0.833-vs-0.500 (must-fire
+>   flags) — `eval/behavioral_eval_report.md`.
+> - **Intent macro-F1 1.0; SAFETY/NONSENSE gate recall 1.0/1.0, 0 false-gates.**
+> The head numbers in this report (**0.83/0.69** signals; resolver top-1 in §4) are retained
+> as the **eval baselines** of the superseded-for-runtime local heads (kept on disk as
+> fallback until Stage 6). Measurement docs: `eval/perception_eval_report.md` (v2 cache
+> `perception_eval_raw2.jsonl` is the prompt of record) + `eval/behavioral_eval_report.md`.
+> New eval files only; the dataset + splits stay read-only.
+
 ### 3.4 Dataset Creation Method
 
 1. Create label definitions with positive and negative examples.
@@ -1323,4 +1353,12 @@ This report is one of three documents kept in lockstep:
    plan's Phase 6 artifacts with the same κ ≥ 0.6 gate; and the store-side quality gates
    (Sec. 10) are the plan's §4b criteria.
 
-Any future change to one document must be propagated to the other two.
+**Voice rig (build plan Part 10) adds no models or datasets.** The Windows hybrid voice
+pipeline puts STT/TTS in the cloud (Google Cloud Speech-to-Text forced en-US; Cloud TTS
+`en-IN-Chirp3-HD-Achernar`) and leaves the brain unchanged, so the model inventory and every
+dataset/metric in this report are unaffected. The only runtime-generation change is pacing
+discipline (action-aware spoken budget, deliver-don't-announce), which alters prompt/budget,
+not any trained model — see architecture §21.
+
+Any future change to one document must be propagated to the others (this report, the
+architecture doc, the RAG upgrade plan, and the build plan that tracks execution status).
