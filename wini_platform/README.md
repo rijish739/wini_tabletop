@@ -58,15 +58,93 @@ and stop; a 10 ms fade at each end kills waveform-edge clicks too.
 Dev flags (no hardware): `--fake-display --no-touch`, and
 `python3 -m wini_platform.display.demo --fake`.
 
-## Dependencies (device venv, no `--system-site-packages`)
+## Dependencies
+
+Two requirement files (unpinned — match the device venv):
+
+| File | Install where | Covers |
+|---|---|---|
+| `requirements.txt` | every OS | supervisor, software display (`--fake-display`), touch parser, in-proc client |
+| `requirements-device.txt` | Jetson / RPi only | the ST7796S SPI panel driver (`adafruit-blinka`, `adafruit-circuitpython-rgb-display`); pulls in `requirements.txt` too |
 
 ```
-numpy opencv-python sounddevice requests pyserial
-adafruit-circuitpython-rgb-display adafruit-blinka
+# laptop / dev box (no SPI panel):
+pip install -r wini_platform/requirements.txt
+# on the Jetson / a Pi-class board with the real panel:
+pip install -r wini_platform/requirements-device.txt
 ```
+
+`sounddevice` needs the PortAudio runtime: bundled in the wheel on **Windows**,
+`brew install portaudio` on **macOS**, `sudo apt install libportaudio2` on
+**Debian/Ubuntu/Jetson**.
+
+The brain service (`wini_server.py`) is a SEPARATE process with its own heavier
+deps in the **repo-root `requirements.txt`** (Vertex/Gemini SDK, faiss, …) plus a
+`.env` and Google ADC credentials — see `JETSON_PIPELINE_RUNBOOK.md` §14. Run the
+brain only where the brain lives; the platform reaches it over HTTP (`--server`).
 
 Gotchas that still apply: PulseAudio USB pinning runs automatically at client
-start (`WINI_AUDIO_SELECT` overrides the script path); SPI/GPIO group
+start (`WINI_AUDIO_SELECT` overrides the script path, Linux only); SPI/GPIO group
 permissions must be verified on the fresh venv; the client thread stops via
 `stop_event` (PortAudio reads ignore signals); ears stay off (firmware defect,
 `EAR_ACTUATION_ISSUE.md`).
+
+## Running on another OS (Windows / macOS / any Linux)
+
+`wini_platform` is the Jetson *device* orchestrator: it owns the SPI face panel,
+the STM32 touch/head board, and an in-process copy of the thin client (mic →
+brain → speaker + display). Only two pieces are hardware-bound — the **SPI panel**
+(`--fake-display` swaps in a pure-numpy `NullDriver`) and the **STM32 board**
+(`--no-touch` skips it entirely). Everything else is portable Python, so the
+platform brings up on a laptop against a local or remote brain.
+
+**Audio is portable with no code change.** The client tries PulseAudio's `"pulse"`
+device (the Jetson's USB mic/speaker routing) and **automatically falls back to
+the OS default input/output device** when there is no PulseAudio — so on Windows
+and macOS you simply get the laptop's default mic and speakers. (The supervisor's
+boot-time mic-settle probe also targets `"pulse"`; off-Jetson it just retries for
+a few seconds before proceeding — harmless, and skipped entirely in the headless
+shape below.)
+
+### Run shapes
+
+Run every command **from the repo root** (`cloud CLI/`, the parent of
+`wini_platform/`) so `wini_server.py` and the `wini_client` import resolve:
+
+| Goal | Command | Hardware |
+|---|---|---|
+| Jetson device (full) | `python3 -m wini_platform` | SPI panel + STM32 + USB audio |
+| Laptop, real audio | `python3 -m wini_platform --fake-display --no-touch --autostart --server <brain-url>` | default mic + speaker |
+| Headless / CI (no audio) | `python3 -m wini_platform --fake-display --no-touch --server <brain-url>` | none (no trigger ⇒ no session) |
+
+- `--autostart` starts the client immediately — there is no chin sensor to hold
+  off-device; without it (and without a touch board) the supervisor just idles.
+- `--no-manage-server` when the brain is remote / already running / on Cloud Run,
+  so the supervisor never tries to spawn `wini_server.py` locally.
+- `--store <dir>` points at the local `rag_store/` copy that holds
+  `figure_crops/` (the device's "SD card"); defaults to the one in the checkout.
+
+### Step by step (laptop)
+
+1. **Python 3.10+** (3.12 is fine) and the PortAudio runtime for your OS (above).
+2. **Get a brain.** Either run it locally in one terminal — from the repo root
+   `pip install -r requirements.txt` then `python wini_server.py` (needs `.env` +
+   `gcloud auth application-default login`) — or point `--server` at an
+   already-running / Cloud Run URL and skip this.
+3. **Install the platform** in a venv (do NOT install `requirements-device.txt`
+   off-device — that's the SPI panel driver):
+   ```
+   python -m venv .venv
+   . .venv/bin/activate            # Windows: .venv\Scripts\activate
+   pip install -r wini_platform/requirements.txt
+   ```
+4. **Run** the laptop shape, e.g.:
+   ```
+   python -m wini_platform --fake-display --no-touch --autostart \
+       --server http://127.0.0.1:8123
+   ```
+   Speak; the reply plays on your default speakers. `Ctrl-C` stops it cleanly.
+
+No brain and no hardware? `python3 -m wini_platform.display.demo --fake` renders
+the face / emotions / cards through the `NullDriver` — a quick way to exercise the
+render path on any OS with nothing attached.

@@ -4,6 +4,16 @@
 # monitors wini_server.py itself on a cold start. Replaces run_boot_platform.sh
 # + run_thin.sh + run_client.sh. Detached launch per runbook 2.1.
 source /home/roavai/wini_pipeline_test_env.sh
+# Cron @reboot runs with NO login session, so XDG_RUNTIME_DIR / DBUS are unset.
+# Without XDG_RUNTIME_DIR the ALSA "pulse" device can't find the PulseAudio socket
+# (/run/user/UID/pulse/native), so the mic open falls back to the onboard card and
+# dies with paInvalidSampleRate (-9997) — the brain/display/touch survive, so it
+# only LOOKS like "the model didn't load". A manual restart from an SSH shell
+# inherits these vars, which is exactly why restarting "fixes" it. Set them so a
+# boot launch == a manual launch. (libpulse/pactl derive the path from the uid on
+# their own; the ALSA pulse plugin strictly needs XDG_RUNTIME_DIR.)
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+export DBUS_SESSION_BUS_ADDRESS="${DBUS_SESSION_BUS_ADDRESS:-unix:path=${XDG_RUNTIME_DIR}/bus}"
 export WINI_FILLERS=0
 export WINI_AUDIO_SELECT=/home/roavai/ROS2WS_audio_pipeline/select_usb_audio.sh
 LOGS=/home/roavai/wini_test_logs

@@ -35,14 +35,21 @@ HOLD_S = 3.0                 # chin hold needed to trigger start/wake
 RELEASE_GRACE_S = 0.3        # micro-release shorter than this keeps the hold
 TICK_S = 0.2                 # supervisor housekeeping tick
 
-THINK_EMOTION = ("CONFUSED", 8)   # quizzical squint; intensity <=10 avoids tongue
+THINK_EMOTION = ("XEYES", 12)     # X-eyes "loading/busy" look (replaced the CONFUSED squint)
 THINK_TIMEOUT_S = 120.0           # safety: never stay in thinking face forever
 GAZE_SWING_TICKS = 8              # 0.2 s ticks per gaze side (~1.6 s left/right)
 
 BLUSH_INTENSITY = 12
 BLUSH_HOLD_S = 3.0
 BLUSH_DEBOUNCE_S = 0.4
-IDLE_EMOTION = ("NEUTRAL", 7)
+IDLE_EMOTION = ("NEUTRAL", 15)   # eyes fully open at rest (15 = full neutral)
+
+# HEAD-touch demo: hold the top (head) sensor to cycle emotions one-by-one;
+# release returns to neutral. Only runs when idle (not thinking / not starting).
+HEAD_CYCLE = ["HAPPY", "SAD", "ANGRY", "SURPRISED", "CONFUSED", "LOVE",
+              "EXCITEMENT", "SMIRK", "DIZZY", "XEYES", "SLEEPY", "TIRED", "BLUSH"]
+HEAD_CYCLE_INTENSITY = 15
+HEAD_CYCLE_S = 1.0               # advance to the next emotion every ~1 s while held
 
 STARTUP_TIMEOUT_S = 180.0    # cold start (server spawn + model load)
 WAKE_TIMEOUT_S = 30.0        # server already warm
@@ -71,7 +78,7 @@ class WiniPlatform:
         self.display = DisplayThread(driver=driver)
 
         self.head = None if no_touch else SerialHead(
-            on_chin=self._on_chin_level, log=log)
+            on_chin=self._on_chin_level, on_head=self._on_head_level, log=log)
 
         # chin-hold state machine (written on the serial read thread, read on
         # the tick — single-writer per field, GIL-atomic floats/bools)
@@ -84,6 +91,12 @@ class WiniPlatform:
         self._blushing = False
         self._blush_until = 0.0
         self._last_blush_trigger = 0.0
+
+        # head-touch emotion cycle (demo)
+        self._head_level = False
+        self._head_cycling = False
+        self._head_idx = 0
+        self._head_last_advance = 0.0
 
         # thinking face
         self._thinking = False
@@ -190,6 +203,10 @@ class WiniPlatform:
             if not self._thinking:   # thinking face owns the screen mid-turn
                 self.display.set_emotion("BLUSH", BLUSH_INTENSITY)
 
+    def _on_head_level(self, level: bool) -> None:
+        # serial read thread — keep fast; the cycling is driven from _tick.
+        self._head_level = level
+
     # ── client lifecycle ─────────────────────────────────────────────────────
 
     def _client_alive(self) -> bool:
@@ -238,11 +255,43 @@ class WiniPlatform:
             target=self._client_worker, name="wini-client", daemon=True)
         self._client_thread.start()
 
+    def _wait_capture_ready(self, timeout_s: float = 25.0) -> bool:
+        """Block until the mic actually captures a block. At boot PulseAudio's
+        USB source can still be settling when the client starts, so the first
+        read fails with ALSA EIO (-5)/PortAudioError and used to kill the whole
+        session (looked like 'the model didn't load'). Retry a cheap one-block
+        capture until it works instead of dying on that race; a warm source
+        (wake path) passes on the first try (~50 ms)."""
+        import sounddevice as sd
+        from wini_client.client import RATE
+
+        block = int(RATE * 0.05)
+        deadline = time.monotonic() + timeout_s
+        attempt = 0
+        while not self._stop.is_set() and not self._client_stop.is_set():
+            attempt += 1
+            try:
+                with sd.InputStream(samplerate=RATE, channels=1, dtype="int16",
+                                    blocksize=block, device="pulse") as s:
+                    s.read(block)
+                if attempt > 1:
+                    self._log(f"[platform] mic capture ready (after {attempt} tries)")
+                return True
+            except Exception as e:  # noqa: BLE001
+                if time.monotonic() >= deadline:
+                    self._log(f"[platform] mic not ready after {attempt} tries "
+                              f"({e}); starting session anyway")
+                    return False
+                self._log(f"[platform] mic not ready (try {attempt}): {e}; retrying")
+                time.sleep(1.0)
+        return False
+
     def _client_worker(self) -> None:
         from wini_client.client import BrainClient, run_session
         from wini_client.display_sinks import InProcSink
 
         self._pin_usb_audio()
+        self._wait_capture_ready()
         sink = InProcSink(self.store_dir, self.display,
                           set_thinking=self.set_thinking)
         brain = BrainClient(self.server_url)
@@ -278,6 +327,22 @@ class WiniPlatform:
         if hold_start is not None and not self._fired and now - hold_start >= HOLD_S:
             self._fired = True
             self._trigger()
+        # head-hold emotion cycle (manual demo) — only when idle
+        if self._head_level and not self._thinking and not self._starting:
+            if not self._head_cycling:
+                self._head_cycling = True
+                self._head_idx = 0
+                self._head_last_advance = now
+                self.display.set_emotion(HEAD_CYCLE[0], HEAD_CYCLE_INTENSITY)
+            elif now - self._head_last_advance >= HEAD_CYCLE_S:
+                self._head_idx = (self._head_idx + 1) % len(HEAD_CYCLE)
+                self._head_last_advance = now
+                self.display.set_emotion(HEAD_CYCLE[self._head_idx],
+                                         HEAD_CYCLE_INTENSITY)
+        elif self._head_cycling and not self._head_level:
+            self._head_cycling = False
+            if not self._thinking and not self._blushing:
+                self.display.set_emotion(*IDLE_EMOTION)
         # thinking face animation (emotion re-assert + wandering up-gaze)
         if self._thinking:
             if now - self._think_started > THINK_TIMEOUT_S:

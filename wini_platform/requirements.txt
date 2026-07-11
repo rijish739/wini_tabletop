@@ -1,0 +1,25 @@
+# wini_platform — ROS-less device platform: CORE dependencies (cross-OS).
+#
+# Installs and runs on EVERY OS (Jetson, Linux, macOS, Windows). Covers the
+# supervisor, the software display path (NullDriver / --fake-display), the
+# touch-telemetry parser, and the in-process thin client (mic + speaker + HTTP).
+# Unpinned on purpose — match whatever the device venv already carries.
+#
+# Laptop / dev box:   pip install -r wini_platform/requirements.txt
+# Jetson / RPi panel: pip install -r wini_platform/requirements-device.txt
+#                     (that file pulls this one in, then adds the SPI driver)
+#
+# `sounddevice` needs the PortAudio runtime:
+#   Windows       — bundled inside the wheel (nothing extra)
+#   macOS         — brew install portaudio
+#   Debian/Jetson — sudo apt install libportaudio2
+#
+# The brain service (wini_server.py) is a SEPARATE process with its own, heavier
+# deps in the repo-root requirements.txt — install those only where the brain runs.
+
+numpy                # face render, PCM math, image letterboxing
+opencv-python        # figure-crop / text-card image ops (cv2)
+sounddevice          # PortAudio mic + speaker; auto-falls back from PulseAudio
+                     #   "pulse" to the OS default device when pulse is absent
+requests             # HTTP to the brain service (/health, /voice_turn, /turn)
+pyserial             # STM32 head + touch board (imported even with --no-touch)

@@ -1,0 +1,14 @@
+# wini_platform — DEVICE extras: the ST7796S SPI panel driver.
+#
+# display/wini_display_driver.py does `import board, digitalio, adafruit_rgb_display`.
+# Only install on a Jetson / Raspberry-Pi-class board with SPI + GPIO. On a
+# laptop these have no real `board` to talk to — run the platform with
+# --fake-display (NullDriver) instead of installing this file.
+#
+# Installs the CORE set too, so the whole on-device stack is one command:
+#   pip install -r wini_platform/requirements-device.txt
+
+-r requirements.txt
+
+adafruit-blinka                      # provides `board`, `digitalio` (SPI/GPIO)
+adafruit-circuitpython-rgb-display   # provides `adafruit_rgb_display` (ST7796S)
