@@ -48,3 +48,14 @@ ENV/
 
 # Local voice-test artifacts
 .voice_runs/
+
+# Parent dashboard: fetched Jetson snapshots (regenerated on every refresh)
+_parent_cache/
+
+# wini_ui on-device artifacts (the LVGL clone + cmake build live on the Pi only)
+wini_ui/lvgl/
+wini_ui/build/
+wini_ui/.shots/
+
+# device runtime logs (run_wini_package.sh appends here)
+logs/

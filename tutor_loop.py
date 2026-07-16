@@ -36,7 +36,7 @@ import requests
 
 from cognitive_analyzer import CognitiveAnalyzer
 from hope_detector import HopeDetector
-from learner_state import COLD_START_MASTERY, load_learner_state
+from learner_state import COLD_START_MASTERY, MASTERY_GATE_DEFAULT, load_learner_state
 from policy_shadow import PolicyShadow
 from query import (
     Snapshot,
@@ -222,6 +222,12 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         "REPRESENTATION_TRANSLATION": "Translate the idea into a different representation the student "
                                       "can picture — a scene, a figure, a drawing — not more words about "
                                       "the same definition.",
+        "COMPLETION_STEP": "Work the problem through EVERY step except the LAST one, showing the "
+                           "arithmetic, then STOP and ask the student to do just the final step "
+                           "themselves (backward fading). Do not state the final answer.",
+        "ISOMORPHIC_PRACTICE": "Pose ONE fresh problem of the same type for the student to solve on "
+                               "their own. State the problem in plain words and ask for their answer. "
+                               "Do NOT solve it or give hints unless asked.",
         "WHY_IT_MATTERS": "The student asked WHY this is worth learning, what it is for, or HOW "
                           "something connects to the topic (or said you did not answer their "
                           "question). ANSWER THAT EXACT QUESTION FIRST in one plain sentence. If "
@@ -456,18 +462,34 @@ def qwen_cohesion_check(evidence: list[dict], blocks_text: dict) -> list[str]:
         return []
 
 
-def judge_answer(question: str, expected: str, student_answer: str) -> str:
-    """Grade a diagnostic answer with the local Qwen model.
+def judge_answer(question: str, expected: str, student_answer: str,
+                 rubric: str = "") -> str:
+    """Grade a check answer — hardened, deterministic-first (Part 12 §5.4).
 
-    Returns correct | partial | wrong | not_an_answer. Any failure (server
-    down, unparseable output) degrades to not_an_answer so learner state is
-    never moved by a broken grader.
+    1. A deterministic numeric/expression/yes-no equivalence check (math_grade)
+       is the FLOOR: a confident correct/wrong is returned without any model call
+       (five graded items decide a mastery gate — never lean on the LLM for the
+       floor, mirroring the safety-gate philosophy).
+    2. Only verbal/conceptual or partial-overlap answers fall through to the LLM
+       rubric grader (the expected answer + any trap_steps/why_wrong in `rubric`).
+    3. Non-attempts are caught UPSTREAM (tutor_loop 1a) and never reach here.
+
+    Returns correct | partial | wrong | not_an_answer. Any failure degrades to
+    not_an_answer so learner state is never moved by a broken grader.
     """
+    try:
+        import math_grade
+        det = math_grade.grade(expected, student_answer)
+        if det in ("correct", "wrong"):
+            return det
+    except Exception:  # noqa: BLE001 — deterministic layer must never break grading
+        pass
     prompt = (
         "You are grading a Class 10 maths check question.\n"
         f"QUESTION: {question}\n"
         f"EXPECTED ANSWER: {expected}\n"
-        f"STUDENT REPLY: {student_answer}\n\n"
+        + (f"GRADING NOTES (common traps / why a wrong answer is wrong): {rubric}\n" if rubric else "")
+        + f"STUDENT REPLY: {student_answer}\n\n"
         'Classify the student reply. Respond with ONLY one JSON object like {"outcome": "correct"}.\n'
         "outcome must be one of: correct (matches expected), partial (right direction, "
         "incomplete or with an error), wrong (contradicts expected), not_an_answer "
@@ -483,6 +505,77 @@ def judge_answer(question: str, expected: str, student_answer: str) -> str:
         return m.group(1) if m else "not_an_answer"
     except Exception:  # noqa: BLE001
         return "not_an_answer"
+
+
+def _plainify_math(s: str) -> str:
+    """Make a generated question voice- and panel-friendly (Part 12 Stage 4). The
+    cv2 card path and the TTS both render/read the text verbatim, and neither
+    understands LaTeX — so drop the delimiters and fold the few commands that
+    survive the plain-text instruction into words. Applied to the QUESTION only;
+    the expected_answer is left for the grader (only `$`/delimiters stripped)."""
+    import re as _re
+    for d in ("\\(", "\\)", "\\[", "\\]", "$", "{", "}"):
+        s = s.replace(d, " ")
+    repl = {"\\times": " times ", "\\div": " divided by ", "\\cdot": " times ",
+            "\\ge": " >= ", "\\le": " <= ", "\\neq": " not equal to ",
+            "\\sqrt": " square root of ", "\\pi": " pi ", "\\%": " percent "}
+    for k, v in repl.items():
+        s = s.replace(k, v)
+    s = _re.sub(r"\^2\b", " squared", s)
+    s = _re.sub(r"\^3\b", " cubed", s)
+    s = _re.sub(r"\^\{?(\d+)\}?", r" to the power \1", s)
+    s = _re.sub(r"\\[a-zA-Z]+", " ", s)          # any leftover \command -> space
+    s = _re.sub(r"\s+([.,?!])", r"\1", s)        # tidy space before punctuation
+    return _re.sub(r"\s+", " ", s).strip()
+
+
+def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = None) -> dict | None:
+    """Generate ONE short-answer quiz item {question, expected_answer} from a
+    problem_schema (Part 12 §4.4). Runtime generation is used because the store
+    carries no `expected_answer` (audit 2026-07-15: 0/245 schema instances). The
+    item is biased to a SINGLE numeric / short-exact answer so the deterministic
+    grader (math_grade) can score it without a second model call — keeping the
+    mastery gate off the LLM floor (§5.4). Returns None on any failure; the caller
+    ends the set rather than serving an ungradeable question."""
+    method = "; ".join((schema.get("method_steps") or [])[:6])
+    variables = ", ".join((schema.get("isomorphic_variables") or [])[:4])
+    avoid_txt = ""
+    clean_avoid = [a for a in (avoid or []) if a]
+    if clean_avoid:
+        avoid_txt = ("Do NOT repeat or lightly reword any of these already-asked "
+                     "questions:\n" + "\n".join(f"- {a}" for a in clean_avoid) + "\n")
+    prompt = (
+        "You are setting ONE short quiz question for a Class 10 maths student.\n"
+        f"CONCEPT: {concept_name}\n"
+        + (f"METHOD (the skill being tested): {method}\n" if method else "")
+        + (f"VARY ACROSS: {variables}\n" if variables else "")
+        + avoid_txt +
+        "Requirements:\n"
+        "- Solvable in one or two steps by a Class 10 student.\n"
+        "- The answer MUST be a single specific number or short exact expression "
+        "(e.g. 12, 1/3, x = 2 and x = 3, sqrt 2) — never an essay or explanation.\n"
+        "- Give the fully-simplified, ALREADY-EVALUATED correct answer as a plain "
+        "number (write 72, not 2^3 times 3^2; write 8, not 2^3).\n"
+        "- This is spoken aloud AND shown on a small screen: write the question in "
+        "plain words with NO LaTeX, no $ signs, no backslash commands. Say it the "
+        "way you'd read it out — 'x squared', 'the square root of 2', '3 times 4'.\n"
+        'Respond with ONLY one JSON object: {"question": "...", "expected_answer": "..."}'
+    )
+    try:
+        raw = qwen_chat(prompt, temperature=0.7, max_tokens=220)
+        import re as _re
+        m = _re.search(r"\{.*\}", raw, _re.S)
+        if not m:
+            return None
+        obj = json.loads(m.group(0))
+        q = _plainify_math(str(obj.get("question") or "").strip())
+        # answer: only strip LaTeX delimiters (grading-neutral); do NOT reword ^ etc.
+        a = str(obj.get("expected_answer") or "").strip().replace("$", "").strip()
+        if q and a:
+            return {"question": q, "expected_answer": a}
+    except Exception:  # noqa: BLE001 — a broken generator ends the set, never crashes a turn
+        return None
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -513,6 +606,11 @@ class TutorLoop:
         if PERCEPTION_BACKEND not in ("gemini", ""):
             print(f"[perception] PERCEPTION_BACKEND={PERCEPTION_BACKEND!r} is retired "
                   "(Stage 6, 2026-07-02) — using gemini. Heads remain eval-only.")
+        # Part 12 outer loop: the mode controller (EXPLAIN/PRACTICE/TEST). Offers
+        # stay OFF until Stage 2 (PRACTICE) exists; explicit mode requests work now.
+        from session_modes import ModeController
+        self.modes = ModeController(
+            offers_enabled=os.getenv("WINI_MODE_OFFERS", "0").lower() not in ("0", "false", ""))
         from perception.gemini_perception import GeminiPerception
         # MiniLM device: on the Jetson, device_config.py (a Jetson-only module) pins
         # MiniLM to CPU (Part 9 — avoids a second CUDA context beside the other GPU
@@ -563,6 +661,158 @@ class TutorLoop:
         turn path decides which state channels may move.
         """
         return self.analyzer.analyze(text, current_concept=self.current_concept)
+
+    def _practice_gradeable(self, concept_id: str | None, session: dict) -> dict | None:
+        """Find a gradeable PRACTICE item — a problem-schema instance carrying an
+        `expected_answer` — for the current concept, excluding items already in this
+        concept's item_history (never re-serve yesterday's exact question, §4.4).
+        Returns a pending_check dict (kind='practice') or None (serve ungraded).
+
+        This is the compact form of the query.py `practice_item` branch (§5): it
+        reuses the existing problem_schema `instance_ids` graph edges. Isomorphic
+        regeneration from `isomorphic_variables` is a later refinement; for now an
+        unseen stored instance is a parallel-enough form.
+        """
+        if not concept_id or concept_id not in self.graph:
+            return None
+        seen = set(((self.state.concept_states.get(concept_id) or {})
+                    .get("item_history") or {}).keys())
+        for s in self.graph.successors(concept_id):
+            if self.graph.nodes[s].get("type") != "problem_schema":
+                continue
+            for inst in (self.graph.nodes[s].get("instance_ids") or []):
+                node = self.graph.nodes.get(inst, {})
+                expected = node.get("expected_answer")
+                q = node.get("question") or node.get("prompt") or node.get("text")
+                if expected and q and inst not in seen:
+                    return {"kind": "practice", "id": inst, "concept_id": concept_id,
+                            "question": q, "expected_answer": expected,
+                            "difficulty": node.get("difficulty"),
+                            "hint_chain": node.get("hint_chain")}
+        return None
+
+    def _concept_schema_ids(self, concept_id: str | None) -> list:
+        """All problem_schema node ids for a concept (drawn on by TEST, §4.4).
+        Keyed on the schema's `concept_id` field so it is independent of edge
+        direction. ct_probes are a different node type and never appear here."""
+        if not concept_id:
+            return []
+        return [n for n, d in self.graph.nodes(data=True)
+                if d.get("type") == "problem_schema" and d.get("concept_id") == concept_id]
+
+    def _drive_test(self, session: dict, concept_id: str | None, last_outcome) -> dict | None:
+        """Run the TEST quiz-set state machine one turn (§4.4). Returns a mode_item
+        dict carrying `action`, `need`, `why`, the spoken `speak` line, and (for a
+        question) the `pending` check to arm — or None to fall back to rules_decide.
+
+        Item generation is runtime (generate_quiz_item); grading happened UPSTREAM
+        in step 1b via apply_item_result (kind='test', full weight, hint-free) and
+        arrives here as `last_outcome`. On the gate the set is recorded to
+        test_history and, on a FAIL, the mode drops to a corrective EXPLAIN
+        (Bloom mastery cycle); the concept's mastery_gate carries the durable
+        failed_pending_retest flag so a later 'test me' is a parallel-form re-test."""
+        if not self.want_answer:
+            return None                      # TEST inherently needs generation
+        ts = session.get("test_state")
+        if ts and ts.get("phase") != "done":
+            # A test in progress is LOCKED to the concept it began on. The student's
+            # short answers ("6xy", "48") re-classify to other concepts turn to turn;
+            # honouring that drift would restart the set every item (never reaching the
+            # gate). Grading already used each item's own concept, so mastery is safe.
+            concept_id = ts["concept_id"]
+        else:
+            schema_ids = self._concept_schema_ids(concept_id)
+            ts = self.modes.build_quiz_set(session, concept_id, schema_ids)
+            if not ts:
+                return None                  # nothing testable -> rules_decide
+            last_outcome = None              # a fresh set does not carry a prior item
+        step = self.modes.advance_test(session, last_outcome=last_outcome,
+                                       gate_threshold=MASTERY_GATE_DEFAULT)
+        if step and step["phase"] == "serving":
+            schema = self.graph.nodes.get(step["schema_id"], {})
+            asked = [it.get("question") for it in ts.get("items", [])]
+            item = generate_quiz_item(schema, self.concept_name(concept_id), avoid=asked)
+            if not item:
+                # can't produce a gradeable item: end on what we have, or abandon.
+                if not ts["results"]:
+                    session.pop("test_state", None)
+                    return None
+                ts["phase"] = "done"
+                step = self.modes.score_quiz(ts["results"], len(ts["results"]),
+                                             MASTERY_GATE_DEFAULT)
+            else:
+                iid = f"quiz::{concept_id}::{step['i']}::{int(time.time())}"
+                ts.setdefault("items", []).append({
+                    "id": iid, "schema_id": step["schema_id"],
+                    "question": item["question"], "expected_answer": item["expected_answer"],
+                    "difficulty": schema.get("difficulty")})
+                pending = {"kind": "test", "id": iid, "concept_id": concept_id,
+                           "question": item["question"], "expected_answer": item["expected_answer"],
+                           "difficulty": schema.get("difficulty"), "hint_chain": None}
+                return {"action": "TEST_QUESTION", "need": "schema", "why": step["why"],
+                        "speak": self._test_question_line(step["i"], step["n"],
+                                                          item["question"], last_outcome),
+                        "pending": pending,
+                        # Stage 4 (§5.6): fields the T9 question card reads.
+                        "question": item["question"], "item_no": step["i"], "of": step["n"]}
+        # summary (all N graded, or an early end): record + gate + (fail) corrective
+        wb = self.state.record_test_result(
+            concept_id, score=step["score"], n=step["n"], gate=step["gate"],
+            item_results=ts.get("items", []), gate_threshold=step["threshold"])
+        speak = self._test_summary_line(step)
+        session.pop("test_state", None)      # set is finished either way
+        if step["gate"] == "fail":
+            self.modes.set_mode(session, "EXPLAIN")   # Bloom corrective loop (§4.4)
+        return {"action": "TEST_SUMMARY", "need": "none",
+                "why": step["why"] + (" -> corrective EXPLAIN" if step["gate"] == "fail" else ""),
+                "speak": speak, "test_record": wb,
+                # Stage 4 (§5.6): fields the T9 score card reads.
+                "results": list(step.get("results") or []),
+                "correct": step.get("correct"), "of": step["n"]}
+
+    @staticmethod
+    def _test_question_line(i: int, n: int, question: str, last_outcome) -> str:
+        """The exact spoken text for a TEST question turn: immediate feedback on the
+        previous item (§4.3 R3) + the next question, delivered verbatim (no LLM
+        paraphrase — a test must not reword its own numbers)."""
+        fb = {"correct": "Correct! ", "partial": "Almost — partial credit. ",
+              "wrong": "Not quite, but let's keep going. "}.get(last_outcome, "")
+        lead = "Here's your first question. " if i == 1 else f"Question {i} of {n}. "
+        return f"{fb}{lead}{question}"
+
+    @staticmethod
+    def _test_summary_line(step: dict) -> str:
+        c, n = step["correct"], step["n"]
+        pct = int(round(step["score"] * 100))
+        if step["gate"] == "pass":
+            return (f"Great work — you got {c} out of {n} right ({pct}%). That's a pass! "
+                    f"You've shown you really understand this. "
+                    f"Want to keep going, or learn something new?")
+        thr = int(round(step["threshold"] * 100))
+        return (f"You got {c} out of {n} right ({pct}%). That's below the {thr}% we aim "
+                f"for — and that's completely okay. Let's go back and work through the "
+                f"tricky parts together.")
+
+    @staticmethod
+    def _mode_display(mode_item: dict | None) -> list[dict]:
+        """Stage 4 (§5.6): T9 TEXT cards for TEST turns. A `question_card` keeps the
+        current quiz question on screen (a voice-only quiz otherwise forces "can you
+        repeat the question?"); a `score_card` shows the end-of-test result. Both are
+        additive channel items carrying a `kind` — a sink that doesn't know the kind
+        ignores it, so the ESP32/audio-only contract is unchanged. Returned FIRST so
+        the card is display[0] on a test turn (a test turn carries no figure crop)."""
+        if not mode_item:
+            return []
+        act = mode_item.get("action")
+        if act == "TEST_QUESTION" and mode_item.get("question"):
+            return [{"kind": "question_card", "text": mode_item["question"],
+                     "item_no": mode_item.get("item_no"), "of": mode_item.get("of")}]
+        if act == "TEST_SUMMARY":
+            return [{"kind": "score_card", "score": mode_item.get("correct"),
+                     "of": mode_item.get("of"),
+                     "per_item": list(mode_item.get("results") or []),
+                     "gate": (mode_item.get("test_record") or {}).get("gate")}]
+        return []
 
     def _build_display(self, evidence: list[dict], action: str) -> list[dict]:
         """T9 multimodal channel — pick at most ONE task-relevant figure crop to
@@ -777,6 +1027,14 @@ class TutorLoop:
         every fallible step degrades to `return None`.
         """
         from cognitive_classifier.cues import extract_topic_request, is_bare_topic
+        from session_modes import mode_cues
+
+        # A mode request ("let's practice", "test me", "stop the test") is Part 12
+        # outer-loop control, NOT a topic switch — the "let's do X" topic pattern
+        # otherwise grabs "practice"/"test" as a bogus topic (found on-brain
+        # 2026-07-14). Let step 3a's mode resolution handle these.
+        if mode_cues(text) is not None:
+            return None
 
         concept = analysis["concept"]
         primary = concept["concept_id"]
@@ -939,6 +1197,41 @@ class TutorLoop:
             if out is not None:
                 return out
 
+        # -0.5 Part 12: a bare yes/no answering last turn's mode offer ("want to try
+        # a few problems together?"). Accepted -> switch mode (the new mode's item
+        # controller serves the first item below, Stages 2/3); declined -> a short
+        # deterministic line; ambiguous -> offer cancelled, normal pipeline continues.
+        if session.get("pending_mode_offer"):
+            decision = self.modes.consume_offer(session, text)
+            if decision is not None and decision[0] == "declined":
+                return self._shift_reply(
+                    text, "No problem — let's keep learning.", "MODE_OFFER_DECLINED",
+                    "practice offer declined; staying in EXPLAIN", session, answer_budget)
+            # accepted -> fall through so this turn runs in the newly-set mode
+
+        # -0.4 Part 12: frozen-test resume (§4.4.4). Last turn offered to pick up
+        # a test interrupted by a session end; a bare yes resumes it (test_state
+        # is intact — _drive_test continues from the next ungraded item), a bare
+        # no abandons it, anything else cancels and takes the normal pipeline.
+        if session.get("pending_test_resume"):
+            decision = self.modes.consume_test_resume(session, text)
+            if decision is not None and decision[0] == "resume":
+                ts = session.get("test_state") or {}
+                graded, n = len(ts.get("results", [])), int(ts.get("n", 5))
+                reply = f"Let's pick up where we left off — question {graded + 1} of {n}."
+                pending_q = (session.get("pending_check") or {}).get("question")
+                if pending_q:
+                    reply += f" Here it is again: {pending_q}"
+                return self._shift_reply(
+                    text, reply, "TEST_RESUME",
+                    f"frozen test resumed by student ({graded}/{n} graded)",
+                    session, answer_budget)
+            if decision is not None and decision[0] == "abandon":
+                return self._shift_reply(
+                    text, "No problem — let's keep learning.", "TEST_RESUME_DECLINED",
+                    "frozen test abandoned by student", session, answer_budget)
+            # ambiguous -> offer cancelled (set dropped); normal pipeline continues
+
         # 0. Front door (Part 11 §7.2): deterministic gates FIRST (model-free,
         # regardless of backend), then the Gemini intent route when perception is
         # authoritative. Only LEARNING enters the state-moving pipeline (§3). The
@@ -1029,8 +1322,20 @@ class TutorLoop:
             session["status"] = "active"
             session.pop("break_requested", None)
             session.pop("leave_requests", None)  # the child chose to come back
+            # A test frozen by the interrupted session (§4.4.4): offer to resume
+            # BEFORE anything else moves state — next turn's bare yes/no decides.
+            resume = self.modes.check_frozen_test(session)
+            if resume:
+                reply = (f"Welcome back! You were in the middle of a test — "
+                         f"question {resume['graded'] + 1} of {resume['n']}. "
+                         f"Want to continue it?")
+                return self._shift_reply(
+                    text, reply, "TEST_RESUME_OFFER",
+                    f"frozen test found ({resume['graded']}/{resume['n']} graded); offering resume",
+                    session, answer_budget)
         pending = session.get("pending_check")
         writeback = None
+        practice_outcome, practice_hints = None, 0   # fed to the PRACTICE ladder (§4.3)
         if pending:
             wants_hint = "hint_requested" in analysis["state_deltas"]["concept_flags"] \
                 or "request_hint" in analysis["signals"]
@@ -1065,6 +1370,15 @@ class TutorLoop:
                     .get("hints_used_current", 0)
                 if pending["kind"] == "bridge":
                     writeback = self.state.apply_bridge_result(pending["id"], outcome)
+                elif pending["kind"] in ("practice", "test", "parallel_retest"):
+                    # Part 12: graded PRACTICE/TEST item -> the third evidence API.
+                    # Mastery moves here (never misconception status). The outcome +
+                    # hints drive the ladder movement below (§4.3).
+                    writeback = self.state.apply_item_result(
+                        pending["id"], outcome, pending["concept_id"],
+                        kind=pending["kind"], difficulty=pending.get("difficulty"),
+                        hints_used=hints_used)
+                    practice_outcome, practice_hints = outcome, int(hints_used)
                 else:
                     writeback = self.state.apply_probe_result(
                         pending["id"], outcome, concept_id=pending["concept_id"], hints_used=hints_used)
@@ -1123,15 +1437,55 @@ class TutorLoop:
                  or explicit_learn or bool(_sig & {"example_request", "learning_goal"}))
             and analysis["cognitive_update"].get("frustration_risk", 0.0) < 0.6
         )
-        action, need, why = rules_decide(
-            analysis["cognitive_update"], analysis["signals"],
-            analysis["state_deltas"]["concept_flags"], concept["abstained"],
-            acknowledged=acknowledged,
-            clarification=(clarification and not answer_try),
-            learning_start=learning_start,
-            visual=(wants_visual and not answer_try),
-            purpose=(wants_why and not answer_try),
+        # 3a. Part 12 OUTER LOOP: resolve the pedagogy MODE for this turn (§5.2).
+        # Explicit request cues switch EXPLAIN/PRACTICE/TEST; evidence transitions +
+        # offers arrive in Stages 2/3. EXPLAIN (the default) leaves the inner loop
+        # byte-identical to pre-Part-12.
+        from session_modes import mode_cues
+        mode, mode_reason = self.modes.resolve_mode(session, text, cue=mode_cues(text))
+        # 3b. Dispatch (§5.2). Inner-loop overrides ALWAYS win and pause the plan:
+        # a confusion / visualization / purpose plea, or a suspected misconception,
+        # falls through to rules_decide even inside PRACTICE/TEST (precedence table).
+        override_active = (
+            (wants_visual and not answer_try) or (wants_why and not answer_try)
+            or (clarification and not answer_try)
+            or ("misconception_suspected" in analysis["state_deltas"]["concept_flags"])
         )
+        mode_item = None
+        if mode == "PRACTICE" and not override_active:
+            mastery_now = self.state.mastery(primary) if primary else COLD_START_MASTERY
+            item = self.modes.next_practice_item(
+                session, mastery=mastery_now,
+                last_outcome=practice_outcome, last_hints=practice_hints)
+            if item.get("exit_to_explain"):
+                self.modes.set_mode(session, "EXPLAIN")
+                mode, mode_reason = "EXPLAIN", item["why"]
+            else:
+                mode_item = item
+        elif mode == "TEST" and not override_active:
+            mode_item = self._drive_test(session, primary, practice_outcome)
+            # a failed-gate summary flips the session to a corrective EXPLAIN inside
+            # _drive_test; reflect that for this turn's logging/echo.
+            if mode_item is not None:
+                mode = self.modes.current_mode(session)
+            # A mode change blocked by the active test (§4.4): acknowledge it so
+            # the student doesn't think the UI is broken — the test continues.
+            if mode_item is not None and mode_item.get("speak") \
+                    and "blocked" in (mode_reason or ""):
+                mode_item["speak"] = ("We're in the middle of a test — let's finish "
+                                      "it first. ") + mode_item["speak"]
+        if mode_item is not None:
+            action, need, why = mode_item["action"], mode_item["need"], mode_item["why"]
+        else:
+            action, need, why = rules_decide(
+                analysis["cognitive_update"], analysis["signals"],
+                analysis["state_deltas"]["concept_flags"], concept["abstained"],
+                acknowledged=acknowledged,
+                clarification=(clarification and not answer_try),
+                learning_start=learning_start,
+                visual=(wants_visual and not answer_try),
+                purpose=(wants_why and not answer_try),
+            )
         intro = (learning_start and action == "EXPLAIN"
                  and bool(primary) and self.state.mastery(primary) <= COLD_START_MASTERY)
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
@@ -1191,6 +1545,24 @@ class TutorLoop:
             }
             break
 
+        # 4a-practice. Part 12 (§4.3/§5.2): a graded PRACTICE item arms pending_check
+        # with kind="practice" (the ladder's COMPLETION/ISOMORPHIC/TRANSFER levels),
+        # UNLESS a bridge/misconception diagnostic already took the slot (those win —
+        # probe-before-correct). If no gradeable instance exists the item is served
+        # ungraded (mastery simply won't move — never a crash).
+        if mode == "PRACTICE" and action in {
+                "ISOMORPHIC_PRACTICE", "COMPLETION_STEP", "TRANSFER_PROBLEM"} \
+                and not session.get("pending_check"):
+            pc = self._practice_gradeable(primary, session)
+            if pc:
+                session["pending_check"] = pc
+
+        # 4a-test. Part 12 (§4.4): a TEST item OWNS the pending_check slot. Unlike
+        # PRACTICE, assessment is deliberate quizzing, so probe-before-correct does
+        # NOT preempt it — the test question overrides any bridge/misconception arm.
+        if mode == "TEST" and mode_item and mode_item.get("pending"):
+            session["pending_check"] = mode_item["pending"]
+
         candidates_idx = [i for i, r in enumerate(self.chunks)
                           if any(c in (r.get("concept_ids") or []) for c in concept_ids)] \
             or list(range(len(self.chunks)))
@@ -1225,13 +1597,20 @@ class TutorLoop:
             "snapshot": snapshot.summary(), "band_reason": band_reason,
         }
 
-        # 4b. T9 display channel: pick the one figure crop (if any) to SHOW this
-        # turn. Computed before generation so the prompt can reference it on screen.
-        display = self._build_display(evidence, action)
+        # 4b. T9 display channel: a TEST question/score card (§5.6) takes precedence
+        # on a test turn (which carries no figure), otherwise the one figure crop (if
+        # any) to SHOW this turn. Computed before generation so the prompt can
+        # reference the on-screen visual.
+        display = self._mode_display(mode_item) + self._build_display(evidence, action)
 
         # 5. response from manifest only (Qwen, local)
         answer = None
-        if self.want_answer:
+        if self.want_answer and mode_item and mode_item.get("speak"):
+            # TEST turns (§4.4) deliver a verbatim spoken line — the exact quiz
+            # question or the score summary. No LLM paraphrase: a test must not
+            # reword its own numbers, and the summary is a controlled report.
+            answer = mode_item["speak"]
+        elif self.want_answer:
             blocks = []
             for e in evidence:
                 row = self.chunks_by_id.get(e["id"])
@@ -1260,6 +1639,16 @@ class TutorLoop:
                                  answer_budget=gen_budget, figure_on_screen=bool(display),
                                  clarify=(clarification and not answer_try), intro=intro,
                                  visualize=(wants_visual and not answer_try))
+
+        # 5b. Part 12: after an EXPLAIN turn where the student just confirmed
+        # understanding, optionally OFFER practice (§4.1 row 2). Off by default until
+        # Stage 2 (PRACTICE exists); appends one inviting line + arms a yes/no offer.
+        if answer and mode == "EXPLAIN":
+            offer = self.modes.maybe_offer_practice(
+                session, acknowledged=acknowledged, analysis=analysis,
+                has_active_misconception=bool(getattr(snapshot, "active_misconceptions", None)))
+            if offer:
+                answer = f"{answer} {offer}"
 
         # 6. session memory (section 12.3 transient context) + bookkeeping for
         # the next turn's acknowledgment handling
@@ -1292,7 +1681,8 @@ class TutorLoop:
         # 7. log + persist (section 12.2; rules + shadow logged side by side)
         # (The Stage-1 perception shadow hook was removed with the heads at Stage 6 —
         # Gemini IS the authoritative perception now; _log keeps the field for old rows.)
-        self._log(text, action, why, need, shadow, analysis, manifest, writeback, hope_update)
+        self._log(text, action, why, need, shadow, analysis, manifest, writeback,
+                  hope_update, mode=mode)
         self.state.mark_served([e["id"] for e in evidence])
         if self.state.path:
             self.state.save()
@@ -1307,16 +1697,34 @@ class TutorLoop:
                 "answer_budget": answer_budget,
                 "pace": session.get("pace", {}),
                 "display": display,
+                "mode": mode, "mode_reason": mode_reason,
+                "test": self._test_echo(session, mode_item),
                 "session_ended": False,
                 "gen_backend": GEN_BACKEND if self.want_answer else None,
                 "answer": answer}
 
+    @staticmethod
+    def _test_echo(session: dict, mode_item: dict | None) -> dict | None:
+        """Compact TEST progress for the result dict (client/verification/Stage-4
+        cards). None outside TEST turns."""
+        if mode_item and mode_item.get("action") == "TEST_SUMMARY" and "test_record" in mode_item:
+            wb = mode_item["test_record"]
+            return {"phase": "summary", "score": wb.get("score"), "gate": wb.get("gate"),
+                    "n": wb.get("n")}
+        ts = session.get("test_state")
+        if ts:
+            return {"phase": ts.get("phase"), "concept_id": ts.get("concept_id"),
+                    "served": len(ts.get("items", [])), "graded": len(ts.get("results", [])),
+                    "n": ts.get("n")}
+        return None
+
     def _log(self, text, action, why, need, shadow, analysis, manifest, writeback=None,
-             hope_update=None, perception_shadow=None) -> None:
+             hope_update=None, perception_shadow=None, mode=None) -> None:
         concept = analysis["concept"]
         log_row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
             "question": text, "action": action, "action_reason": why, "need": need,
+            "mode": mode,
             "shadow_suggestion": shadow, "signals": analysis["signals"],
             "cognitive_update": analysis["cognitive_update"],
             "concept": {k: concept[k] for k in ("concept_id", "concept_confidence", "abstained")},

@@ -31,13 +31,24 @@ def main() -> None:
                     help="NullDriver — run without the SPI panel (development)")
     ap.add_argument("--no-touch", action="store_true",
                     help="run without the STM32 head board (development)")
+    ap.add_argument("--ui", action="store_true",
+                    help="launch the LVGL touch UI (wini_ui) on the DSI panel and "
+                         "drive it over the mode channel (Pi build). Implies the "
+                         "client uses ModeChannelSink instead of the eyes display.")
+    ap.add_argument("--ui-port", type=int, default=int(os.getenv("WINI_UI_PORT", "8140")),
+                    help="TCP port for the wini_ui mode channel (default 8140)")
+    ap.add_argument("--ui-bin", default=os.getenv("WINI_UI_BIN"),
+                    help="path to the wini_ui binary (default: wini_ui/build/wini_ui)")
     args = ap.parse_args()
 
     platform = WiniPlatform(server_url=args.server,
                             store_dir=Path(args.store),
                             manage_server=not args.no_manage_server,
                             fake_display=args.fake_display,
-                            no_touch=args.no_touch)
+                            no_touch=args.no_touch,
+                            ui=args.ui,
+                            ui_port=args.ui_port,
+                            ui_bin=Path(args.ui_bin) if args.ui_bin else None)
     # SIGTERM → clean stop (finish the in-flight SPI write, park the panel).
     # Killing the render loop mid-frame with SIGKILL can leave the ST7796S in
     # a state where the next init loses its reset race — see the driver note.

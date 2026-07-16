@@ -284,6 +284,76 @@ def is_answer_attempt(text: str) -> bool:
     return bool(ANSWER_RE.search(text or ""))
 
 
+# ---------------------------------------------------------------------------
+# Part 12 — session pedagogy mode requests (standalone cues; NOT feature-vector
+# entries, so NO classifier/policy rebuild — same contract as CLARIFY_RE etc.).
+# These let the ModeController switch EXPLAIN/PRACTICE/TEST on an explicit ask
+# (§5.1). Order matters at the call site: STOP_TEST is checked before TEST so
+# "stop the test" exits to EXPLAIN rather than starting one.
+# ---------------------------------------------------------------------------
+STOP_TEST_RE = re.compile(
+    r"\bstop (the )?(test|quiz|testing|quizzing)\b"
+    r"|\b(end|quit|finish|cancel|leave) (the )?(test|quiz)\b"
+    r"|no more (test|quiz|question)s?\b"
+    r"|\b(i )?do ?n'?t want (to (do |take )?(a )?)?(test|quiz|to be tested)\b"
+    r"|\bstop (practis|practic)ing\b|no more practice\b"
+    r"|\b(i )?do ?n'?t want to practi[cs]e\b",
+    re.IGNORECASE,
+)
+
+TEST_REQUEST_RE = re.compile(
+    r"\b(test|quiz) me\b|\bquiz\b"
+    r"|(can|could|shall|let'?s|will) (we|you|i) (do|take|try|start|have|give me) (a )?(test|quiz)"
+    r"|\bgive me (a )?(test|quiz)\b|\b(i )?want (a )?(test|quiz)\b"
+    r"|\btake (a |the )?(test|quiz)\b|check (how much|what) i (know|learned|learnt)"
+    r"|\btest my (knowledge|understanding)\b|\bexam me\b",
+    re.IGNORECASE,
+)
+
+PRACTICE_REQUEST_RE = re.compile(
+    r"\b(let'?s |can we |i want to |i wanna |lemme |let me )?practi[cs]e\b"
+    r"|give me (a |some )?(problem|sum|question|exercise|example)s?( to (solve|do|try))?"
+    r"|(more|another|some) (problem|sum|question|exercise|practice)s?\b"
+    r"|(let me|can i|i want to|i wanna) (try|solve|do) (a |some |the )?(problem|sum|question|one)"
+    r"|work (on )?(some |a few )?(problem|sum|question|example)s?\b"
+    r"|\blet'?s (do|try) (some |a few )?(problem|sum|question|example|practice)s?\b",
+    re.IGNORECASE,
+)
+
+EXPLAIN_REQUEST_RE = re.compile(
+    r"\b(go |get |take (me )?)?back to (learning|explaining|the lesson|explanation|teaching)\b"
+    r"|just (explain|teach)\b|\bexplain (it |this )?(again|more|properly)\b"
+    r"|\b(i )?want to (go back to )?learn(ing)?\b(?! .*\b(test|quiz|practi[cs]e)\b)"
+    r"|stop (the )?(problem|question|exercise)s?\b|no more (problem|sum|exercise)s?\b",
+    re.IGNORECASE,
+)
+
+
+def is_stop_test_request(text: str) -> bool:
+    """True when the student wants to leave TEST/PRACTICE mode but keep learning
+    (NOT a session-control 'bye'). Exits to EXPLAIN (§5.1). Check BEFORE the
+    test/practice cues so 'stop the test' does not start one."""
+    return bool(STOP_TEST_RE.search(text or ""))
+
+
+def is_test_request(text: str) -> bool:
+    """True for an explicit request to be quizzed/tested ('test me', 'quiz me',
+    'can we do a test'). Standalone runtime cue -> ModeController switches to TEST."""
+    return bool(TEST_REQUEST_RE.search(text or ""))
+
+
+def is_practice_request(text: str) -> bool:
+    """True for an explicit request to practice / get problems to solve ('let's
+    practice', 'give me a problem'). Standalone runtime cue -> switch to PRACTICE."""
+    return bool(PRACTICE_REQUEST_RE.search(text or ""))
+
+
+def is_explain_request(text: str) -> bool:
+    """True for an explicit request to return to plain explanation / learning
+    ('explain it again', 'back to learning', 'just explain'). -> switch to EXPLAIN."""
+    return bool(EXPLAIN_REQUEST_RE.search(text or ""))
+
+
 def is_pure_ack(text: str) -> bool:
     """True only when the message is an acknowledgment with NO fresh ask.
 

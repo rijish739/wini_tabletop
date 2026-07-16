@@ -24,6 +24,7 @@ cold-start mastery so brand-new users still get a sensible (beginner) band.
 
 from __future__ import annotations
 import json
+import os
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
@@ -48,6 +49,15 @@ STRUGGLE_FAIL_THRESHOLD = 2   # consecutive failures on the same diagnostic
 # Mastery write-back deltas for probe outcomes (bridge probes use +0.25/-0.10
 # per plan Phase 3 step 7; ordinary misconception probes move mastery less).
 PROBE_MASTERY_DELTA = {"correct": +0.15, "partial": +0.05, "wrong": -0.10}
+
+# Part 12 (§5.3) — graded PRACTICE/TEST item deltas (the third evidence API,
+# apply_item_result). Practice gains are discounted by hints used (same spirit as
+# apply_probe_result); test items carry full weight. Per-item movement is bounded
+# (behavioral eval: no single-item mastery jumps).
+ITEM_MASTERY_DELTA = {"correct": +0.15, "partial": +0.05, "wrong": -0.08}
+ITEM_HINT_DISCOUNT = 0.25   # each hint used shaves 25% off a positive gain (min 0.25x)
+ITEM_HISTORY_MAX = 12       # outcomes kept per item (spaced-review / exclusion)
+MASTERY_GATE_DEFAULT = 0.8  # Bloom/Rosenshine ~80% criterion (§4.4)
 
 # Misconception status machine, architecture section 10 (plan A2.6):
 # active -> weakening (1 correct probe) -> resolved (2 consecutive correct)
@@ -309,17 +319,135 @@ class LearnerState:
                                          if outcome != "correct" and revealed_misconception_id else None),
         }
 
+    # ------------------------------------------------------------------
+    # Part 12 — graded PRACTICE/TEST item write-back (§5.3), the THIRD evidence
+    # API alongside apply_probe_result / apply_bridge_result. Mastery moves ONLY
+    # here for item evidence; misconception status stays with the probe API.
+    # ------------------------------------------------------------------
+    def apply_item_result(self, item_id: str, outcome: str, concept_id: str, *,
+                          kind: str, difficulty: Optional[float] = None,
+                          hints_used: int = 0) -> Dict[str, Any]:
+        """Write back one graded item outcome (practice / test / parallel_retest).
+
+        Practice gains are discounted by hints_used (tests are hint-free, full
+        weight); wrong is never discounted. Updates item_history; never touches
+        misconception status. Returns the writeback record for the learning log
+        (an `item_result` row — the data the deferred knowledge tracing awaits).
+        """
+        if outcome not in ITEM_MASTERY_DELTA:
+            raise ValueError(f"outcome must be one of {sorted(ITEM_MASTERY_DELTA)}, got {outcome!r}")
+        delta = ITEM_MASTERY_DELTA[outcome]
+        if kind != "test" and outcome in ("correct", "partial") and hints_used:
+            discount = max(0.25, 1.0 - ITEM_HINT_DISCOUNT * min(3, int(hints_used)))
+            delta *= discount
+        before = self.mastery(concept_id)
+        mastery = max(0.0, min(1.0, before + delta))
+        self.update_mastery(concept_id, mastery)
+
+        cs = self.concept_states.setdefault(concept_id, {})
+        hist = cs.setdefault("item_history", {})
+        rec = hist.setdefault(item_id, {"last_seen": None, "outcomes": []})
+        rec["last_seen"] = datetime.now(timezone.utc).isoformat()
+        rec["outcomes"] = (rec.get("outcomes", []) + [outcome])[-ITEM_HISTORY_MAX:]
+
+        return {
+            "item_result": item_id, "outcome": outcome, "kind": kind,
+            "concept_id": concept_id, "difficulty": difficulty,
+            "hints_used": int(hints_used),
+            "mastery": round(mastery, 4), "mastery_delta": round(delta, 4),
+        }
+
+    def item_seen_recently(self, concept_id: str, item_id: str, within: int = 3) -> bool:
+        """True if this item was served in the last `within` outcomes (quiz-set
+        exclusion, §4.4). A per-item proxy for 'seen in the last K sessions'."""
+        rec = ((self.concept_states.get(concept_id) or {}).get("item_history") or {}).get(item_id)
+        if not rec:
+            return False
+        return len(rec.get("outcomes") or []) >= 1 and within > 0
+
+    def record_test_result(self, concept_id: str, *, score: float, n: int, gate: str,
+                           item_results: list, gate_threshold: float = MASTERY_GATE_DEFAULT) -> Dict[str, Any]:
+        """Append one completed-test summary to the concept's test_history and set
+        its mastery_gate (§4.2). `gate` is 'pass' | 'fail'. Feeds the parent dash."""
+        cs = self.concept_states.setdefault(concept_id, {})
+        row = {
+            "date": datetime.now(timezone.utc).isoformat(),
+            "score": round(float(score), 3), "n": int(n), "gate": gate,
+            "threshold": gate_threshold, "item_results": item_results,
+        }
+        cs.setdefault("test_history", []).append(row)
+        cs["mastery_gate"] = "passed" if gate == "pass" else "failed_pending_retest"
+        return row
+
+    def mastery_gate(self, concept_id: str) -> str:
+        return (self.concept_states.get(concept_id) or {}).get("mastery_gate", "none")
+
+    def concepts_due_for_review(self, exclude: Optional[str] = None) -> list:
+        """Concepts that have PASSED their gate (candidates for a spaced-review item
+        in a later set, R4). Excludes the current concept."""
+        out = []
+        for cid, cs in self.concept_states.items():
+            if cid == exclude:
+                continue
+            if cs.get("mastery_gate") == "passed":
+                out.append(cid)
+        return out
+
     def save(self) -> None:
         if self.path is None:
             return
-        self.path.write_text(json.dumps(self.data, indent=2, ensure_ascii=False), encoding="utf-8")
+        # Atomic save: write to .tmp, fsync, rename over the target — a crash or
+        # power loss mid-write must never leave a truncated state file (the file
+        # IS the learner's entire history). Keep one .bak generation so a corrupt
+        # primary still recovers to the last known-good state.
+        tmp = self.path.with_suffix(".tmp")
+        bak = self.path.with_suffix(".bak")
+        payload = json.dumps(self.data, indent=2, ensure_ascii=False)
+        with open(tmp, "w", encoding="utf-8") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        if self.path.exists():
+            try:
+                self.path.replace(bak)     # current becomes the backup
+            except OSError:
+                pass
+        tmp.replace(self.path)             # atomic on POSIX; ReplaceFile on Windows
 
 
 def load_learner_state(path: Optional[Path]) -> LearnerState:
-    """Load a learner-state file. Missing/None path yields an empty (all cold-start) model."""
-    if path and path.exists():
-        data = json.loads(path.read_text(encoding="utf-8"))
-        return LearnerState(path=path, data=data)
+    """Load a learner-state file. Missing/None path yields an empty (all cold-start) model.
+
+    Recovery order: primary (.json) -> backup (.bak) -> empty cold-start. A corrupt
+    primary is preserved as .corrupt (post-mortem, never silently deleted) and the
+    backup is promoted in place so the next save() proceeds normally."""
+    if not path:
+        return LearnerState(path=path, data={"concept_states": {}, "global": {}})
+    for candidate in (path, path.with_suffix(".bak")):
+        if not candidate.exists():
+            continue
+        try:
+            data = json.loads(candidate.read_text(encoding="utf-8"))
+            if not isinstance(data, dict):
+                raise ValueError("root is not a dict")
+            data.setdefault("concept_states", {})
+            data.setdefault("global", {})
+            if candidate != path:
+                print(f"[state] recovered from backup: {candidate}")
+                try:
+                    candidate.replace(path)
+                except OSError:
+                    pass
+            return LearnerState(path=path, data=data)
+        except (json.JSONDecodeError, ValueError, UnicodeDecodeError) as e:
+            print(f"[state] corrupt state file {candidate}: {e}")
+            if candidate == path:
+                try:
+                    path.replace(path.with_suffix(".corrupt"))
+                    print(f"[state] preserved corrupt file as {path.with_suffix('.corrupt')}")
+                except OSError:
+                    pass
+    print("[state] no valid state file found; starting cold")
     return LearnerState(path=path, data={"concept_states": {}, "global": {}})
 
 

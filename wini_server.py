@@ -126,15 +126,31 @@ class Brain:
 
     # ------------------------------------------------------------------
     def text_turn(self, text: str, speak: bool, answer_budget: dict | None = None,
-                  precomputed_analysis: dict | None = None) -> dict:
+                  precomputed_analysis: dict | None = None,
+                  mode: str | None = None) -> dict:
         from voice.sanitize import sanitize_for_speech
 
         with self._lock:
+            session = self.tutor.state.data.setdefault("session", {})
+            # Pedagogy mode from the touch UI (Part 12 §5.9). Additive: recorded on
+            # the session for Part 12's ModeController to consume — no pedagogy
+            # behavior changes here. None/absent ⇒ EXPLAIN (today's behavior).
+            # An ACTIVE TEST ignores mode taps: a stray touch mid-quiz must not
+            # abandon the set unscored. The spoken "stop the test" cue (handled in
+            # resolve_mode) stays the explicit way out.
+            ts = session.get("test_state")
+            test_active = ts is not None and ts.get("phase") != "done"
+            if mode and not test_active:
+                session["mode"] = mode
+            resolved_mode = session.get("mode", "EXPLAIN")
             t0 = time.perf_counter()
             result = self.tutor.turn(text, answer_budget=answer_budget,
                                      precomputed_analysis=precomputed_analysis)
             brain_ms = int((time.perf_counter() - t0) * 1000)
         answer = (result.get("answer") or "").strip()
+        # Slim writeback — just the graded outcome the UI needs for its correct/
+        # almost feedback cue (the full writeback carries state internals).
+        wb = result.get("writeback") or None
         out = {
             "transcript": text,
             "answer": answer,
@@ -144,6 +160,11 @@ class Brain:
             "need": result.get("need"),
             "concept": (result.get("concept") or {}).get("concept_id"),
             "gen_backend": result.get("gen_backend"),
+            "mode": resolved_mode,
+            # Part 12 §5.6: the touch-UI (ModeChannelSink) drives its quiz progress
+            # bar off `test` and its answer-feedback cue off `writeback.outcome`.
+            "test": result.get("test"),
+            "writeback": {"outcome": wb.get("outcome")} if wb else None,
             "latency_ms": {"brain": brain_ms},
         }
         if speak and answer:
@@ -155,12 +176,16 @@ class Brain:
             out["audio_rate"] = self.tts.rate
         return out
 
-    def voice_turn(self, pcm: bytes, rate: int, emit=None) -> dict:
+    def voice_turn(self, pcm: bytes, rate: int, emit=None,
+                   mode: str | None = None) -> dict:
         """One voice turn. With `emit` (a callable taking one JSON-able dict per
         response line), the filler part is flushed to the client as soon as
         STT + perception are done — BEFORE generation — so it plays while the
         answer is being produced. The final turn dict is always returned (and
-        emitted last when streaming)."""
+        emitted last when streaming).
+
+        `mode` is the touch-UI pedagogy selection (X-Wini-Mode); it is recorded
+        on the session and echoed back, no behavior change (Part 12 §5.9)."""
         t0 = time.perf_counter()
         transcript = _bounded(self.stt.recognize_pcm, STT_TIMEOUT_S, pcm, rate)
         stt_ms = int((time.perf_counter() - t0) * 1000)
@@ -206,7 +231,7 @@ class Brain:
             emit(part)
 
         out = self.text_turn(transcript, speak=True, answer_budget=budget,
-                             precomputed_analysis=precomputed)
+                             precomputed_analysis=precomputed, mode=mode)
         out["latency_ms"]["stt"] = stt_ms
         if decision is not None:
             try:
@@ -252,11 +277,14 @@ class Handler(BaseHTTPRequestHandler):
                 text = (req.get("text") or "").strip()
                 if not text:
                     return self._json(400, {"error": "empty text"})
-                return self._json(200, BRAIN.text_turn(text, speak=bool(req.get("speak"))))
+                mode = req.get("mode") or self.headers.get("X-Wini-Mode")
+                return self._json(200, BRAIN.text_turn(
+                    text, speak=bool(req.get("speak")), mode=mode))
             if self.path == "/voice_turn":
                 if not body:
                     return self._json(400, {"error": "empty audio body"})
                 rate = int(self.headers.get("X-Sample-Rate") or 16000)
+                mode = self.headers.get("X-Wini-Mode")
                 # NDJSON stream: the filler line is flushed mid-turn (masks
                 # generation latency on the client); the final line is the turn.
                 # HTTP/1.0 close-delimited body — no Content-Length needed.
@@ -268,7 +296,7 @@ class Handler(BaseHTTPRequestHandler):
                     self.wfile.write(json.dumps(obj).encode("utf-8") + b"\n")
                     self.wfile.flush()
 
-                BRAIN.voice_turn(body, rate, emit=emit)
+                BRAIN.voice_turn(body, rate, emit=emit, mode=mode)
                 return None
             return self._json(404, {"error": "unknown route"})
         except Exception as e:  # noqa: BLE001  — a turn error must never kill the server

@@ -28,6 +28,14 @@ ACTION_BUDGETS: dict[str, dict[str, Any]] = {
     "WHY_IT_MATTERS": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
     "SOCRATIC_Q": {"max_words": 30, "max_sentences": 2, "micro_check_type": "question"},
     "QUIZ": {"max_words": 30, "max_sentences": 2, "micro_check_type": "answer"},
+    # Part 12 (§5.5) — PRACTICE/TEST actions. Checking actions stay tight by design;
+    # COMPLETION_STEP gets room to work all-but-the-last step (backward fading).
+    "COMPLETION_STEP": {"max_words": 75, "max_sentences": 5, "micro_check_type": "try_step"},
+    "ISOMORPHIC_PRACTICE": {"max_words": 40, "max_sentences": 2, "micro_check_type": "answer"},
+    "TEST_QUESTION": {"max_words": 30, "max_sentences": 2, "micro_check_type": "answer"},
+    "TEST_FEEDBACK": {"max_words": 20, "max_sentences": 2, "micro_check_type": "none"},
+    "TEST_SUMMARY": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
+    "MODE_OFFER": {"max_words": 25, "max_sentences": 2, "micro_check_type": "yes_no"},
 }
 
 
@@ -177,6 +185,11 @@ def _mode_for_action(action: str | None, intent: str) -> str:
         return "shift"
     if action in {"MISCONCEPTION_PROBE", "TRANSFER_PROBLEM", "QUIZ"}:
         return "probe"
+    # Part 12 (§5.5): the TEST_* family are checks; COMPLETION_STEP teaches.
+    if action in {"TEST_QUESTION", "TEST_FEEDBACK", "TEST_SUMMARY", "ISOMORPHIC_PRACTICE"}:
+        return "probe"
+    if action == "COMPLETION_STEP":
+        return "explain"
     if action == "METACOGNITIVE_REFLECT":
         return "reflect"
     if action and action.startswith("HINT_LEVEL"):
