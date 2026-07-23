@@ -18,6 +18,9 @@ DEFAULT_PACE: dict[str, Any] = {
     "expected_response_type": "free",
     "pending_micro_check": None,
     "explanation_step": 0,
+    # Which concept the step counter and the summary below belong to. Without it
+    # they were cross-topic and unbounded (audit B-4).
+    "explaining_concept": None,
     "max_words": 60,
     "last_explanation_summary": "",
     "last_spoken_answer": "",

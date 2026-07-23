@@ -28,6 +28,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import threading
 import time
 from pathlib import Path
 
@@ -82,7 +84,7 @@ from perception.config import PERCEPTION_BACKEND  # noqa: E402
 def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
                  acknowledged: bool = False, clarification: bool = False,
                  learning_start: bool = False, visual: bool = False,
-                 purpose: bool = False) -> tuple[str, str, str]:
+                 purpose: bool = False, student_problem: bool = False) -> tuple[str, str, str]:
     s = set(signals)
     # rule 1a-vis (deterministic, outranks rule 1b): the student said they cannot
     # PICTURE it ("I cannot imagine this") or asked what it looks like. That is a
@@ -130,6 +132,19 @@ def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
             "rule 2b: understanding confirmed -> reflect + advance, never re-explain (rule 11)"
     if update["cognitive_load"] >= 0.7 or update["frustration_risk"] >= 0.6:
         return "ENCOURAGE", "explain", "rule 4: high load/frustration -> simple explanation + encouragement (rule 2/7)"
+    # rule 4b (deterministic, OUTRANKS rule 5): the student brought a problem
+    # instance of their own and wants it worked out. Every other action in the
+    # §6.6 catalog is served FROM THE STORE — none of them has the utterance
+    # itself as its object — so before this rule a word problem fell through to
+    # rule 5: a student-supplied problem IS structurally a transfer attempt, so
+    # perception scores `transfer_attempt` high, `transfer_ready_evidence` gets
+    # raised, and TRANSFER_PROBLEM answers a child's "find the speeds" with a
+    # DIFFERENT problem plus "do NOT solve it" (audit A-2). The cue is
+    # deterministic on purpose: the routing must not depend on the same model
+    # whose (correct) transfer signal caused the misroute.
+    if student_problem:
+        return "SOLVE_STUDENT_PROBLEM", "schema", \
+            "rule 4b: student brought their own problem -> solve THAT instance using the stored method"
     if "transfer_ready_evidence" in flags or "ready_for_next" in s:
         return "TRANSFER_PROBLEM", "transfer", "rule 5: transfer readiness -> near transfer first (section 6.6)"
     if s & {"request_representation", "representation_shift", "graphical", "diagrammatic"}:
@@ -152,7 +167,42 @@ def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
 # ---------------------------------------------------------------------------
 
 
-def load_chunk_index(chunks: list, embedder) -> np.ndarray:
+class _LazyEmbedder:
+    """Stands in for a SentenceTransformer until something actually encodes.
+
+    Exists so HOPE can SHARE the perception layer's MiniLM without forcing it to
+    load at boot: `provider` is called on first use and the real model is cached
+    from then on. Attribute access forwards too, so it behaves like the model for
+    anything beyond `.encode`.
+    """
+
+    __slots__ = ("_provider", "_real")
+
+    def __init__(self, provider):
+        self._provider = provider
+        self._real = None
+
+    def _resolve(self):
+        if self._real is None:
+            self._real = self._provider()
+        return self._real
+
+    def encode(self, *args, **kwargs):
+        return self._resolve().encode(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._resolve(), name)
+
+
+def load_chunk_index(chunks: list, embedder_provider) -> np.ndarray:
+    """Load (or build once) the local MiniLM chunk index.
+
+    `embedder_provider` is a CALLABLE, not an embedder: on the normal path the
+    cache hits and we must never touch it, because resolving it materializes the
+    lazy MiniLM (~6.7 s on the Pi). Passing the embedder directly made every boot
+    pay for a model that a cache hit does not need — it read as a 5 ms np.load in
+    the code and measured 7.3 s on the device.
+    """
     CHUNK_INDEX_DIR.mkdir(parents=True, exist_ok=True)
     emb_path = CHUNK_INDEX_DIR / "chunk_embeddings.npy"
     ids_path = CHUNK_INDEX_DIR / "chunk_ids.json"
@@ -162,8 +212,8 @@ def load_chunk_index(chunks: list, embedder) -> np.ndarray:
             return np.load(emb_path)
     print(f"building local MiniLM index for {len(chunks)} chunks (one-time)…")
     emb = np.asarray(
-        embedder.encode([c.get("text") or "" for c in chunks], batch_size=256,
-                        normalize_embeddings=True, show_progress_bar=True),
+        embedder_provider().encode([c.get("text") or "" for c in chunks], batch_size=256,
+                                   normalize_embeddings=True, show_progress_bar=True),
         dtype=np.float32,
     )
     np.save(emb_path, emb)
@@ -176,13 +226,45 @@ def load_chunk_index(chunks: list, embedder) -> np.ndarray:
 # ---------------------------------------------------------------------------
 
 
+# Turn-scoped generation counter (Part 13 Stage 0). Every qwen_chat call on this
+# turn is counted here so the server can report latency_ms["gemini_calls"/"gemini_ms"].
+# Up to FOUR generation calls can land serially in one turn (answer, grader,
+# cohesion judge, persona reply) — that is the difference between a 1.0 s and a
+# 4.0 s `brain`, and it was invisible before. Thread-local so concurrent turns
+# never mix (the server serialises turns today, but the grader runs in a worker).
+_gen_stats = threading.local()
+
+
+def gen_stats_reset() -> None:
+    _gen_stats.calls = 0
+    _gen_stats.ms = 0
+
+
+def gen_stats() -> dict:
+    return {"gemini_calls": getattr(_gen_stats, "calls", 0),
+            "gemini_ms": getattr(_gen_stats, "ms", 0)}
+
+
+def _gen_stats_add(ms: int) -> None:
+    _gen_stats.calls = getattr(_gen_stats, "calls", 0) + 1
+    _gen_stats.ms = getattr(_gen_stats, "ms", 0) + ms
+
+
 def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> str:
     """Single generation seam. Despite the name, dispatches to Gemini Flash when
     GEN_BACKEND=gemini (the CLAUDE.md cloud pivot); the local Qwen server path is
     unchanged when GEN_BACKEND=qwen. Callers pass the same manifest-grounded prompt
     either way."""
-    if GEN_BACKEND == "gemini":
-        return _gemini_chat(prompt, temperature=temperature, max_tokens=max_tokens)
+    _t0 = time.perf_counter()
+    try:
+        if GEN_BACKEND == "gemini":
+            return _gemini_chat(prompt, temperature=temperature, max_tokens=max_tokens)
+        return _qwen_server_chat(prompt, temperature=temperature, max_tokens=max_tokens)
+    finally:
+        _gen_stats_add(int((time.perf_counter() - _t0) * 1000))
+
+
+def _qwen_server_chat(prompt: str, temperature: float, max_tokens: int) -> str:
     resp = requests.post(
         f"{QWEN}/v1/chat/completions",
         json={"model": "qwen2.5-3b-instruct",
@@ -192,6 +274,110 @@ def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> s
     )
     resp.raise_for_status()
     return resp.json()["choices"][0]["message"]["content"].strip()
+
+
+# Part 13 Stage 2. Only the ANSWER call site streams; the grader / cohesion /
+# quiz call sites return JSON objects and must be parsed whole.
+STREAM_GEN = os.getenv("WINI_STREAM_GEN", "1").strip().lower() not in (
+    "0", "false", "no", "")
+
+# Turn-scoped sink for streamed answer text. The server installs one so it can
+# start synthesizing the first sentence while the rest is still being written;
+# with no sink installed the generation path is byte-for-byte today's.
+_answer_sink = threading.local()
+
+
+def set_answer_sink(fn) -> None:
+    """Install (or clear, with None) this thread's streamed-answer callback."""
+    _answer_sink.fn = fn
+
+
+def _sink() -> object | None:
+    return getattr(_answer_sink, "fn", None)
+
+
+def _first_complete_sentence(text: str) -> str | None:
+    """The first sentence, but only once we can SEE it ended.
+
+    The trailing `(?=\\s)` is load-bearing twice over: it proves the sentence is
+    complete (more text follows the terminator) and it refuses to treat the "."
+    in "0.2" as a boundary — the same decimal rule _truncate_to_spoken_budget
+    learned the hard way.
+    """
+    import re as _re
+    m = _re.search(r"[^.!?]*[.!?]+(?=\s)", text)
+    if not m:
+        return None
+    s = m.group(0).strip()
+    return s or None
+
+
+def _stream_answer(prompt: str, max_tokens: int, answer_budget: dict | None,
+                   sink) -> str:
+    """Generate the answer as a token stream, releasing sentence 0 immediately.
+
+    Why only sentence 0 goes out early: `_truncate_to_spoken_budget` builds its
+    result by keeping sentences in order and afterwards only ever evicts or
+    rewrites sentences at index >= 1 — its result-line guard and its micro-check
+    guard both refuse to touch index 0 — so `kept[0]` is always `sentences[0]`.
+    Sentence 0 is therefore provably a prefix of the final answer, while anything
+    after it could still be rewritten by the budget — and audio already spoken
+    cannot be un-spoken. The remainder is released once the full text is known
+    and truncated.
+
+    That single early sentence is the whole win: TTS starts on it while the rest
+    of the answer is still being generated. Answer LENGTH stays entirely
+    LLM-driven — this changes scheduling, not pedagogy.
+    """
+    import llm_vertex
+
+    t0 = time.perf_counter()
+    parts: list[str] = []
+    released = ""
+    try:
+        for delta in llm_vertex.generate_reply_stream(
+                prompt, temperature=0.3, max_output_tokens=max(64, max_tokens)):
+            parts.append(delta)
+            if not released:
+                first = _first_complete_sentence("".join(parts))
+                if first:
+                    released = first
+                    sink(first)
+    except Exception as e:  # noqa: BLE001
+        if not released:
+            # Nothing spoken yet — fall back to the proven one-shot call.
+            print(f"[tutor] streamed generation failed; batch fallback: {e}")
+            _gen_stats_add(int((time.perf_counter() - t0) * 1000))
+            text = qwen_chat(prompt, temperature=0.3, max_tokens=max_tokens)
+            if answer_budget:
+                text = _truncate_to_spoken_budget(
+                    text, int(answer_budget.get("max_words", 35)),
+                    int(answer_budget.get("max_sentences", 2)))
+            sink(text)
+            return text
+        # Sentence 0 is already being spoken; re-generating would say it twice.
+        print(f"[tutor] streamed generation cut short after sentence 1: {e}")
+
+    _gen_stats_add(int((time.perf_counter() - t0) * 1000))
+    final = "".join(parts).strip()
+    if answer_budget:
+        final = _truncate_to_spoken_budget(
+            final, int(answer_budget.get("max_words", 35)),
+            int(answer_budget.get("max_sentences", 2)))
+    if not released:
+        sink(final)
+    elif final.startswith(released):
+        rest = final[len(released):].strip()
+        if rest:
+            sink(rest)
+    else:
+        # Unreachable given the kept[0] argument above. If it ever fires, stop
+        # speaking rather than say something the budget rejected — the child
+        # hears sentence 0, which is coherent on its own, and the full text
+        # still goes to state and the log.
+        print("[tutor] WARNING: streamed prefix diverged from the budgeted "
+              f"answer; withheld the remainder. released={released!r}")
+    return final
 
 
 def _gemini_chat(prompt: str, temperature: float, max_tokens: int) -> str:
@@ -211,7 +397,8 @@ def _gemini_chat(prompt: str, temperature: float, max_tokens: int) -> str:
 def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter_hint: str,
                 writeback_note: str = "", history: list[dict] | None = None,
                 answer_budget: dict | None = None, figure_on_screen: bool = False,
-                clarify: bool = False, intro: bool = False, visualize: bool = False) -> str:
+                clarify: bool = False, intro: bool = False, visualize: bool = False,
+                grounding: str = "manifest_only") -> str:
     tone = {
         "ENCOURAGE": "The student is frustrated or overloaded. Be warm and brief; acknowledge effort first.",
         "MISCONCEPTION_PROBE": "Ask the diagnostic question from the evidence FIRST. Do not reveal the correction yet.",
@@ -228,6 +415,21 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         "ISOMORPHIC_PRACTICE": "Pose ONE fresh problem of the same type for the student to solve on "
                                "their own. State the problem in plain words and ask for their answer. "
                                "Do NOT solve it or give hints unless asked.",
+        "SOLVE_STUDENT_PROBLEM": "The student brought THEIR OWN problem and wants it worked "
+                                 "out. Solve THE PROBLEM THEY ASKED — not a similar one, not a "
+                                 "different example. Use the method from the evidence, but the "
+                                 "numbers, names and quantities in the STUDENT line are the "
+                                 "authoritative ones: substitute THEIR values and carry the "
+                                 "arithmetic through. You MUST state the final answer explicitly "
+                                 "in its own closing sentence (e.g. 'So x = 42 and the speeds are "
+                                 "42 km/h and 48 km/h.') — never stop after setting up the "
+                                 "equation, and NEVER leave the last step for the student to "
+                                 "compute ('now calculate x', 'what is the speed?'). They asked "
+                                 "you for the answer; withholding it is the one thing this action "
+                                 "must not do. Show the steps compactly, state the answer, and "
+                                 "only then you may ask ONE short question about the METHOD "
+                                 "('does that first step make sense?') — never a question whose "
+                                 "answer is the result you just worked out.",
         "WHY_IT_MATTERS": "The student asked WHY this is worth learning, what it is for, or HOW "
                           "something connects to the topic (or said you did not answer their "
                           "question). ANSWER THAT EXACT QUESTION FIRST in one plain sentence. If "
@@ -263,7 +465,10 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         # transcript: "...you divide 20 / 0." cut mid-division at the old 180 cap).
         # Real brevity is enforced by _truncate_to_spoken_budget below, which keeps
         # only whole sentences within the word budget.
-        max_tokens = max(90, min(240, round(max_words * 3.5)))
+        # The ceiling has to clear the largest budget, or the generation is cut
+        # before the derivation reaches its answer and truncation never even gets
+        # a result line to protect (A-3): 130 words needs ~455 tokens, not 240.
+        max_tokens = max(90, min(480, round(max_words * 3.5)))
         pacing = (
             "PACING CONTRACT FOR SPOKEN VOICE:\n"
             f"- Speak at most {max_words} words and {max_sentences} sentence(s).\n"
@@ -289,9 +494,16 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             pacing += (
                 f"- End with {micro_phrase}, but ONLY about what you actually explained "
                 "in THIS reply. Never ask 'did you understand' about something you did not "
-                "show. If you worked an example, ask them to state the result or try the "
-                "next step.\n"
-                "- Do NOT print any label like 'yes_no:' or 'check:'; just ask the question.\n"
+                "show. "
+                # On SOLVE_STUDENT_PROBLEM "ask them to state the result" is exactly
+                # backwards — the student asked US for that result (audit A-2). Asking
+                # for it back reproduces the withheld-answer failure through the pacing
+                # block instead of the action, which is how it first slipped through.
+                + ("Ask about the METHOD, never for the final answer — you already "
+                   "stated it.\n" if action == "SOLVE_STUDENT_PROBLEM" else
+                   "If you worked an example, ask them to state the result or try the "
+                   "next step.\n")
+                + "- Do NOT print any label like 'yes_no:' or 'check:'; just ask the question.\n"
                 "- This is only for pacing, not for grading mastery.\n"
             )
         else:
@@ -339,7 +551,45 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         "explain…', 'let's try this'); just teach the thing itself.\n"
         "- NEVER re-ask a question you already asked in RECENT CONVERSATION, and do "
         "not repeat a sentence you already said; move the explanation forward.\n"
+        # This reply is SPOKEN and shown on a plain-text panel; neither understands
+        # LaTeX. The instruction existed only in generate_quiz_item, so the main
+        # answer emitted $...$ and \frac freely and the whole burden fell on the
+        # downstream sanitizers — one of which silently destroyed fractions
+        # ("63 over x" -> "{63}{x}", audit B-1/B-2). Not emitting it is cheaper and
+        # more reliable than repairing it in three different places afterwards.
+        "- Write maths in PLAIN WORDS AND PLAIN SYMBOLS ONLY. No LaTeX, no $ signs, "
+        "no backslash commands (\\frac, \\sqrt, \\times), no braces. Write fractions "
+        "as 'a over b' or a/b, powers as x squared or x^2, and roots as 'square root "
+        "of x'. This reply is read aloud — it must make sense heard, not seen.\n"
     )
+    # GROUNDING CONTRACT (audit A-1). §6.7 used to state one absolute rule — "the
+    # response layer may compose only from manifest items" — for every turn. On a
+    # solve turn that is a contradiction the model can only resolve by disobeying:
+    # the student's own numbers are, by construction, not in the manifest, so
+    # "use ONLY the evidence" and "answer this question" cannot both hold. It
+    # worked by luck, and it made the learning log dishonest — the manifest
+    # recorded as producing the answer had not produced it, which poisons the
+    # labelled pairs a future grounding-guard would train on. So the contract is
+    # now explicit about which of the two kinds of turn this is.
+    if evidence_blocks and any(b.get("text") for b in evidence_blocks):
+        if grounding == "method_only":
+            grounding_cue = (
+                "GROUNDING: use the evidence below for the METHOD — the steps, the "
+                "rule, the vocabulary. The numbers, names and quantities in the "
+                "STUDENT line are the student's own and are authoritative for THIS "
+                "problem: use them exactly as given, and do the arithmetic yourself. "
+                "Do not substitute the evidence's example numbers for theirs.\n")
+        else:
+            grounding_cue = ("Use ONLY the evidence below — if it does not support a "
+                             "claim, say less.\n")
+    else:
+        # A-4 abstention, or simply nothing retrieved. Saying "use only the
+        # evidence" when there is none is the same contradiction in its purest
+        # form, so say what is actually true instead.
+        grounding_cue = (
+            "GROUNDING: no textbook evidence was retrieved for this turn. Answer "
+            "from ordinary Class 10 maths, keep it short and plain, and do not "
+            "invent a textbook reference, figure, or page.\n")
     prompt = (
         f"You are Wini, a friendly Class 10 Maths tutor ({chapter_hint}).\n"
         f"Pedagogical action for this turn: {action}. {tone}\n"
@@ -348,12 +598,19 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         + clarify_cue
         + screen_cue
         + pacing
-        + "Use ONLY the evidence below — if it does not support a claim, say less. "
-        "Never mention internal IDs, codes, or evidence numbers (no 'jemh104', no "
+        + grounding_cue
+        + "Never mention internal IDs, codes, or evidence numbers (no 'jemh104', no "
         "'EVIDENCE 2', no 'misconception::...'); speak naturally about the maths. "
         "Indian-English friendly.\n\n"
         f"{hist_text}{ev_text}\n\nSTUDENT: {question}\n\nWINI:"
     )
+    # Part 13 Stage 2: when the caller installed an answer sink (the voice
+    # server does, for streaming TTS) generate as a stream so the first sentence
+    # can start being spoken while the rest is still being written. Same prompt,
+    # same temperature, same budget — only the transport differs.
+    sink = _sink()
+    if STREAM_GEN and GEN_BACKEND == "gemini" and sink is not None:
+        return _stream_answer(prompt, max_tokens, answer_budget, sink)
     text = qwen_chat(prompt, temperature=0.3, max_tokens=max_tokens)
     if answer_budget:
         text = _truncate_to_spoken_budget(
@@ -393,6 +650,18 @@ def _budget_for_generation(answer_budget: dict | None, action: str) -> dict | No
     return out
 
 
+# The sentence that carries a derivation's FINAL RESULT (audit A-3). A worked
+# solution is atomic: its setup is worthless without its answer, so this line is
+# protected from the spoken cap exactly as the trailing micro-check question is.
+# Deliberately narrow — a conclusion marker followed by a number, an explicit
+# "<var> = <number>", or "the answer/result/root/value/solution ... is <number>".
+_RESULT_RE = re.compile(
+    r"(?:^|[\s,;])(?:so|therefore|thus|hence|which gives|we get)\b[^.!?]*\d"
+    r"|\b[a-zA-Z]\s*=\s*[-+]?\s*\d"
+    r"|\b(?:answer|result|roots?|value|solution)\b[^.!?]*\b(?:is|are)\b[^.!?]*\d",
+    re.IGNORECASE)
+
+
 def _truncate_to_spoken_budget(text: str, max_words: int, max_sentences: int) -> str:
     """Enforce the spoken budget on Qwen's output for TTS.
 
@@ -420,11 +689,34 @@ def _truncate_to_spoken_budget(text: str, max_words: int, max_sentences: int) ->
             break
         kept.append(s)
         words += w
+    # A-3: a derivation is ATOMIC. If the reply worked toward a final result and
+    # the word/sentence cap dropped the sentence carrying it, the child hears the
+    # whole setup and never the answer — and the setup alone is worth nothing. So
+    # the terminal result line is protected the same way the micro-check question
+    # below is: make room for it by trading away an earlier middle step.
+    body = sentences[:-1] if sentences[-1].endswith("?") else sentences
+    result = next((s for s in reversed(body) if _RESULT_RE.search(s)), None)
+    if result is not None and result not in kept:
+        need = len(result.split())
+        while len(kept) > 1 and words + need > max_words:
+            words -= len(kept.pop().split())
+        kept.append(result)
+        words += need
     last = sentences[-1]
     if last.endswith("?") and not kept[-1].endswith("?"):
         # ensure the pacing micro-check survives the cap
         if words + len(last.split()) > max_words and len(kept) > 1:
-            kept[-1] = last
+            # Evict the last DROPPABLE sentence. The protected result line is not
+            # droppable, so step back past it — replacing it here would reinstate
+            # exactly the A-3 failure (setup + question, no answer). Index 0 is
+            # not droppable either: on the streaming path it has already been
+            # spoken (see _stream_answer), so it must stay a prefix of the result.
+            i = len(kept) - 1
+            if result is not None and kept[i] == result:
+                i -= 1
+            if i > 0:
+                kept.pop(i)
+            kept.append(last)
         elif last not in kept:
             kept.append(last)
     return " ".join(kept)
@@ -512,21 +804,15 @@ def _plainify_math(s: str) -> str:
     cv2 card path and the TTS both render/read the text verbatim, and neither
     understands LaTeX — so drop the delimiters and fold the few commands that
     survive the plain-text instruction into words. Applied to the QUESTION only;
-    the expected_answer is left for the grader (only `$`/delimiters stripped)."""
-    import re as _re
-    for d in ("\\(", "\\)", "\\[", "\\]", "$", "{", "}"):
-        s = s.replace(d, " ")
-    repl = {"\\times": " times ", "\\div": " divided by ", "\\cdot": " times ",
-            "\\ge": " >= ", "\\le": " <= ", "\\neq": " not equal to ",
-            "\\sqrt": " square root of ", "\\pi": " pi ", "\\%": " percent "}
-    for k, v in repl.items():
-        s = s.replace(k, v)
-    s = _re.sub(r"\^2\b", " squared", s)
-    s = _re.sub(r"\^3\b", " cubed", s)
-    s = _re.sub(r"\^\{?(\d+)\}?", r" to the power \1", s)
-    s = _re.sub(r"\\[a-zA-Z]+", " ", s)          # any leftover \command -> space
-    s = _re.sub(r"\s+([.,?!])", r"\1", s)        # tidy space before punctuation
-    return _re.sub(r"\s+", " ", s).strip()
+    the expected_answer is left for the grader (only `$`/delimiters stripped).
+
+    Implementation moved to `mathtext.to_question` (audit B-5): this was one of
+    three divergent copies of the same job, and the copy on the SPOKEN path was
+    destroying fractions. Behaviour change from the merge: `\\frac{a}{b}` now
+    folds to "a/b" instead of leaving "{a}{b}", and `\\geq` no longer renders as
+    ">= q"."""
+    from mathtext import to_question
+    return to_question(s)
 
 
 def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = None) -> dict | None:
@@ -597,6 +883,56 @@ class TutorLoop:
             n: (a.get("disambiguates_misconceptions") or [])
             for n, a in self.graph.nodes(data=True) if a.get("image_path")
         }
+        # T9 tier-3 teaching visuals (2026-07-20): concept_id -> image-bearing
+        # figure_caption chunk rows. The graph's illustrated_by/has_formula edges
+        # cover only 7/108 concepts (0 of 13 trig), so plain EXPLAIN turns were
+        # text-only; caption chunks carry image_path + concept_ids for every
+        # chapter (244 rows) and are the reliable concept->visual index.
+        self.visuals_by_concept: dict[str, list[dict]] = {}
+        for r in self.chunks:
+            if r.get("kind") == "figure_caption" and r.get("image_path"):
+                for c in (r.get("concept_ids") or []):
+                    self.visuals_by_concept.setdefault(c, []).append(r)
+        # Formula crops (2026-07-20, link_formulas.py): formula_links.json holds
+        # derived concept->formula links for every chapter (page inheritance +
+        # name match); the graph's original has_formula edges (vision-emitted,
+        # jemh102 only) are merged too. Formula nodes aren't chunk rows, so each
+        # gets a chunk-shaped pseudo-row (kept in formula_rows_by_id for the
+        # _build_display lookup). Caption rows stay FIRST in each concept's
+        # pool — formula rows follow by link score — so pre-existing tier-3
+        # behavior is unchanged where captions exist.
+        self.formula_rows_by_id: dict[str, dict] = {}
+
+        def _formula_row(fid: str, image_path: str, formula: str) -> dict:
+            return self.formula_rows_by_id.setdefault(fid, {
+                "chunk_id": fid, "kind": "formula", "text": formula,
+                "image_path": image_path, "representations": ["symbolic"],
+                "figure_id": fid,
+            })
+
+        _flinks: list[tuple[float, str, dict]] = []  # (score, concept_id, row)
+        _links_path = STORE / "formula_links.json"
+        if _links_path.exists():
+            for l in json.loads(_links_path.read_text(encoding="utf-8"))["links"]:
+                if l.get("has_image"):
+                    _flinks.append((l["score"], l["concept_id"], _formula_row(
+                        l["formula_id"], l["image_path"], l.get("formula") or "")))
+        for _u, _v, _d in self.graph.edges(data=True):
+            if _d.get("relation") == "has_formula":
+                _a = self.graph.nodes[_v]
+                if _a.get("image_path"):
+                    _flinks.append((1.0, _u, _formula_row(
+                        _v, _a["image_path"], _a.get("formula") or "")))
+        _by_cid: dict[str, list[tuple[float, dict]]] = {}
+        for _sc, _cid, _row in _flinks:
+            _by_cid.setdefault(_cid, []).append((_sc, _row))
+        for _cid, _lst in _by_cid.items():
+            pool = self.visuals_by_concept.setdefault(_cid, [])
+            seen = {r["chunk_id"] for r in pool}
+            for _sc, _row in sorted(_lst, key=lambda t: (-t[0], t[1]["chunk_id"])):
+                if _row["chunk_id"] not in seen:
+                    seen.add(_row["chunk_id"])
+                    pool.append(_row)
         # Perception (Part 11 §7.1): inject ONE GeminiPerception as both the
         # classifier and resolver stubs so CognitiveAnalyzer.analyze() runs unchanged.
         # Its .embedder is a lazily-loaded MiniLM, so the HOPE + chunk-index wiring
@@ -626,8 +962,12 @@ class TutorLoop:
         self.persona = json.loads((ROOT / "persona.json").read_text(encoding="utf-8"))
         self.shadow = PolicyShadow.load()
         # HOPE detector shares the analyzer's MiniLM embedder (one model in VRAM)
-        self.hope = HopeDetector.load(device=_minilm_device)
-        self.hope.embedder = self.analyzer.classifier.embedder
+        # HOPE shares the analyzer's MiniLM (one model in memory) — and shares it
+        # LAZILY. Assigning `gp.embedder` here would resolve the property and pull
+        # the whole model in on the boot path; the proxy defers that to the first
+        # actual encode, which happens on a turn, not at startup.
+        self.hope = HopeDetector.load(device=_minilm_device,
+                                      embedder=_LazyEmbedder(lambda: gp.embedder))
         self.state = load_learner_state(state_path)
         # A fresh TutorLoop IS a fresh session: clear the transient lifecycle flags a
         # previous run left in the persisted state (a stale "ended"/leave count must
@@ -638,8 +978,27 @@ class TutorLoop:
         _sess.pop("leave_requests", None)
         if _sess.get("status") in ("paused", "ended"):
             _sess["status"] = "active"
-        self.chunk_emb = load_chunk_index(self.chunks, self.analyzer.classifier.embedder)
+        self.chunk_emb = load_chunk_index(self.chunks, lambda: gp.embedder)
         self.want_answer = want_answer
+        # MiniLM is now OFF the boot path entirely (nothing above resolves it), so
+        # pull it in on a background thread instead: boot returns in ~2 s and the
+        # model finishes loading while the cloud clients warm up and the child is
+        # still choosing a mode. The first turn that needs retrieval/HOPE blocks on
+        # the property only if it somehow gets there first — correctness does not
+        # depend on this thread, only latency does.
+        if os.getenv("WINI_PREWARM_MINILM", "1").lower() not in ("0", "false", ""):
+            threading.Thread(target=self._prewarm_embedder, name="minilm-prewarm",
+                             daemon=True).start()
+
+    def _prewarm_embedder(self) -> None:
+        t0 = time.perf_counter()
+        try:
+            self.analyzer.classifier.embedder.encode(
+                ["warm"], normalize_embeddings=True, show_progress_bar=False)
+            print(f"[tutor] MiniLM ready in background ({(time.perf_counter()-t0)*1000:.0f} ms)")
+        except Exception as e:  # noqa: BLE001 — a failed prewarm just means the
+            # first turn pays the load; never let it kill the process.
+            print(f"[tutor] MiniLM prewarm failed ({e}); first turn will load it")
 
     # which need mode serves which HOPE signal probe
     NEED_TO_HOPE = {"challenge": "CT", "transfer": "KT", "integrate": "KI"}
@@ -814,38 +1173,105 @@ class TutorLoop:
                      "gate": (mode_item.get("test_record") or {}).get("gate")}]
         return []
 
-    def _build_display(self, evidence: list[dict], action: str) -> list[dict]:
+    #: Absolute MiniLM-cosine floor a tier-3 TEACHING visual must clear against the
+    #: student's own utterance (audit B-3). Tier 3 previously took the best crop
+    #: *within the concept* with no floor at all — the same missing-threshold
+    #: problem as A-4, but surfacing where a child actually sees it: "solve
+    #: x^2-5x+6=0" displayed a prayer-hall area diagram. Measured on the device
+    #: (2026-07-23) over the live chunk index: genuinely relevant crops score
+    #: 0.36-0.63 (quadratic graph 0.361, circle-segment 0.63, probability 0.46),
+    #: while the two figures the audit caught score 0.221 (prayer hall) and 0.020
+    #: (dice table), and the train/car problem's whole image pool tops out at
+    #: 0.242. 0.30 sits in the empty band between them. A visual that contradicts
+    #: the speech is worse than no visual, so failing the floor means showing none.
+    T9_VISUAL_MIN_RELEVANCE = float(os.getenv("T9_VISUAL_MIN_RELEVANCE", "0.30"))
+
+    def _build_display(self, evidence: list[dict], action: str, teaching: bool = False,
+                       ranked: list[dict] | None = None,
+                       primary_concept: str | None = None,
+                       relevance=None) -> list[dict]:
         """T9 multimodal channel — pick at most ONE task-relevant figure crop to
         SHOW alongside speech (working-memory limit: one primary visual per turn).
 
-        query.py already gates `figure`-type evidence to exactly the two
-        pedagogical show-cases — a representation gap (need_evidence/integrate:
-        ``reps_missing & supports_representation``) or disambiguating an active
-        misconception (misconception_evidence corrective phase) — so any
-        figure-type item is show-worthy. An *incidental* `figure_caption` chunk
-        (a semantic match that happens to carry a crop) is shown only when the
-        action is itself visual (REPRESENTATION_TRANSLATION / VISUAL_ANALOGY).
+        Three tiers, most pedagogy-specific first:
+
+        1. query.py-gated `figure` evidence — a representation gap
+           (need_evidence/integrate: ``reps_missing & supports_representation``)
+           or disambiguating an active misconception (corrective phase). Any
+           figure-type item is show-worthy by construction.
+        2. An *incidental* `figure_caption` chunk in the evidence (a semantic
+           match that happens to carry a crop), shown when the action is itself
+           visual (REPRESENTATION_TRANSLATION / VISUAL_ANALOGY).
+        3. TEACHING VISUAL (2026-07-20, "show, don't only tell" — architecture
+           §9): on a plain teaching turn (``teaching=True``: not TEST, no
+           mode_item driving the turn), the crop most relevant to what is being
+           explained right now. When the primary concept is known: the top
+           ranked image-bearing chunk TAGGED with that concept, else the
+           concept's stored pool from ``visuals_by_concept`` (caption rows
+           first, then formula crops via formula_links.json), else any ranked
+           image-bearing chunk; concept unknown: top ranked image-bearing
+           chunk. Added because the graph's illustrated_by edges cover almost
+           no concepts, which left ordinary EXPLAIN turns text-only. TEST turns
+           never get a figure (test integrity); PRACTICE recall items stay
+           audio-only unless the inner loop overrides into an explanation.
+
         Otherwise the turn stays audio-only and this returns [].
 
         Items are channel-agnostic: ``image_path`` stays store-relative so each
         DisplaySink (web /store route, Windows pane, Jetson /display_image)
         resolves it against the store root — never hard-coded.
         """
-        primary = None    # pedagogy-gated `figure` crop (preferred)
-        fallback = None   # incidental figure_caption chunk (visual actions only)
+        gated = None      # tier 1: pedagogy-gated `figure` crop (preferred)
+        fallback = None   # tier 2: incidental figure_caption chunk (visual actions only)
         for e in evidence:
             if not e.get("image_path"):
                 continue
             if e["type"] == "figure":
-                primary = e
+                gated = e
                 break
             if e["type"] == "chunk" and action in self.VISUAL_ACTIONS and fallback is None:
                 fallback = e
-        chosen = primary or fallback
+        chosen = gated or fallback
+        if not chosen and teaching:
+            # tier 3: retrieval order = relevance to this utterance — but when
+            # the primary concept is known, a crop TAGGED with that concept
+            # (ranked row or the concept's stored pool, captions before formula
+            # links) beats a merely semantically-similar crop of some other
+            # concept; the ranked list is only concept-filtered when resolution
+            # didn't abstain, so an off-concept caption can otherwise win over
+            # e.g. the concept's own formula crop.
+            pool = [r for r in (ranked or []) if r.get("image_path")]
+            if primary_concept:
+                tagged = [r for r in pool
+                          if primary_concept in (r.get("concept_ids") or [])]
+                pool = tagged or (self.visuals_by_concept.get(primary_concept)
+                                  or []) or pool
+            # RELEVANCE FLOOR (B-3): being tagged with the resolved concept is not
+            # evidence that a crop illustrates THIS utterance — every quadratics
+            # figure carries the quadratics concept, including the prayer-hall area
+            # diagram. Score each candidate against the utterance itself and drop
+            # everything under the floor; `score` is the retrieval cosine already
+            # computed for ranked rows, and `relevance` fills it in for rows that
+            # came from the concept's stored pool and were never ranked.
+            scored = []
+            for r in pool:
+                rel = r.get("score")
+                if rel is None and relevance is not None:
+                    rel = relevance(r)
+                if rel is not None and float(rel) >= self.T9_VISUAL_MIN_RELEVANCE:
+                    scored.append((float(rel), r))
+            if scored:
+                rel, r = max(scored, key=lambda t: t[0])
+                chosen = ev(r["chunk_id"], "chunk",
+                            f"teaching visual: crop relevant to this turn "
+                            f"(similarity {rel:.2f} >= {self.T9_VISUAL_MIN_RELEVANCE:.2f})",
+                            image_path=r["image_path"])
         if not chosen:
             return []
-        node = self.graph.nodes.get(chosen["id"], {})
-        row = self.chunks_by_id.get(chosen["id"], {})
+        row = (self.chunks_by_id.get(chosen["id"])
+               or self.formula_rows_by_id.get(chosen["id"]) or {})
+        node = (self.graph.nodes.get(chosen["id"])
+                or self.graph.nodes.get(row.get("figure_id") or "") or {})
         alt = (chosen.get("alt_text") or node.get("alt_text")
                or (row.get("text") or "").split(":")[0].strip()[:120] or "figure")
         supports = (chosen.get("supports_representation") or node.get("supports_representation")
@@ -855,7 +1281,7 @@ class TutorLoop:
             "alt_text": alt,
             "why": chosen.get("why", ""),
             "supports_representation": supports,
-            "figure_id": chosen["id"],
+            "figure_id": row.get("figure_id") or chosen["id"],
         }]
 
     # ------------------------------------------------------------------
@@ -1029,6 +1455,17 @@ class TutorLoop:
         from cognitive_classifier.cues import extract_topic_request, is_bare_topic
         from session_modes import mode_cues
 
+        # An ACTIVE test blocks every topic shift (test_results.md Bug 2, 2026-07-17):
+        # shifting current_concept + popping pending_check mid-set corrupts state —
+        # _drive_test re-locks the concept to the set's own and serves a question for
+        # the OLD concept, while current_concept now points at the requested one, so
+        # the next answer is graded against the wrong concept. Mirrors resolve_mode's
+        # "active test blocks mode changes except STOP" invariant (§4.4); the test
+        # simply continues on the student's next turn.
+        ts = session.get("test_state")
+        if ts is not None and ts.get("phase") != "done":
+            return None
+
         # A mode request ("let's practice", "test me", "stop the test") is Part 12
         # outer-loop control, NOT a topic switch — the "let's do X" topic pattern
         # otherwise grabs "practice"/"test" as a bogus topic (found on-brain
@@ -1082,6 +1519,31 @@ class TutorLoop:
         session["pending_shift"] = {"concept_id": cid, "name": name}
         return self._shift_reply(text, reply, "TOPIC_SHIFT_CONFIRM",
                                  f"shift request; top match {cid} (sim {sim:.2f})",
+                                 session, answer_budget)
+
+    def _maybe_stop_mode(self, text: str, session: dict,
+                         answer_budget: dict | None) -> dict | None:
+        """Deterministic 'leave TEST/PRACTICE, keep learning' exit (§5.1 STOP).
+
+        Honours the STOP_TEST cue over a Gemini SESSION_CONTROL misroute: drops the
+        active set/plan (set_mode -> EXPLAIN clears test_state + practice_plan) and
+        the open check so the stopped question is never graded, then returns a warm
+        scripted line. Returns None when it is not a STOP cue or there is nothing to
+        stop (already plain EXPLAIN with no frozen test) — the caller then continues
+        the normal SESSION_CONTROL handling."""
+        from session_modes import mode_cues
+        if mode_cues(text) != "STOP":
+            return None
+        prev = self.modes.current_mode(session)
+        if prev == "EXPLAIN" and not session.get("test_state"):
+            return None
+        self.modes.set_mode(session, "EXPLAIN")   # drops test_state + practice_plan
+        session.pop("pending_check", None)
+        session.pop("pending_hope", None)
+        reply = ("Okay, we'll stop the questions for now. Let's keep learning — "
+                 "ask me anything about maths.")
+        return self._shift_reply(text, reply, "MODE_STOP",
+                                 f"stop cue: {prev} -> EXPLAIN (keep learning)",
                                  session, answer_budget)
 
     def _consume_pending_shift(self, session: dict, text: str,
@@ -1188,6 +1650,11 @@ class TutorLoop:
 
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None, _allow_shift: bool = True) -> dict:
+        # Part 13 Stage 0: start this turn's generation-call ledger. Re-entrant
+        # turn() calls (a shift reply re-enters) keep accumulating into the same
+        # ledger — only the outermost caller reads it.
+        if _allow_shift:
+            gen_stats_reset()
         # -1. Pending topic-shift confirmation from the previous turn: a bare
         # yes/no answers the "switch to X?" offer deterministically (no model
         # call); anything longer falls through with the offer cancelled.
@@ -1246,6 +1713,17 @@ class TutorLoop:
                 # ADD recall, never remove it (§4.2). Escalate to the scripted path.
                 route.primary = "SAFETY"
                 self._log_safety(text, route)
+            # A deterministic STOP-mode cue ("stop the test", "no more questions",
+            # "i don't want to practice") outranks a Gemini SESSION_CONTROL guess
+            # when a TEST/PRACTICE is active: it means "leave this mode, keep
+            # learning" (-> EXPLAIN), NOT "end the session". Without this the router
+            # read "stop the test" as session-control and froze the set as a paused
+            # session instead of returning to EXPLAIN (test_results.md Bug 4, live
+            # 2026-07-17). Safety is settled above and is never overridden here.
+            if route.primary == "SESSION_CONTROL" and not route.safety_alert:
+                stop_exit = self._maybe_stop_mode(text, session, answer_budget)
+                if stop_exit is not None:
+                    return stop_exit
             if route.primary != "LEARNING":
                 return self._handle_nonlearning(route, text, answer_budget)
 
@@ -1270,7 +1748,15 @@ class TutorLoop:
             shifted = self._maybe_topic_shift(text, analysis, session, answer_budget)
             if shifted is not None:
                 return shifted
-        if primary:
+        # During an ACTIVE test the concept is LOCKED to the set (_drive_test uses
+        # ts["concept_id"]). A short test answer ("48", "two zeroes") often re-
+        # classifies to a different concept; letting that drift current_concept
+        # leaves the post-test resume pointing at the wrong topic and grades the
+        # session against a concept the child never chose (test_results.md Bug 2
+        # tail). The test owns the concept until it is done.
+        _ts = session.get("test_state")
+        _test_locked = _ts is not None and _ts.get("phase") not in (None, "done")
+        if primary and not _test_locked:
             self.state.data.setdefault("session", {})["current_concept"] = primary
 
         # 1a. Is this reply an ATTEMPT at the question we asked, or a non-attempt
@@ -1301,15 +1787,31 @@ class TutorLoop:
         # attacks the logged regression where "i can not understand" was graded wrong.
         answer_try = bool(route and route.answer_attempt) \
             or ("answer_attempt" in _sig) or is_answer_attempt(text)
+        # The student brought an instance of their own to be worked out (§6.1
+        # deterministic cue, audit A-2/D-1). A reply of "x = 42" to OUR pending
+        # diagnostic is an attempt and the grader owns it — so a bare equation
+        # defers to answer_try. A DIRECTIVE ("solve x^2-5x+6=0") does not: it is
+        # addressed to the tutor, so it is a fresh problem even mid-diagnostic.
+        # Perception scores such a turn answer_attempt whenever a check is armed,
+        # which is what swallowed the quadratic probe on the first live re-test.
+        _pc = analysis.get("problem_cue", {})
+        student_problem = bool(_pc.get("is_problem")) and (
+            bool(_pc.get("directive")) or not answer_try)
         wants_hint = ("hint_requested" in analysis["state_deltas"]["concept_flags"]
                       or "request_hint" in _sig)
         fresh_request = wants_hint or bool(_sig & {
             "request_representation", "representation_shift",
             "simplification_request", "example_request", "topic_shift"})
         # a non-attempt carries no answer cue AND looks like an ack / confusion plea /
-        # bare question / fresh request rather than a try at the pending question
-        non_attempt = (not answer_try) and (
+        # bare question / fresh request rather than a try at the pending question.
+        # A DIRECTIVE student problem is a non-attempt outright, whatever the answer
+        # cue says: "solve x^2-5x+6=0" while a bridge check is armed is the child
+        # setting our question aside, not answering it — grading it as an attempt
+        # would mark the pending diagnostic wrong and move mastery on evidence the
+        # student never gave (the §13 rule that non-attempts must not move state).
+        non_attempt = ((not answer_try) and (
             is_pure_ack(_norm) or clarification or is_question(text) or fresh_request)
+        ) or (student_problem and bool(_pc.get("directive")))
 
         # 1b. pending diagnostic from the previous turn (closed loop, section 8):
         # a hint request escalates the hint chain (never past it, rule 10); any
@@ -1383,6 +1885,16 @@ class TutorLoop:
                     writeback = self.state.apply_probe_result(
                         pending["id"], outcome, concept_id=pending["concept_id"], hints_used=hints_used)
                 writeback["graded_reply"] = text
+                # §9 representation coverage (audit A-5). Answering correctly on an
+                # item that carries a representation IS the learner "showing" that
+                # representation — stronger evidence than the acknowledgment path
+                # above, which was the only writer and effectively never fired.
+                if writeback.get("outcome") == "correct":
+                    _row = self.chunks_by_id.get(pending["id"]) or {}
+                    _reps = (_row.get("representations")
+                             or self.graph.nodes.get(pending["id"], {}).get(
+                                 "supports_representation") or [])
+                    self._mark_representations_known(pending.get("concept_id"), _reps)
             session.pop("pending_check", None)
 
         # 1c. pending HOPE probe from the previous turn (Part 4 wired live): if
@@ -1409,12 +1921,15 @@ class TutorLoop:
         # as known for the session concept (architecture section 9 coverage)
         from cognitive_classifier.cues import is_pure_ack
         acknowledged = is_pure_ack(analysis["normalized_text"])
+        # A-5: this used to be the ONLY writer, and it required BOTH that the
+        # previous action was REPRESENTATION_TRANSLATION AND that this utterance is
+        # a pure acknowledgment — so narrow that 0 of 40 live concept states had
+        # ever recorded a representation, which in turn made w4_repr_gap a
+        # constant and §9 inoperative. A correct answer on a representation-bearing
+        # item is at least as good evidence of coverage as saying "okay", so it
+        # counts too (recorded below, once the turn's outcome is known).
         if acknowledged and primary and session.get("last_action") == "REPRESENTATION_TRANSLATION":
-            cs = self.state.concept_states.setdefault(primary, {})
-            known = cs.setdefault("representations_known", [])
-            for rep in session.get("last_repr_targets", []):
-                if rep and rep not in known:
-                    known.append(rep)
+            self._mark_representations_known(primary, session.get("last_repr_targets", []))
 
         # 3. pedagogy: rules decide, shadow suggests (logged only)
         # A "learning start" is a not-yet-mastered concept the student is asking to
@@ -1433,6 +1948,10 @@ class TutorLoop:
             bool(primary)
             and (self.state.mastery(primary) <= COLD_START_MASTERY or explicit_learn)
             and not answer_try and not acknowledged and not pending
+            # a problem instance is not "opening a topic": "solve x^2-5x+6=0" can
+            # score curiosity/question and would otherwise be hijacked into an
+            # intro EXPLAIN before rule 4b is ever reached.
+            and not student_problem
             and (("curiosity" in _sig) or ("question" in _sig) or is_question(text)
                  or explicit_learn or bool(_sig & {"example_request", "learning_goal"}))
             and analysis["cognitive_update"].get("frustration_risk", 0.0) < 0.6
@@ -1485,6 +2004,7 @@ class TutorLoop:
                 learning_start=learning_start,
                 visual=(wants_visual and not answer_try),
                 purpose=(wants_why and not answer_try),
+                student_problem=student_problem,
             )
         intro = (learning_start and action == "EXPLAIN"
                  and bool(primary) and self.state.mastery(primary) <= COLD_START_MASTERY)
@@ -1497,9 +2017,37 @@ class TutorLoop:
         band, band_reason = resolve_band(concept_hits, self.state, None)
         snapshot = Snapshot(self.state, primary, self.concepts_by_id.get(primary), self.graph, band)
 
+        # One query embedding for the whole turn, built on first use. Bridge
+        # selection (A-8) needs it BEFORE the retrieval block below computes
+        # q_emb, and the teaching-visual floor (B-3) needs it after — memoizing
+        # keeps it to a single encode either way.
+        _q_cache: dict = {}
+
+        def _q_vec():
+            if "v" not in _q_cache:
+                _q_cache["v"] = self.analyzer.classifier.embed(
+                    [analysis["normalized_text"]])
+            return _q_cache["v"]
+
+        def _text_sim(txt: str) -> float:
+            txt = (txt or "").strip()
+            if not txt:
+                return 0.0
+            return float((_q_vec() @ self.analyzer.classifier.embed([txt[:400]]).T)[0][0])
+
+        def _bridge_relevance(g9_id: str, node: dict) -> float:
+            """How related is this Class 9 prerequisite to what the student just
+            said? Scored on the bridge's own words (name + diagnostic question),
+            which is what makes 'mean_average' lose to a genuine prerequisite on
+            a distance-speed-time problem."""
+            return _text_sim(" ".join(str(x) for x in (
+                node.get("name") or g9_id.split("::")[-1].replace("_", " "),
+                node.get("diagnostic_question") or "") if x))
+
         evidence: list[dict] = []
         evidence += bridge_evidence(self.graph, self.chunks_by_id, snapshot, concept_ids,
-                                    force=(need == "bridge"))
+                                    force=(need == "bridge"),
+                                    relevance=_bridge_relevance)
         evidence += misconception_evidence(self.graph, snapshot)
         evidence += need_evidence(self.graph, self.concepts_by_id, snapshot, need, None)
 
@@ -1566,7 +2114,7 @@ class TutorLoop:
         candidates_idx = [i for i, r in enumerate(self.chunks)
                           if any(c in (r.get("concept_ids") or []) for c in concept_ids)] \
             or list(range(len(self.chunks)))
-        q_emb = self.analyzer.classifier.embed([analysis["normalized_text"]])
+        q_emb = _q_vec()
         sims = (q_emb @ self.chunk_emb[candidates_idx].T)[0]
         order = np.argsort(-sims)[:24]
         ranked = [dict(self.chunks[candidates_idx[j]], score=float(max(sims[j], 0.0))) for j in order]
@@ -1589,19 +2137,39 @@ class TutorLoop:
                 evidence = [e for e in evidence if e["id"] not in dropped]
                 cohesion_log = (cohesion_log or []) + [f"qwen_judge dropped: {dropped}"]
 
+        # Which §6.7 grounding contract this turn runs under (audit A-1). A turn
+        # that works the STUDENT'S own instance is grounded in the manifest's
+        # METHOD only — their numbers cannot be in the manifest, so recording
+        # "manifest_only" would be a lie logged against every such turn, and any
+        # future grounding-guard trained on these pairs would learn from
+        # mislabelled data. Recorded here so the log states which rule applied.
+        grounding = ("method_only" if action == "SOLVE_STUDENT_PROBLEM"
+                     else "manifest_only")
         manifest = {
             "evidence": evidence,
             "bridge_ids": [e["id"] for e in evidence if e["type"].startswith("bridge")],
             "schema_ids": [e["id"] for e in evidence if e["type"] == "problem_schema"],
             "ranking_trace": trace, "cohesion_log": cohesion_log,
             "snapshot": snapshot.summary(), "band_reason": band_reason,
+            "grounding": grounding,
         }
 
         # 4b. T9 display channel: a TEST question/score card (§5.6) takes precedence
         # on a test turn (which carries no figure), otherwise the one figure crop (if
         # any) to SHOW this turn. Computed before generation so the prompt can
-        # reference the on-screen visual.
-        display = self._mode_display(mode_item) + self._build_display(evidence, action)
+        # reference the on-screen visual. `teaching` gates the tier-3 teaching
+        # visual: any non-TEST turn the mode controller is NOT driving (plain
+        # EXPLAIN, or a PRACTICE/TEST inner-loop override into an explanation).
+        # B-3: lets tier 3 score a crop that never went through retrieval (the
+        # concept's stored visual pool) against this turn's utterance, reusing the
+        # query embedding already computed above — no extra model call for the
+        # common case, one short encode only when such a candidate is reached.
+        def _crop_relevance(row: dict) -> float:
+            return _text_sim(row.get("alt_text") or row.get("text") or "")
+
+        display = self._mode_display(mode_item) + self._build_display(
+            evidence, action, teaching=(mode != "TEST" and mode_item is None),
+            ranked=ranked, primary_concept=primary, relevance=_crop_relevance)
 
         # 5. response from manifest only (Qwen, local)
         answer = None
@@ -1638,7 +2206,8 @@ class TutorLoop:
                                  history=session.get("context", [])[-6:],
                                  answer_budget=gen_budget, figure_on_screen=bool(display),
                                  clarify=(clarification and not answer_try), intro=intro,
-                                 visualize=(wants_visual and not answer_try))
+                                 visualize=(wants_visual and not answer_try),
+                                 grounding=grounding)
 
         # 5b. Part 12: after an EXPLAIN turn where the student just confirmed
         # understanding, optionally OFFER practice (§4.1 row 2). Off by default until
@@ -1717,6 +2286,24 @@ class TutorLoop:
                     "served": len(ts.get("items", [])), "graded": len(ts.get("results", [])),
                     "n": ts.get("n")}
         return None
+
+    def _mark_representations_known(self, concept_id: str, reps) -> list:
+        """Record representations the learner has now demonstrated (§9 coverage).
+
+        Kept in one place because A-5 traced a dead ranking term straight back to
+        there being effectively no writer for this field. Additive and idempotent:
+        coverage is evidence that accumulated, never a score to be recomputed.
+        """
+        if not concept_id or not reps:
+            return []
+        cs = self.state.concept_states.setdefault(concept_id, {})
+        known = cs.setdefault("representations_known", [])
+        added = []
+        for rep in reps:
+            if rep and rep not in known:
+                known.append(rep)
+                added.append(rep)
+        return added
 
     def _log(self, text, action, why, need, shadow, analysis, manifest, writeback=None,
              hope_update=None, perception_shadow=None, mode=None) -> None:

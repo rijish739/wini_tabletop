@@ -449,6 +449,58 @@ HOPE probe→rolling (v4).
   `ct_probe` HOPE-armed not graded, and the display channel surfaces one crop / nothing on
   audio-only. All 11 new checks pass.
 
+**v5.1 (2026-07-20): T9 tier-3 teaching visual — EXPLAIN turns now show a crop by default.**
+- Field finding (winipi5): explain turns were text-only in practice. Measured: the graph's
+  `illustrated_by`/`has_formula` edges cover **7/108 concepts (0/13 trigonometry)**, so the
+  representation-gap show-case could never fire for trig, and the incidental path was gated
+  to two rare actions. The store itself is fine: **244 `figure_caption` chunks** carry
+  `image_path` + `concept_ids` across all chapters (trig: 9/13 concepts covered).
+- Fix: `_build_display(..., teaching=, ranked=, primary_concept=)` gained tier 3 — on a
+  non-TEST turn the mode controller is not driving (plain EXPLAIN, or an inner-loop override
+  into an explanation), show the top-ranked image-bearing chunk from the turn's own retrieval
+  (semantic order = relevance to the utterance), else the primary concept's first visual from
+  the new `visuals_by_concept` index. Tiers 1/2 unchanged and still win; TEST turns still
+  carry no figure; PRACTICE mode-items stay audio-only.
+- Verified on winipi5 2026-07-20: `--once "explain trigonometric ratios to me"` →
+  `display=[fig::jemh108::fig_8_8]` (the tan A = 4/3 triangle) and the LVGL panel renders
+  the crop + caption under the explain card (mic-free ModeChannelSink replay + scrot proof).
+- Open: 644 formula crops are concept-linked only for jemh102 (`has_formula`) — chapter-wide
+  linking would let identity-heavy trig turns show the formula image instead of a diagram.
+  → CLOSED by v5.2 below.
+
+**v5.2 (2026-07-20): chapter-wide concept→formula links — formula crops reach T9.**
+- The v5.1 open item, measured: all 266 graph `has_formula` edges hang off the **7 jemh102
+  concepts** (the vision pass emitted `likely_concept_ids` nowhere else), so none of the
+  other 637 image-bearing formula crops could ever be selected for display.
+- Fix: `link_formulas.py` (new) derives concept links for every formula node
+  deterministically — no LLM, no embeddings: score = 0.6·page-inheritance (the concept's
+  `concept_scores` mass among the chunk rows on the formula's page) + 0.4·name/alias token
+  match (plural-stripped, small trig synonym table) + 0.1 definitional-slug bonus − 0.25
+  worked-example-slug penalty (given/step/derived/… — solved-example equations must not
+  outrank the definitional form); keep score ≥ 0.35, ≤3 concepts per formula. Writes the
+  NEW derived artifact `rag_store/formula_links.json` (2135 links, 1458 to image-bearing
+  formulas); graph.json/chunks.jsonl/concepts.json untouched (read-only rule).
+- Wiring: `TutorLoop.__init__` merges the links file + the original graph `has_formula`
+  edges into `visuals_by_concept` as chunk-shaped pseudo-rows (`kind:"formula"`,
+  `representations:["symbolic"]`); caption rows stay first per pool, formula rows follow
+  by link score, so v5.1 behavior is unchanged wherever a caption exists.
+  `_build_display` resolves pseudo-row ids via a `formula_rows_by_id` fallback.
+- **Measured coverage (concepts with ≥1 formula visual): 7/108 → 95/108** — per chapter
+  before→after: jemh101 0→7/8, jemh102 7→7/7, jemh103 0→6/6, jemh104 0→7/8, jemh105
+  0→5/6, jemh106 0→7/8, jemh107 0→7/8, **jemh108 0→8/8**, jemh109 0→4/5, jemh110 0→4/5,
+  jemh111 0→6/7, jemh112 0→5/5, jemh113 0→6/6, jemh114 0→7/7, jemh1a1 0→7/7, jemh1a2
+  0→2/7 (appendix has only 4 formula crops). All referenced crop files exist on disk.
+- Spot-checked link quality: `jemh108__pythagorean_trig_identities` top link is
+  `formula::jemh108::pythagorean_trigonometric_identity` (cos² A + sin² A = 1, score
+  0.83); definitional forms rank above worked-example steps across sampled chapters.
+- Tier-3 ordering refinement (same session): when the primary concept is known, a crop
+  TAGGED with the concept (ranked row, else the concept's `visuals_by_concept` pool)
+  now beats a merely semantically-similar crop of another concept — measured live that
+  an off-concept caption (fig 8.16) otherwise outranked the concept's own formula crop
+  whenever concept resolution abstained (retrieval then spans ALL chunks).
+- Rebuild: `python link_formulas.py` (prints the per-chapter before/after table) —
+  re-run after any graph/chunks/concepts rebuild.
+
 ## 9. PART 8 — Evaluation & monitoring
 
 - Frozen test split (Part 1 splits.json) reused for every dataset-derived model.
@@ -824,6 +876,304 @@ passes through).
 
 ---
 
-**Open items:** local-VAD barge-in (currently half-duplex), streaming Qwen generation to close
-the post-filler gap, Cloud STT streaming (currently batch per utterance), and tuning the RMS
-endpoint threshold/`silence_ms` for child speech.
+## 14. PART 12 — Session pedagogy modes (EXPLAIN / PRACTICE / TEST) — Stages 1–4 + 6 BUILT
+
+VanLehn's missing **outer loop** (task selection) over the existing per-turn inner loop.
+Design of record: `PART12_PEDAGOGY_MODES_PLAN.md`. `session["mode"]` + a `ModeController`
+(`session_modes.py`) dispatched at ONE point in `turn()` after `rules_decide`; EXPLAIN is
+the default and byte-identical to pre-Part-12. Only these stages' **measured** results:
+
+- **Stage 1 — mode substrate (BUILT, on-brain 2026-07-14).** ModeController (current/set/
+  resolve/consume offers), deterministic cues (`cognitive_classifier/cues.py`
+  `is_practice/test/explain/stop_test_request` — **standalone helpers, NOT CUE_NAMES
+  entries**, so no classifier/shadow rebuild). Gate met: EXPLAIN decision surface
+  (action/need/concept/signals/pending_check) **byte-identical** old-vs-new across 5 rule
+  paths (confirmed twice); no perception/classifier rebuilds.
+- **Stage 2 — PRACTICE ladder (BUILT, on-brain 2026-07-14).** `learner_state.apply_item_result`
+  (third evidence API; item_history/test_history/mastery_gate/concepts_due_for_review, hint-
+  discounted gains, ITEM_MASTERY_DELTA); adaptive fading ladder (entry by mastery, up on
+  clean solve, down on wrong/3-hints, exit-to-EXPLAIN on 2 wrong at L0); pacing budgets
+  COMPLETION_STEP/ISOMORPHIC/TEST_*/MODE_OFFER. Live: "let's practice" @0.65 → ISOMORPHIC_
+  PRACTICE (level 2), Gemini isomorphic problem.
+- **Stage 3 — TEST (BUILT, on-brain 2026-07-15).** **Store audit finding: ZERO stored
+  answers** (0/245 problem_schema instances carry `expected_answer`; 0 concepts have ≥5
+  schemas) → no stored quiz bank possible → **`build_quiz_bank.py` designed away; items are
+  generated at serve time** (`tutor_loop.generate_quiz_item`, one structured Gemini call
+  biased to a single numeric/short answer). Pure planning in `session_modes`
+  (`build_quiz_set`/`advance_test`/`score_quiz`, N=5); `tutor_loop._drive_test` owns
+  generation + the state machine + the 0.8 gate + Bloom corrective (fail → corrective
+  EXPLAIN; concept carries `mastery_gate=failed_pending_retest` → later "test me" =
+  parallel-form re-test). Deterministic **`math_grade`** floor under `judge_answer`
+  (grader eval **26/26, ZERO non-attempts graded wrong** — hard gate). TEST item OWNS
+  `pending_check` (4a-test; assessment ≠ probe-first). **Concept-LOCK** for the set's life
+  (short answers re-classify turn-to-turn; without the lock the set restarted every item).
+  Live: 5/5 on `fundamental_theorem_of_arithmetic` → gate pass, `test_history` written.
+- **Stage 4 — T9 display + voice-plain generation (BUILT, on-brain 2026-07-15).**
+  `tutor_loop._mode_display` emits `question_card`/`score_card` channel items (§5.6);
+  `wini_platform/ui_cards.py` renders them at 480×320 (per-item marks drawn as shapes —
+  cv2 has no tick/cross glyph); `wini_client/display_sinks.py` routes card `kind`s
+  (`render_item_frame`), unknown kind ignored (ESP32/audio-safe). Generator now forced to
+  voice-plain, already-evaluated answers + `_plainify_math` belt (LaTeX → speech). Live: 5
+  question cards + 1 score card per test, questions come through as clean speech; per-turn
+  latency 1.3–4.5 s. **Deferred:** on-DSI LVGL `show_card` (reserved client→UI message).
+- **Stage 6 — reporting (BUILT 2026-07-15).** `progress_report.py` gained a per-concept
+  `test` view (mastery_gate + last_test) + a top-level `quizzes` section + summary counts
+  (`quizzes_taken`/`quizzes_passed`); `parent_ui/` renders a **Quiz results** panel + a
+  gate badge on each topic card. Verified in-browser against a synthetic test_history
+  (1 passed / 3 taken, newest-first, correct labels).
+- **Deferred (owner, 2026-07-15):** Stage 5 perception signals (`practice_request`/
+  `test_request`) — **BILLED + a design fork** (intent-enum, no `label_space` change, vs
+  signal, which touches the trained `label_space.json` 38→40 and the head eval baselines via
+  the build's exact-cover drift guard). Deferred because the deterministic cues already detect
+  mode requests, so it is an optimization not a dependency.
+- **Other pending:** Stage 3 sub-features `parked_questions` + R4 spaced-review swap-in (R4
+  conflicts with the set-level concept-lock — needs per-item concept tracking). Full
+  explain→practice→test spoken rig session; behavioral_eval mode-trajectory cases (§7.3).
+
+---
+
+## 15. PART 13 — Voice latency: the streaming pipeline — Stages 0–2 BUILT 2026-07-20
+
+Design of record: `PART13_LATENCY_STREAMING_PLAN.md`. Converts the four blocking stages of a
+voice turn into a stream so **time-to-first-audio stops scaling with answer length**. Answer
+length stays entirely LLM-driven — this changed scheduling, not pedagogy. Every stage sits
+behind an env flag (`WINI_STREAM_TTS`, `WINI_STREAM_GEN`), so rollback is one variable.
+
+**Measured baseline (winipi5, 2026-07-20, `voice/latency_probe.py`, two turns):**
+
+| stage | turn 1 | turn 2 |
+|---|---|---|
+| perception (`pacing.before_turn`) | 1322 ms | 37 ms (memoized) |
+| brain (retrieval + generation) | 869 ms | 8661 ms |
+| TTS (whole answer, one-shot) | **8332 ms** | **11239 ms** |
+| **total before any sound** | **10527 ms** | **19941 ms** |
+
+Answers were 262–268 chars → 22.6–29.8 s of synthesized speech, none of which started playing
+until all of it existed. The plan's §1 table under-stated TTS (3.4–4.3 s) because its sample
+answers were shorter; the coupling to length is the point.
+
+- **Stage 0 — instrumentation (BUILT).** `latency_ms["perception"]` around `pacing.before_turn`
+  (RC-4: it was counted nowhere, which is why the client logged 14.7 s turns against a 7.2 s
+  `latency_ms`); a turn-scoped generation ledger in `tutor_loop` (`gen_stats_reset`/`gen_stats`
+  → `gemini_calls`, `gemini_ms`); client-side `ttfa_ms` (`Ttfa`, armed when recording ends,
+  marked by whichever audio path plays first); and `voice/latency_probe.py`, the replay harness
+  that produced the table above — it runs against a **copy** of `learner_state.json`.
+- **Stage 1 — streaming TTS + incremental playback (BUILT).** `CloudTts.synth_stream()` over
+  `streaming_synthesize` (`synth()` untouched as fallback); `voice/chunker.py` `ClauseChunker`
+  cuts a short first chunk then settles into sentence-length ones, and only ever breaks on
+  punctuation followed by whitespace so decimals ("0.2") and maths phrases ("x squared") are
+  structurally unsplittable; the server emits `{"part":"audio","seq":N,…}` NDJSON lines; the
+  client plays chunk N while N+1 arrives, on a background player so the HTTP reader never
+  blocks. `set_speaking()` spans the whole chunk sequence so the touch-emotion engine does not
+  cut in mid-answer. **Measured: first audio chunk 267–987 ms vs 2040–4269 ms for the same
+  answer one-shot.**
+- **Stage 2 — streaming generation (BUILT).** `llm_vertex.generate_reply_stream()` over
+  `generate_content_stream`, bounded per-delta *and* overall; `tutor_loop._stream_answer()`
+  releases **sentence 0** the moment it exists so TTS starts on it while the rest is still
+  being written. Only sentence 0 goes out early, and that is a proof rather than a guess:
+  `_truncate_to_spoken_budget` keeps sentences in order and rewrites only the LAST kept one
+  (and only when >1 is kept), so `kept[0]` is always `sentences[0]`. The remainder is released
+  after truncation. Only the answer call site streams — the grader/cohesion/quiz sites parse
+  whole JSON objects and must not. **Measured on a tutor-shaped prompt (5 runs): first token
+  445–546 ms, first SENTENCE 495–661 ms, full answer 2025–2304 ms** — so streaming buys back
+  ~1.5 s of the generation call, and Gemini's time-to-first-token is stable enough that it is
+  not a variance source.
+- **Also fixed (free ~1.3 s/turn):** the Part 11 Vertex context cache had **expired
+  2026-07-03** and been silently absent for 17 days, so every perception call re-sent the full
+  6,062-token static block. Recreated (same `context_sha 4585bdd31d0b686f`, so the prompt is
+  unchanged): perception on a **fresh** utterance 2843–3533 ms → **1408–1806 ms**.
+
+**Measured after Stages 0–2 (end-to-end through `/voice_turn`, mic-free driver):**
+
+| utterance | stt | perception | brain | tts 1st chunk | **first audio** |
+|---|---|---|---|---|---|
+| "explain the discriminant to me" | 1320 | 1732 | 1243 | 987 | **4085 ms** |
+| "what is a quadratic equation" | 949 | 1408 | 940 | 934 | **3303 ms** |
+| "how do I factorise x²+5x+6" | 1634 | 1806 | 845 | 906 | **4410 ms** |
+
+**Time-to-first-audio 10.5–19.9 s → 3.3–4.4 s**, and it no longer tracks answer length (the
+22.2 s-of-speech answer starts sooner than the 14.1 s one). 96/37/61 chunks, **0 ordering
+violations** across every turn measured.
+
+**Client-path verification (playback + mic stubbed, everything else the shipped code):** 5
+consecutive turns, 9/9 assertions each — streamed, answer NOT spoken twice from the final
+line's back-compatible `audio_b64`, exactly one first/last chunk (fades only at the true
+edges), `set_speaking` bracketing the WHOLE sequence as one True/False pair, `ttfa` marked on
+the first chunk, UI driven once, display cleared once. Client-observed `ttfa_ms` across those
+5 turns: **3434 / 3947 / 4007 / 7599 / 8807 ms (median ~4.0 s)**. The spread is *not*
+generation — it is STT + perception on novel utterances, i.e. exactly what Stages 3–4 target.
+
+**Audio quality (Stage 1 exit criterion, `_audio_quality.py`, 101-chunk answer):** long silence
+runs 4 vs 4 for the same text one-shot — the pauses are the sentence pauses, not chunk seams;
+max sample jump **at a chunk join 0.0897** against 0.4055 anywhere in the waveform, i.e. the
+joins are smoother than ordinary speech transitions. No clicks, no gaps, no reordering.
+
+**Accuracy guardrails (plan §5, all re-run after the change):**
+
+| gate | result |
+|---|---|
+| `perception_eval --build --gates` | safety recall **1.0** (20/20), nonsense **1.0** (9/9), `learning_false_gate` 0 |
+| `behavioral_eval --hardened --replay` | **PASS** — G1 0.8571, G2 0.8889, G3 0.0000 |
+| `perception.test_perception --integration` | **PASS** — shapes, session policy, visual/purpose routing, topic shift, gates + belt + front door |
+
+Perception prompt, schema, enums, `PERCEPTION_SIGNAL_THRESHOLD` and the deterministic safety
+lexicon are **untouched** by Part 13 — only transport changed — which is why these hold
+exactly rather than approximately.
+
+### 15.1 Brain boot time — 126 s → 14.4 s (2026-07-20)
+
+Separate from time-to-first-audio: the device was unusable for ~2 minutes after launch
+because `TutorLoop()` construction measured **126 s**. Profiled per loader (`_profile_boot`),
+the cost was not where the code reads like it is:
+
+| item | before | note |
+|---|---|---|
+| `SentenceTransformer(...)` construction | **6.7 s each** | and NOT cheaper the 2nd time — no warm cache |
+| `HopeDetector.load()` | 6315 ms | built an embedder that `tutor_loop` **discarded on the next line** |
+| `load_chunk_index()` on a cache HIT | 7272 ms | reads like a 5 ms `np.load`; the cost was resolving the lazy `gp.embedder` it never needed |
+| CloudStt / CloudTts / Vertex client | 4–9 s **each, serial** | ADC/channel setup (CLAUDE.md) |
+| `load_store` (1017 chunks, 3562 nodes) | 75 ms | not a factor |
+| `PolicyShadow.load`, `CognitiveAnalyzer` | ~5 ms | not a factor |
+
+Fixes, in order of size:
+1. `HopeDetector.load(..., embedder=)` — accept a shared embedder instead of building a
+   throwaway. `tutor_loop` passes a `_LazyEmbedder` proxy so sharing stays lazy (assigning
+   `gp.embedder` directly would have pulled the model in on the boot path anyway).
+2. `load_chunk_index(chunks, embedder_provider)` takes a **callable**, resolved only on a
+   cache miss — so a normal boot never touches MiniLM at all.
+3. With MiniLM off the boot path, a background `minilm-prewarm` thread loads it during the
+   cloud warmup (`WINI_PREWARM_MINILM=0` disables). Correctness never depends on it: the
+   first turn blocks on the property if it somehow arrives first.
+4. `Brain._load` builds TutorLoop + STT + TTS + the Gemini warm **concurrently**, and runs
+   the perception/TTS warm calls concurrently too. `llm_vertex._client` memo is now
+   lock-guarded because two of those warms race for the same client.
+
+**Measured after: READY in 14.4 s** — components built 2242 ms, warmup 9951 ms, MiniLM
+finishing in the background at 10806 ms (overlapped, not serial). Turns verified unchanged
+afterwards, including a `display=True` / `REPRESENTATION_TRANSLATION` turn, which proves
+MiniLM retrieval and figure selection still resolve correctly through the lazy proxy.
+
+*(The 126 s baseline was a cold first run — cold SD page cache; the 14.4 s is warm. The
+structural wins above are condition-independent: two whole MiniLM loads removed from the
+boot path and four serial cloud-client constructions made parallel.)*
+
+- **NOT built: Stage 3 (streaming STT + tighter endpointing)** and **Stage 4 (speculative
+  perception + parallel grader).** With Stages 0–2 in, the remaining per-turn cost is STT
+  (0.9–1.6 s) + perception (1.4–1.8 s) + the client's fixed 1200 ms VAD hangover, which is
+  what those two stages target (plan projects ~2.0 s TTFA). Stage 4's speculative perception
+  depends on Stage 3's interim transcripts; the parallel grader within Stage 4 is independent
+  but did not fire in any measured turn here (`gemini_calls` was 1 throughout), so its win is
+  unquantified on this workload.
+
+---
+
+**Open items:** local-VAD barge-in (currently half-duplex), Part 13 Stages 3–4 (Cloud STT
+streaming + speculative perception; batch STT and the 1200 ms hangover remain), and tuning the
+RMS endpoint threshold/`silence_ms` for child speech.
+
+---
+
+## 16. PART 14 — Brain architecture audit remediation — **ALL 16 DEFECTS FIXED 2026-07-23**
+
+Source: `BRAIN_ARCHITECTURE_AUDIT.md` (device-verified audit of the deployed brain against
+`learner_cognitive_state_architecture.md`). Fixed in the audit's own suggested order, each
+stage verified on `winipi5` (`192.168.29.24`) before the next was started. Contract decisions
+landed in architecture §6.1 / §6.4 / §6.6 / §6.7 in the same session (lockstep rule).
+
+### Stage 1 — B-1: `\frac{}{}` destroyed spoken fractions
+
+`sanitize_for_speech` stripped `\command` names but never braces, so the brace pair survived
+as silent glue. Measured on the exact strings the device generated:
+
+| input | before | after |
+|---|---|---|
+| `Time is $\frac{63}{x}$ hours.` | `Time is {63}{x} hours.` | `Time is 63 over x hours.` |
+| `x = $\frac{378}{9}$ = 42` | `x equals {378}{9} equals 42` | `x equals 378 over 9 equals 42` |
+
+Not a mispronunciation — "63 over x" became "63 x", a **different quantity**, spoken to a
+child as maths instruction. Both strings are now regression samples in the suite.
+
+### Stage 2 — D-1 + A-2 + A-3: the tutor can solve the problem the student brought
+
+- **D-1** — revived the one piece of `InputProcessor` the runtime still needs, as a new
+  purpose-built `detect_student_problem` rather than the existing `_contains_formula`, which
+  fires on any `+`/`-` anywhere (a hyphen in "well-known" counted as an equation). 18/18 on a
+  hand-built positive/negative set; "find the area of a circle" (teach) correctly separates
+  from "calculate the area when the radius is 7 cm" (solve).
+- **A-2** — added `SOLVE_STUDENT_PROBLEM` + rule 4b above the transfer rule.
+- **A-3** — truncation is now structure-aware and the action carries a 130-word/9-sentence
+  budget; the generation token ceiling was raised 240 → 480 so the derivation is not cut
+  before its answer exists.
+
+Measured, on the audit's own probes (`GEN_BACKEND=gemini`, `PERCEPTION_BACKEND=gemini`):
+
+| probe | before | after |
+|---|---|---|
+| train/car word problem | `TRANSFER_PROBLEM` ("do NOT solve it") | `SOLVE_STUDENT_PROBLEM`, delivers `x = 42`, 42 km/h and 48 km/h |
+| `solve x^2 - 5x + 6 = 0` | `QUIZ` | `SOLVE_STUDENT_PROBLEM`, delivers `x = 2` and `x = 3` |
+| truncation of the ~190-word solution at EXPLAIN's 65/4 | setup only, `x = 42` silently dropped | result line protected, answer survives at **every** budget tested (10/1 … 130/9) |
+
+**One non-obvious interaction, found by live testing.** With a `pending_check` armed, Gemini
+scores an incoming problem as an `answer_attempt`, so the first fix was swallowed on the
+quadratic probe (it routed to `QUIZ`). Hence the `directive` distinction in §6.1: a bare
+equation defers to the grader, an imperative aimed at the tutor does not. A directive problem
+is also treated as a **non-attempt**, so the pending diagnostic is neither graded nor lost —
+verified: the bridge check survived un-graded, no mastery moved.
+
+### Stage 3 — A-7: 593 chunks permanently blacklisted
+
+`session.served_items` is persisted and only `/api/reset-session` (a different entry point)
+cleared it. Added `LearnerState.begin_session()`, called at brain boot. Measured on the
+device: **593 → 0** served items and 0 bridges on the first restart, with mastery untouched
+(11 of 41 states carry a measured value, before and after). The hard `continue` became
+`w8_repeat_penalty` (0.25); ranking now behaves:
+
+| served | ranking |
+|---|---|
+| none | `best 0.65`, `weak 0.43` |
+| `best` | `weak 0.43`, `best 0.40` (demoted, still available) |
+| both | `best 0.40`, `weak 0.18` (resurfaces instead of an empty pool) |
+
+### Stage 4 — B-2 + B-3: no LaTeX, no contradicting visual
+
+The no-LaTeX instruction existed only in `generate_quiz_item`; it is now in the main answer
+prompt's style block. Live: both solve probes returned **zero** `$`, `\frac`, `\sqrt` or brace
+markup, versus LaTeX throughout beforehand.
+
+The tier-3 teaching visual got the absolute floor it never had. Measured against the live
+chunk index:
+
+| utterance | best crop | verdict |
+|---|---|---|
+| `solve x^2 - 5x + 6 = 0` | prayer-hall area diagram, **0.221** | below 0.30 → **no visual** (was shown) |
+| train/car problem | dice-probability table 0.020; whole pool ≤ **0.242** | below floor → **no visual** (was shown) |
+| area of a segment | 0.63 | shown |
+| what is probability | 0.46 | shown |
+
+### Stage 5 — the contract-level defects
+
+| ID | Fix | Verified |
+|---|---|---|
+| A-1 | grounding split `manifest_only` / `method_only`, recorded per turn | log shows `grounding=method_only` on solve turns, `manifest_only` on a curriculum turn |
+| A-4 | `MIN_ABS_RELEVANCE` 0.28 + abstention path + trace | `abstained=false, eligible=2` on the train/car turn (22 of 24 candidates filtered), `eligible=24` on-topic |
+| A-5 | `w4_repr_gap` now graded (fraction missing) not binary; second writer added (correct answer on a representation-bearing item) | term no longer constant across candidates |
+| A-6 | flags stamped in `flag_seen`, TTL 14 days, filtered on dashboard read too | a 2020-dated flag decays away while the re-observed one is kept |
+| A-8 | bridges ranked by relevance to the utterance, floor 0.20, max 1/turn, deterministic tie-break | train/car turn now arms **no** bridge (`bridge_ids: []`, `pending_check: null`) — was an unrelated Class-9 mean/average or probability diagnostic, and it differed between identical runs |
+| B-4 | pacing ledger keyed on `explaining_concept`, resets on topic change | step 230 + a trigonometry summary → step 1 on a quadratics turn; same concept advances 1→2; new concept resets again |
+| B-5 | one `mathtext.py` behind all three surfaces | cross-surface suite passes; merging exposed a real bug — the quiz path rendered `\geq` as `">= q"` |
+| D-3 | four §6.4 fields implemented with APIs + snapshot exposure | `cold_recall=None trend=unknown transfer_readiness=0.0 hint_pos=0` — honest "unmeasured", not fabricated numbers |
+| D-4 | `has_measured_mastery()`; band reason distinguishes the cases | `cold start (touched, mastery never measured)` vs `(unseen concept)` vs `learner state (measured)` |
+| D-8 | `last_signals` written (the docstring had always claimed it) | present on the concept state after a turn |
+
+### What is NOT done
+
+- **D-7** (doc's action list omits `WHY_IT_MATTERS` / `SOCRATIC_Q` / `QUIZ` / the Part-12
+  `TEST_*` family, and lists "faded hint"/"cold recall" behaviours with no action) is a
+  documentation-only divergence; §6.6 now names `SOLVE_STUDENT_PROBLEM` but the full
+  reconciliation of that list is still open.
+- The `transfer_readiness` field is implemented and exposed but **rule 5 still routes on the
+  perception signal**, not on the measured quantity. Switching it is a pedagogy change that
+  wants its own before/after evaluation, not a same-session edit.
+- Verification used `tutor_loop --once` and `/turn`. The pacing governor only runs on
+  `/voice_turn`, so B-4 was verified by driving `after_turn` directly against a real loop
+  rather than through a spoken turn.

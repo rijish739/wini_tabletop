@@ -721,6 +721,20 @@ Action space (aligned with architecture §6.6):
 - `REVIEW`,
 - `REPRESENTATION_TRANSLATION` (driven by `integration_links` + visual assets).
 
+> **`SOLVE_STUDENT_PROBLEM` is deliberately NOT in this list (2026-07-23).** The rule engine
+> gained it (architecture §6.6 rule 4b, build plan Part 14) so the tutor can work a problem the
+> student brought. This list is the **policy-shadow label space** — the classes the shadow
+> model was trained on — and adding a label to it means retraining the shadow and re-running
+> its eval, not editing prose. Until that happens the shadow simply cannot propose the action;
+> it is logged-only, so the runtime is unaffected. **No dataset or model artifact changed in
+> Part 14** — the exemplar dataset, splits, classifier bank, resolver, HOPE detectors and
+> policy shadow are all untouched, and every number elsewhere in this report still stands.
+>
+> Worth recording for whoever does retrain it: on the audit's train/car probe the shadow
+> preferred `EXPLAIN` (p=0.311) over the rule engine's `TRANSFER_PROBLEM` (p=0.2375) — the
+> shadow was closer to right than the rules were, which is a point in favour of eventually
+> giving it the new label rather than leaving this to rule 4b alone.
+
 ### 6.2 Recommended Neural Architecture
 
 First version: supervised action-ranker.
@@ -1359,6 +1373,18 @@ pipeline puts STT/TTS in the cloud (Google Cloud Speech-to-Text forced en-US; Cl
 dataset/metric in this report are unaffected. The only runtime-generation change is pacing
 discipline (action-aware spoken budget, deliver-don't-announce), which alters prompt/budget,
 not any trained model — see architecture §21.
+
+### Part 12 addendum (2026-07-15) — no new trained model; a grader-eval dataset only
+
+The EXPLAIN/PRACTICE/TEST mode layer (Part 12) added **no new neural model and no new
+training dataset**. TEST-mode quiz items are **generated at serve time** by Gemini, not drawn
+from a stored bank: a store audit found **zero gradeable stored answers** (0/245
+`problem_schema` instances carry `expected_answer`; 0/108 concepts have ≥5 schemas), so the
+planned `build_quiz_bank.py` derivation was designed away. The only new labeled data is the
+**grader-eval set** behind `eval/grader_eval.py` (realistic child answers per item type —
+correct/partial/wrong/misconception-matching/non-attempt), used to gate the deterministic
+`math_grade` floor (26/26; **zero non-attempts graded wrong**), not to train anything. The
+existing trained models (classifier heads, resolver, HOPE detectors) are untouched.
 
 Any future change to one document must be propagated to the others (this report, the
 architecture doc, the RAG upgrade plan, and the build plan that tracks execution status).

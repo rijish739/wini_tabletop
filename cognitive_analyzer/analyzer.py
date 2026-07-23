@@ -19,12 +19,21 @@ analyzer only flags suspicion; it never moves mastery from text alone.
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 # EMA weight for global-state updates: new = (1-EMA)*old + EMA*observed.
 # One message is weak evidence; three consistent messages move the state most
 # of the way. Matches the hint_dependency EMA convention (0.7/0.3).
 EMA = 0.3
+
+#: How long a per-concept cognitive FLAG stays "current" without being
+#: re-observed (audit A-6). Flags are transient turn signals — "the student
+#: asked for a hint", "a misconception may be in play" — not durable knowledge;
+#: mastery and misconception_states carry the durable record separately. Two
+#: weeks is long enough to survive a gap between sessions and short enough that
+#: the parent dashboard stops describing last term's confusion as today's.
+FLAG_TTL_DAYS = 14
 
 # Signals whose presence (score >= FLAG_THRESHOLD) raises a per-concept flag
 # for the Pedagogical Decision Engine. Flags are hints to act, not state.
@@ -118,12 +127,25 @@ def derive_state_deltas(
         },
         "concept_id": resolution.get("concept_id"),
         "concept_flags": flags if resolution.get("concept_id") else [],
+        # Carried so apply_deltas can persist `last_signals` on the concept state,
+        # which §6.2 has always documented and nothing ever wrote (audit D-8).
+        "signals": list(signals or []),
     }
 
 
 def apply_deltas(state, deltas: Dict[str, Any], ema: float = EMA) -> Dict[str, float]:
     """Write the deltas into a learner_state.LearnerState (EMA on globals,
-    flags + last_signals on the concept state). Returns the new global values."""
+    flags + last_signals on the concept state). Returns the new global values.
+
+    Flags are TIME-STAMPED and DECAY (audit A-6). They used to accumulate and
+    never clear, which made a transient one-turn signal permanent: the live
+    device carried `misconception_suspected` on 4 concepts, `hint_requested` on
+    6 and `transfer_ready_evidence` on 5, with no timestamps and no way to tell
+    a current condition from one moment months ago. The tutor is unaffected
+    either way — it reads the TURN-LOCAL flags, not these — but the parent
+    dashboard presents them as the child's present state, and sorts topics by
+    how many there are.
+    """
     g = state.data.setdefault("global", {})
     new_values = {}
     for field, observed in deltas["global"].items():
@@ -133,11 +155,35 @@ def apply_deltas(state, deltas: Dict[str, Any], ema: float = EMA) -> Dict[str, f
     cid = deltas.get("concept_id")
     if cid:
         cs = state.concept_states.setdefault(cid, {})
-        if deltas["concept_flags"]:
-            existing = cs.setdefault("flags", [])
-            for flag in deltas["concept_flags"]:
-                if flag not in existing:
-                    existing.append(flag)
+        now = datetime.now(timezone.utc)
+        seen = cs.setdefault("flag_seen", {})
+        existing = cs.setdefault("flags", [])
+        for flag in deltas["concept_flags"]:
+            if flag not in existing:
+                existing.append(flag)
+            seen[flag] = now.isoformat()          # refresh on every re-observation
+        # Undated flags predate this change; date them from the concept's last
+        # practice rather than from now, so an old signal starts its decay from
+        # when it was plausibly set instead of being silently renewed today.
+        for flag in existing:
+            seen.setdefault(flag, cs.get("last_practiced") or now.isoformat())
+        # prune anything not re-observed within the TTL
+        live = []
+        for flag in existing:
+            try:
+                ts = datetime.fromisoformat(seen[flag])
+                if ts.tzinfo is None:
+                    ts = ts.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                ts = now
+            if (now - ts) <= timedelta(days=FLAG_TTL_DAYS):
+                live.append(flag)
+            else:
+                seen.pop(flag, None)
+        cs["flags"] = live
+        # §6.2 documented this field and nothing ever wrote it (audit D-8).
+        if deltas.get("signals") is not None:
+            cs["last_signals"] = list(deltas["signals"])
     return new_values
 
 
@@ -174,9 +220,17 @@ class CognitiveAnalyzer:
         resolution = self.resolver.resolve(normalized, current_concept=current_concept)
         update = derive_cognitive_update(clf["scores"])
         deltas = derive_state_deltas(update, clf["signals"], resolution)
+        # §6.1's deterministic "the student brought their own instance" cue. Run
+        # on the RAW text: normalization is math-preserving, but the raw string is
+        # what the generator receives, so the router and the generator agree on
+        # exactly one string. This is the one part of InputProcessor the live
+        # pipeline still needs (audit D-1) — the signal/candidate-concept layer
+        # it also computes is Gemini's job since Part 11, and stays uncalled.
+        problem = self.processor.detect_student_problem(text)
         return {
             "raw_text": text,
             "normalized_text": normalized,
+            "problem_cue": problem,
             "signals": clf["signals"],
             "signal_scores": {k: v for k, v in clf["scores"].items() if v >= 0.05},
             "concept": resolution,

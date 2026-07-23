@@ -74,7 +74,34 @@ ROLE_PREFERENCE = {
 # can be tuned later from the append-only learning log.
 WEIGHTS = {"w1_relevance": 0.40, "w2_difficulty_fit": 0.15, "w3_role_match": 0.10,
            "w4_repr_gap": 0.12, "w5_misconception": 0.10, "w6_hint_penalty": 0.08,
-           "w7_hope_boost": 0.05}
+           "w7_hope_boost": 0.05,
+           # Already served this session: a PENALTY, not the hard exclusion this
+           # used to be (audit A-7). Dropping served chunks outright meant the best
+           # chunk for a concept could never be seen twice — fatal for rule 1b,
+           # which re-explains the SAME idea and therefore wants the SAME evidence.
+           # Sized to lose to any clearly better candidate while still winning when
+           # nothing else is close.
+           "w8_repeat_penalty": 0.25}
+#: Absolute retrieval relevance floor (audit A-4). `w1_relevance` is normalised
+#: against the best item in the pool (`score / rel_max`), so the top candidate
+#: always scores 1.0 on it — even when the entire pool is irrelevant. Combined
+#: with the hard concept-id pre-filter, a wrong concept resolution produced a
+#: confidently-ranked pack of wrong evidence with no signal anything was amiss,
+#: and there was no "retrieved nothing useful" path at all. This is the missing
+#: ABSTENTION threshold: candidates whose RAW similarity falls below it are not
+#: eligible, and if none clear it the ranker returns empty with a trace reason
+#: rather than the least-bad wrong answer.
+#: Calibrated on the device (2026-07-23) against the live chunk index: on-topic
+#: retrieval scores 0.36-0.63, while an utterance with no real match in the
+#: filtered pool tops out around 0.24. 0.28 sits just under the on-topic band.
+MIN_ABS_RELEVANCE = float(os.getenv("RETRIEVAL_MIN_RELEVANCE", "0.28"))
+#: A prerequisite bridge must be relevant to what the student actually said, not
+#: merely adjacent in the graph and low on mastery (audit A-8). Lower than the
+#: retrieval floor: a bridge is a Class 9 foundation, so it is expected to be
+#: worded more generally than the Class 10 utterance that triggered it.
+MIN_BRIDGE_RELEVANCE = float(os.getenv("BRIDGE_MIN_RELEVANCE", "0.20"))
+#: One armed diagnostic per turn is already a lot to ask of a child.
+MAX_BRIDGES_PER_TURN = 1
 HINT_DEPENDENCY_CUTOFF = 0.5
 FAR_TRANSFER_MASTERY = 0.7
 MAX_DIFFICULTY_SPREAD = 3
@@ -112,6 +139,7 @@ class Snapshot:
         self.primary = primary_cid
         self.band = band
         self.mastery = learner.mastery(primary_cid) if primary_cid else COLD_START_MASTERY
+        self.mastery_measured = bool(primary_cid) and learner.has_measured_mastery(primary_cid)
         self.hint_dependency = learner.hint_dependency(primary_cid) if primary_cid else 0.0
         reps = (concept_card or {}).get("representations") or []
         self.reps_missing = set(learner.representations_missing(primary_cid, reps)) if primary_cid else set()
@@ -129,11 +157,22 @@ class Snapshot:
 
     def summary(self) -> dict:
         lo, hi, center = self.band
-        return {"primary_concept": self.primary, "mastery": round(self.mastery, 3),
-                "zpd_band": [lo, hi, center], "hint_dependency": round(self.hint_dependency, 3),
-                "representations_missing": sorted(self.reps_missing),
-                "active_misconceptions": self.active_misconceptions,
-                "hope_rolling": self.hope}
+        out = {"primary_concept": self.primary, "mastery": round(self.mastery, 3),
+               # Whether that mastery was MEASURED or is the cold-start constant
+               # standing in for a concept nobody has assessed (audit D-4). Every
+               # consumer previously saw an indistinguishable number.
+               "mastery_measured": self.mastery_measured,
+               "zpd_band": [lo, hi, center], "hint_dependency": round(self.hint_dependency, 3),
+               "representations_missing": sorted(self.reps_missing),
+               "active_misconceptions": self.active_misconceptions,
+               "hope_rolling": self.hope}
+        # §6.4 fields implemented 2026-07-23 (audit D-3).
+        if self.primary:
+            out["cold_recall_strength"] = self.learner.cold_recall_strength(self.primary)
+            out["confidence_trend"] = self.learner.confidence_trend(self.primary)
+            out["transfer_readiness"] = self.learner.transfer_readiness(self.primary)
+            out["hint_chain_position"] = self.learner.hint_chain_position(self.primary)
+        return out
 
 
 def resolve_band(concept_hits, learner: LearnerState, level_override):
@@ -143,7 +182,16 @@ def resolve_band(concept_hits, learner: LearnerState, level_override):
         return mastery_to_band(COLD_START_MASTERY), f"cold start, mastery={COLD_START_MASTERY:.2f}"
     primary = concept_hits[0]["concept_id"]
     m = learner.mastery(primary)
-    src = "learner state" if learner.is_known(primary) else "cold start (unseen concept)"
+    # `is_known` only says the concept has a state ROW — a row is created the
+    # moment a concept is touched, long before anything measures it. 30 of the
+    # device's 40 rows had no mastery value at all, so this reported "learner
+    # state" for a band that was pure cold-start (audit D-4).
+    if learner.has_measured_mastery(primary):
+        src = "learner state (measured)"
+    elif learner.is_known(primary):
+        src = "cold start (touched, mastery never measured)"
+    else:
+        src = "cold start (unseen concept)"
     return mastery_to_band(m), f"{src}, mastery({primary})={m:.2f}"
 
 
@@ -170,14 +218,35 @@ def snapshot_rerank(ranked: List[dict], snapshot: Snapshot, need: str, top_k: in
         return [], {}
     rel_max = max(r.get("score", 0.0) for r in ranked) or 1.0
     out = []
-    for r in ranked:
-        if r["chunk_id"] in snapshot.served:      # no-repeat within a session
-            continue
+    # ABSTENTION (A-4): judge eligibility on the RAW similarity, before the
+    # relative normalisation below hides how bad the pool is. `rel_max` makes the
+    # best item score 1.0 whether it is a perfect match or noise.
+    eligible = [r for r in ranked if float(r.get("score", 0.0)) >= MIN_ABS_RELEVANCE]
+    if not eligible:
+        best = max((float(r.get("score", 0.0)) for r in ranked), default=0.0)
+        return [], {"abstained": True,
+                    "reason": f"no candidate cleared the relevance floor "
+                              f"(best {best:.3f} < {MIN_ABS_RELEVANCE:.2f}); "
+                              f"retrieved nothing useful for this turn",
+                    "best_score": round(best, 4),
+                    "min_abs_relevance": MIN_ABS_RELEVANCE,
+                    "pool_size": len(ranked)}
+    for r in eligible:
+        # served this session: demote, never exclude (A-7)
+        repeat_pen = -1.0 if r["chunk_id"] in snapshot.served else 0.0
         rel = r.get("score", 0.0) / rel_max
         fit = _difficulty_fit(r.get("difficulty"), center)
         role = r.get("pedagogical_role")
         role_match = 1.0 if (preferred and role in preferred) else 0.0
-        repr_gap = 1.0 if snapshot.reps_missing & set(r.get("representations") or []) else 0.0
+        # w4 (audit A-5): the FRACTION of this chunk's representations the learner
+        # is still missing, not a boolean. As a boolean it evaluated to 1.0 for
+        # every chunk declaring any representation — and since `representations_
+        # known` was empty on all 40 live concept states, that meant a 0.12-weighted
+        # term firing identically on nearly every candidate, contributing no
+        # ordering information at all. Graded, a chunk covering two unseen
+        # representations now outranks one covering one seen and one unseen.
+        _reps = set(r.get("representations") or [])
+        repr_gap = (len(snapshot.reps_missing & _reps) / len(_reps)) if _reps else 0.0
         linked_misc = figure_misconceptions.get(r.get("figure_id") or "", [])
         misc_pri = 1.0 if any(m in snapshot.active_misconceptions for m in linked_misc) else 0.0
         hint_pen = -1.0 if (snapshot.hint_dependency > HINT_DEPENDENCY_CUTOFF
@@ -192,7 +261,8 @@ def snapshot_rerank(ranked: List[dict], snapshot: Snapshot, need: str, top_k: in
         hope = min(1.0, hope)
         comp = {"w1_relevance": rel, "w2_difficulty_fit": fit, "w3_role_match": role_match,
                 "w4_repr_gap": repr_gap, "w5_misconception": misc_pri,
-                "w6_hint_penalty": hint_pen, "w7_hope_boost": hope}
+                "w6_hint_penalty": hint_pen, "w7_hope_boost": hope,
+                "w8_repeat_penalty": repeat_pen}
         r = dict(r)
         r["ped_score"] = round(sum(WEIGHTS[k] * v for k, v in comp.items()), 4)
         r["score_components"] = {k: round(v, 3) for k, v in comp.items()}
@@ -201,6 +271,9 @@ def snapshot_rerank(ranked: List[dict], snapshot: Snapshot, need: str, top_k: in
     out.sort(key=lambda x: x["ped_score"], reverse=True)
     top = out[:top_k]
     trace = dict(WEIGHTS)
+    trace["abstained"] = False
+    trace["eligible"] = len(eligible)
+    trace["filtered_below_floor"] = len(ranked) - len(eligible)
     if top:
         trace["top_item_components"] = top[0]["score_components"]
     return top, trace
@@ -216,11 +289,25 @@ def ev(item_id: str, item_type: str, why: str, **extra) -> dict:
 
 
 def bridge_evidence(graph: nx.DiGraph, chunks_by_id: Dict[str, dict], snapshot: Snapshot,
-                    concept_ids: List[str], force: bool) -> List[dict]:
-    """Phase 3 step 7 gate: activate bridges whose mastery is unknown/low."""
+                    concept_ids: List[str], force: bool, relevance=None) -> List[dict]:
+    """Phase 3 step 7 gate: activate bridges whose mastery is unknown/low.
+
+    `relevance`, when given, scores a bridge node against THIS turn's utterance
+    (audit A-8). The gate used to select purely on graph adjacency and mastery,
+    which made it both unstable and frequently irrelevant: two runs of the
+    identical train/car utterance armed `ratio_and_proportion` and
+    `mean_average` respectively, and one also pulled in a probability bridge —
+    none of which is a prerequisite for forming a quadratic from a
+    distance-speed-time relation, yet each was armed as a GRADED pending_check.
+    Ranking the eligible bridges by relevance makes the choice both meaningful
+    and deterministic; the mastery gate still decides *whether* to bridge at all.
+    """
     items = []
     lo, hi, center = snapshot.band
     seen = set()
+    # Collect first, then order — iterating the graph and emitting as we go is
+    # what made the choice arbitrary among equally-eligible prerequisites.
+    candidates: List[tuple] = []
     for cid in concept_ids:
         if cid not in graph:
             continue
@@ -233,6 +320,19 @@ def bridge_evidence(graph: nx.DiGraph, chunks_by_id: Dict[str, dict], snapshot: 
                 serve = True  # --need bridge bypasses only the served-this-session check
             if not serve:
                 continue
+            rel = None
+            if relevance is not None:
+                try:
+                    rel = float(relevance(g9, graph.nodes[g9]))
+                except Exception:  # noqa: BLE001 — never fail a turn on scoring
+                    rel = None
+            candidates.append((rel, g9, cid))
+    if relevance is not None:
+        scored = [c for c in candidates if c[0] is not None
+                  and c[0] >= MIN_BRIDGE_RELEVANCE]
+        # Deterministic: relevance desc, then id — identical input, identical bridge.
+        candidates = sorted(scored, key=lambda c: (-c[0], c[1]))[:MAX_BRIDGES_PER_TURN]
+    for rel, g9, cid in candidates:
             a = graph.nodes[g9]
             m = snapshot.learner.mastery(g9)
             recap_chunk = next((c for cidk, c in chunks_by_id.items()

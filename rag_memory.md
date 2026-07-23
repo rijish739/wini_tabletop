@@ -750,3 +750,263 @@ Gotchas:
 - Lockstep: build plan §11.2 (new), runbook §0 rewrite + §5 legacy note + §13 + new §15;
   wini_client/README.md is the client contract doc. Architecture/report untouched (transport +
   deployment only; T9 display contract unchanged in shape).
+
+## 2026-07-15 — Part 12 session modes: Stages 3, 4, 6 (`session_modes.py` + `tutor_loop.py` + `progress_report.py` + `parent_ui/`)
+
+VanLehn outer loop (EXPLAIN/PRACTICE/TEST). Design of record `PART12_PEDAGOGY_MODES_PLAN.md`;
+Stages 1–2 landed 2026-07-14. This session: **Stage 3 TEST + Stage 4 T9 cards + Stage 6
+reporting**, all on-brain verified on winipi5 (Raspberry Pi 5, `GEN_BACKEND=gemini`).
+
+Built + verified:
+- **Stage 3 TEST.** Store audit first: **ZERO gradeable stored answers** (0/245 problem_schema
+  instances carry `expected_answer`; 0/108 concepts have ≥5 schemas, median 2). So the planned
+  `build_quiz_bank.py` batch is **impossible → designed away**; items are **generated at serve
+  time** (`generate_quiz_item`, one structured Gemini call, biased to a single numeric/short
+  answer so the deterministic `math_grade` floor scores them). Planning stays pure in
+  `session_modes` (`build_quiz_set`/`advance_test`/`score_quiz`, N=5); `tutor_loop._drive_test`
+  owns generation + state machine + 0.8 gate + Bloom corrective. Grader eval 26/26, **0
+  non-attempts graded wrong**. Live 5/5 → gate pass, `test_history` written.
+- **Stage 4 T9 cards + voice-plain generation.** `_mode_display` → `question_card`/`score_card`
+  channel items; `ui_cards.py` renders 480×320 (per-item marks are SHAPES, cv2 has no tick
+  glyph); `display_sinks.render_item_frame` routes card kinds, unknown kind ignored. Generator
+  forced to voice-plain, pre-evaluated answers + `_plainify_math` belt. Live: clean spoken
+  questions ("...12x squared y and 18xy squared..."), cards each turn, 1.3–4.5 s/turn.
+- **Stage 6 reporting.** `progress_report.py` + `parent_ui/` gained a Quiz-results panel + a
+  per-topic gate badge (`test_history`/`mastery_gate`). Verified in-browser (1 passed / 3 taken).
+
+Gotchas:
+- **G28 (concept drift restarts a test):** during a TEST the student's short answers ("6xy",
+  "48") re-classify to *other* concepts turn-to-turn; honouring the drift rebuilt the quiz set
+  every item (never reaching the gate). Fix: `_drive_test` **concept-LOCKS** to `ts.concept_id`
+  while `phase != done`. Grading already used each item's own concept, so mastery stayed safe.
+  Consequence: R4 cross-concept spaced-review items conflict with the lock → deferred.
+- **G29 (LaTeX is unspeakable/unrenderable):** the generator emitted `$12x^2y$`; the cv2 card
+  and the TTS both render/read verbatim (KaTeX exists only in the web UI). Fix at the source
+  (plain-text instruction) + a `_plainify_math` belt — NOT a panel LaTeX renderer.
+- **G30 (Stage 5 is a real fork, not a drop-in):** `build_perception` has an exact-cover drift
+  guard — `SIGNAL_DEFS` must equal `label_space.json`. Adding `practice_request`/`test_request`
+  as **signals** would move the trained label space 38→40 (+ head eval baselines); as **intents**
+  it dodges that guard but reroutes intent classification. Either way validation is BILLED.
+  Deferred to an explicit owner decision — deterministic cues already cover mode requests.
+- Lockstep: build plan §14 (new), plan §4.4 + §5.6 build notes + staging table, this entry.
+  Architecture doc: new third evidence API + mode layer + mastery-gate state (§6.4/§6.6/§12/§13).
+
+## Part 13 — voice latency streaming (2026-07-20, Stages 0–2 built)
+
+Cut time-to-first-audio **10.5–19.9 s → 3.3–4.4 s** on winipi5 by streaming TTS and
+generation; answer length stays LLM-driven and TTFA no longer tracks it. Measured tables in
+build plan §15. Gotchas that cost real time here — do not rediscover:
+
+- **G31 (urllib3 `chunk_size=None` means "read to EOF"):** `r.iter_lines(chunk_size=None)`
+  buffers the ENTIRE response and hands every line over at once. The server was streaming
+  correctly (verified with `curl -N`, lines arriving 0.5–5 s apart) while the client saw all
+  of them land together at 14.1 s — streaming looked completely broken and was not. Use a
+  small int (512). Diagnose this class of bug by isolating with `curl -N` BEFORE touching the
+  server.
+- **G32 (never open a Cloud TTS stream before you have text):** the first cut opened
+  `streaming_synthesize` at the top of `text_turn` to "pre-warm" it, so the input side sat
+  idle through STT + perception + generation. Cloud TTS drops an idle streaming input: the
+  worker died, `feed()` pushed text nobody was reading, and the turn silently fell back to
+  one-shot synthesis (`chunks: 0`). Intermittent — it only bit when generation was slow.
+  Block on the first sentence, THEN open the stream.
+- **G33 (streaming TTS wants `AudioEncoding.PCM`, not `LINEAR16`):** LINEAR16 returns a
+  44-byte WAV header that a raw int16 player emits as a click. Streaming PCM is headerless.
+  Chirp3-HD supports streaming; older voices do not.
+- **G34 (the Vertex context cache expires silently and nobody notices):** the Part 11 cache
+  died **2026-07-03** (24 h TTL) and had been absent for 17 days. The documented fallback —
+  send the full 6,062-token static block — works, so nothing broke; perception just cost
+  ~1.3 s/turn more (2843–3533 ms vs 1408–1806 ms fresh). `vertex_cache --status` reports
+  `active: false`. **Treat cache recreation as recurring ops, not a one-time setup step.**
+- **G35 (streamed answer text must not be re-fed):** the server feeds the answer to the speech
+  pipeline after `turn()` for scripted/canned replies — guarded on `was_fed()`, because
+  re-feeding an answer that streamed generation already delivered speaks it TWICE.
+- **G36 (only sentence 0 is safe to speak early):** `_truncate_to_spoken_budget` keeps
+  sentences in order and rewrites only the LAST kept one (and only when >1 kept), so
+  `kept[0] == sentences[0]` always. Anything past sentence 0 can still be rewritten by the
+  budget, and audio already spoken cannot be recut. This is a proof, not a heuristic — do not
+  "optimize" it into releasing more.
+- **G37 (per-chunk fades make chunked TTS sound robotic):** `_prep_audio` faded both edges of
+  every buffer; applied per chunk that is an audible dip at every seam. Fade in on the first
+  chunk, out on the last only. Verified objectively: max sample jump **at a join 0.0897** vs
+  0.4055 anywhere in the waveform, and the same long-silence-run count as one-shot synthesis.
+- **G38 (dev-loop, not product):** Git Bash mangles absolute POSIX paths in argv
+  (`/home/x` → `E:/Git/home/x`) — set `MSYS_NO_PATHCONV=1` for any ssh/paramiko helper, or
+  every remote path silently points somewhere else. Run the server with `python -u` or its
+  stdout block-buffers into the log and failures stay invisible for minutes.
+
+- **G39 (boot cost was not where the code reads like it is):** `TutorLoop()` measured 126 s.
+  Profiling per loader found (a) `HopeDetector.load()` building a `SentenceTransformer` that
+  `tutor_loop` **discarded on the very next line** — 6.3 s of pure waste; (b)
+  `load_chunk_index()` costing 7.3 s on a cache HIT, because passing `gp.embedder` as an
+  argument RESOLVED the lazy MiniLM property the cache-hit path never needed — it reads like
+  a 5 ms `np.load`. Each `SentenceTransformer(...)` is ~6.7 s on the Pi and is **not** cheaper
+  the second time, so every accidental construction is a full 6.7 s. Fix: pass a *callable*
+  provider, not an embedder; share via a `_LazyEmbedder` proxy; prewarm on a background
+  thread. **Lesson: an eagerly-evaluated argument defeats a lazy property — profile loaders
+  individually, never reason about boot cost from reading the code.**
+- **G40 (serial cloud-client construction dominated the rest of boot):** CloudStt, CloudTts
+  and the Vertex client are each 4–9 s of ADC/channel setup and were built one after another.
+  Building them concurrently (plus concurrent warm calls) took boot **126 s → 14.4 s**.
+  `llm_vertex._client`'s memo needed a lock once two warms could race for it.
+
+- Lockstep: build plan §15 (new), `PART13_LATENCY_STREAMING_PLAN.md` (design of record),
+  `wini_server.py` + `wini_client/README.md` `/voice_turn` NDJSON contract (turn_meta + audio
+  parts, `audio_streamed`, either-order note), this entry. Architecture doc: the turn is now a
+  stream, not a request/response — §19 runtime loop.
+
+### 2026-07-20 — device UX: warm-gated UI start, on-screen close, one-path launcher
+
+Report was "the desktop icon and `bash run_wini_package.sh` are not the same". They already
+ran the *same script*; the difference was purely timing — the UI came up ~1 s in while the
+brain took ~2 min (now ~15 s), so the picker was tappable and dead. Three changes:
+
+- **G41 (a visible-but-dead UI reads as a broken launcher):** the launcher now starts `wini_ui`
+  only after `/health` reports `ready` (poll, 180 s cap), and `screens/splash.c` lost its
+  1500 ms auto-advance — it holds until `{"cmd":"ready"}` arrives. Because the UI is started
+  *after* the brain is warm, a plain `send()` would go to nobody: `ModeChannel.set_sticky()`
+  re-sends the signal to every UI that connects. **Lesson: when you reorder startup, re-check
+  every one-shot message that assumed the peer was already listening.**
+- **G42 (the lock fd leaked into the whole process tree):** `flock` on `logs/.launch.lock`
+  serializes the impatient second tap, but every long-lived child inherits fd 9 and keeps
+  holding the lock after the launcher exits — so the *next* tap silently no-ops forever. The
+  leak surfaced through `wini_ui` → close button → `stop_wini_package.sh` → `touch_service.py`,
+  i.e. a grandchild of a grandchild. Fix: spawn each with `9>&-`. **Lesson: an advisory lock is
+  only stale-proof if no descendant holds the descriptor.**
+- **Close button** (`wini_ui/widgets/close_button.c`): floating pill bottom-LEFT (pause is
+  bottom-right — never adjacent to a mis-tap), confirm dialog, then `$WINI_STOP_CMD` detached
+  via `setsid`. A child's stray tap must not end the session, hence the confirm.
+
+Verified on winipi5: UI absent at t=4 s and up at t=30 s; splash released to the picker;
+second tap during warmup ignored; tap while running "already running"; Close → brain/client/UI
+all gone + touch service resumed + lock released.
+
+- Lockstep: `WINI_UI_STATUS.md` (§ one-press start + `ready` row in the command table + close
+  button), `wini_ui/README.md` IPC contract, `Wini.desktop` (canonical copy now in-repo), this
+  entry. No schema/model/dataset change — the 4-doc set is untouched.
+
+### 2026-07-20 — T9 tier-3 teaching visual: EXPLAIN turns show a crop by default
+
+Report from studying with the device: "there is just text shown while explaining — a figure
+or formula on screen would teach much better." Root cause was NOT the store and NOT the
+client: the panel's figure card worked, but the brain almost never selected a visual.
+
+- **Measured gap:** graph `illustrated_by`/`has_formula` edges cover **7/108 concepts —
+  0/13 trigonometry** — so the representation-gap show-case could never fire for trig; the
+  incidental path was gated to two rare visual actions. Meanwhile 244 `figure_caption`
+  chunks carry `image_path` + `concept_ids` for every chapter (trig 9/13 concepts), and
+  the crops themselves are on the device (jemh108: 127 files, jemh109: 66).
+- **Fix (`tutor_loop.py`):** `visuals_by_concept` index built in `__init__` from the
+  caption chunks; `_build_display` gained tier 3 — on a teaching turn (`mode != "TEST"`
+  and `mode_item is None`), show the top-ranked image-bearing chunk from the turn's own
+  retrieval, else the primary concept's first stored visual. Tiers 1/2 unchanged and still
+  win; TEST turns still never carry a figure; the existing `figure_on_screen` prompt cue
+  makes generation teach THROUGH the crop.
+- **Verified on winipi5:** `--once "explain trigonometric ratios to me"` picked
+  `fig::jemh108::fig_8_8` (tan A = 4/3 triangle, on-topic) and a mic-free
+  ModeChannelSink replay + scrot showed the crop + caption rendered under the explain
+  card on the DSI panel. (Driver artifact, not a bug: feeding raw `turn()` JSON to the
+  sink mangles the header — `wini_server.py:331` flattens `concept` to the id string for
+  real clients.)
+- **Lesson:** the pedagogy gates assumed graph edges that were never built for most
+  chapters — a gate is only as good as the data it reads. Gate coverage (edges per
+  concept) should have been measured when T9 shipped.
+- **Open:** 644 formula crops are concept-linked only for jemh102 — chapter-wide
+  `has_formula` linking would let identity-heavy turns show the formula image itself.
+- Lockstep: architecture §9 (T9 display contract, 3 tiers), build plan v5.1, this entry.
+  No dataset/model/schema change — the report doc is untouched.
+
+### 2026-07-20 — chapter-wide concept→formula links: formula crops reach T9 (build plan v5.2)
+
+Closes the v5.1 open item: 644 formula crops existed but the vision pass emitted
+`likely_concept_ids` only for jemh102, so all 266 graph `has_formula` edges hang off 7
+jemh102 concepts — no other chapter could ever show a formula image.
+
+- **`link_formulas.py` (new)** derives concept links for every formula node
+  deterministically (no LLM, no embeddings): 0.6·page-inheritance (concept_scores mass of
+  the chunk rows on the formula's page) + 0.4·name/alias token match + 0.1 definitional
+  bonus − 0.25 worked-example penalty (given/step/derived/… slugs must not outrank the
+  definitional form); score ≥ 0.35, ≤3 concepts/formula. Writes the NEW derived artifact
+  **`rag_store/formula_links.json`** (2135 links, 1458 image-bearing); graph.json /
+  chunks.jsonl / concepts.json untouched (read-only rule).
+- **Wiring:** `TutorLoop.__init__` merges the links + the original graph `has_formula`
+  edges into `visuals_by_concept` as chunk-shaped pseudo-rows (`kind:"formula"`,
+  `representations:["symbolic"]`, resolved via `formula_rows_by_id` in `_build_display`).
+  Captions stay first per pool; formula rows follow by link score.
+- **Coverage measured: 7/108 → 95/108 concepts with ≥1 formula visual** (every chapter;
+  jemh108 trig 8/8; jemh1a2 only 2/7 — the appendix has just 4 formula crops). All
+  referenced crop files exist on disk.
+- **Tier-3 ordering fix found live:** on the cold "explain the pythagorean trigonometric
+  identities" turn, concept resolution ABSTAINED → retrieval spanned ALL chunks → an
+  off-concept caption (fig 8.16) beat the concept's own formula crop. `_build_display`
+  tier 3 now prefers a crop TAGGED with the primary concept (ranked row, else the
+  concept's stored pool) over merely semantically-similar crops; concept unknown keeps
+  the old order. **Verified:** mid-session explain turn on
+  `jemh108__pythagorean_trig_identities` displays
+  `formula_jemh108_pythagorean_trigonometric_identity.png` (cos² A + sin² A = 1).
+- **Latent race fixed in passing (`perception/gemini_perception.py`):** the MiniLM
+  prewarm thread and the first turn raced into the unlocked lazy `embedder` property;
+  two concurrent SentenceTransformer constructions corrupt each other via accelerate's
+  global init_empty_weights state → BOTH fail with "Cannot copy out of meta tensor"
+  (seen deterministically on the slow laptop; standalone load fine). Double-checked
+  lock = single-flight construction. **Lesson: a lazy property shared with a prewarm
+  thread needs a lock — the failure mode looks like a broken torch install, not a race.**
+- **Smoke: ALL 25 CHECKS PASSED** (twice: after wiring, and after the tier-3 ordering
+  fix; T9c picks the same caption crop as before — captions-first preserved).
+- Rebuild: `python link_formulas.py` after any graph/chunks/concepts rebuild (also in
+  CLAUDE.md quick commands).
+- Lockstep: architecture §9 (visuals_by_concept sources + tier-3 order), RAG plan §2.1
+  addendum, build plan Part 7 v5.2, this entry. No dataset/model change — the report
+  doc is untouched.
+
+
+---
+
+## 2026-07-23 — Brain architecture audit remediation (all 16 defects)
+
+`BRAIN_ARCHITECTURE_AUDIT.md` audited the deployed brain against
+`learner_cognitive_state_architecture.md` and found 16 defects. All fixed and verified on
+`winipi5` in the audit's suggested order. Execution detail + measured before/after:
+**build plan Part 14**. Contract decisions: architecture §6.1, §6.4, §6.6, §6.7. No dataset
+or model artifact changed — report §6.1 carries the note on why the new action is *not* in
+the policy-shadow label space.
+
+### Gotchas worth not rediscovering
+
+- **A pending_check makes perception score an incoming problem as `answer_attempt`.** The
+  first cut of rule 4b was gated on `not answer_try` and was therefore swallowed whenever a
+  diagnostic was armed — the quadratic probe still routed to `QUIZ` and looked like the fix
+  had not deployed. The discriminator is whether the utterance is a *directive* ("solve …",
+  "find …"): a command aimed at the tutor cannot be an answer to the tutor's own question,
+  while a bare equation ("x = 5") usually is. Do not blanket-suppress `answer_try`.
+- **A directive problem must also be a NON-ATTEMPT for grading**, or setting our question
+  aside to ask their own gets scored as a wrong answer and moves mastery on evidence the
+  child never gave.
+- **Two prompt clauses fought the new action and won.** Telling the model to "state the final
+  answer" while also telling it to "ask them to state the result" (the generic pacing
+  micro-check) produced *"x = 378/9. Calculate the value of x. What is the speed?"* — the
+  answer withheld, through the pacing block rather than the action. Both the tone string and
+  the micro-check clause needed the SOLVE case carved out.
+- **`_truncate_to_spoken_budget` has a streaming invariant**: `_stream_answer` speaks
+  sentence 0 before the rest exists, so anything that evicts sentences must never touch index
+  0. Audio already spoken cannot be un-spoken.
+- **`item_history` is keyed BY ITEM** (`{item_id: {last_seen, outcomes[]}}`), not a flat
+  chronological log — anything wanting a recent-outcomes sequence has to sort on `last_seen`
+  and flatten.
+- **The pacing governor runs only on `/voice_turn`**, never on `/turn` or
+  `tutor_loop --once`. A ledger fix cannot be verified through the text paths; drive
+  `after_turn` directly against a real loop instead.
+- **`pkill`/`disown` in a compound `pi.py run` returns 127** even when the kill worked. Use
+  `stop_wini_package.sh`, or check `pgrep` afterwards rather than trusting the exit code.
+- **Thresholds were measured, not guessed** (0.28 retrieval / 0.30 visual / 0.20 bridge):
+  on-topic retrieval on this store scores 0.36–0.63 while a pool with no real match tops out
+  near 0.24, and the two figures the audit caught scored 0.221 and 0.020. Re-measure these if
+  the chunk index or the embedder changes.
+- **Merging the three math-to-text implementations surfaced a live bug**, which is the
+  argument for having done it: the quiz path rendered `\geq` as `">= q"` because `\ge` was
+  replaced before `\geq`. Longer macros first, always.
+
+### Deployment note
+
+`tutor_loop.py` on the device was BEHIND the laptop (missing the 2026-07-20 formula-links
+block); pushing the laptop copy carries that block, which is inert without
+`rag_store/formula_links.json` — still not deployed to `winipi5`.

@@ -26,6 +26,12 @@ ACTION_BUDGETS: dict[str, dict[str, Any]] = {
     "TRANSFER_PROBLEM": {"max_words": 45, "max_sentences": 3, "micro_check_type": "answer"},
     "REPRESENTATION_TRANSLATION": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
     "WHY_IT_MATTERS": {"max_words": 60, "max_sentences": 4, "micro_check_type": "yes_no"},
+    # The student's OWN problem, worked through to its answer (audit A-2/A-3). A
+    # multi-step derivation cannot fit EXPLAIN's 65/4 — the train/car solution ran
+    # ~190 words, and capping it at 4 sentences delivered the setup and silently
+    # dropped "x = 42". This is the derivation-sized room, not a global raise:
+    # every other action's budget is untouched.
+    "SOLVE_STUDENT_PROBLEM": {"max_words": 130, "max_sentences": 9, "micro_check_type": "yes_no"},
     "SOCRATIC_Q": {"max_words": 30, "max_sentences": 2, "micro_check_type": "question"},
     "QUIZ": {"max_words": 30, "max_sentences": 2, "micro_check_type": "answer"},
     # Part 12 (§5.5) — PRACTICE/TEST actions. Checking actions stay tight by design;
@@ -160,6 +166,19 @@ class PacingController:
             budget = self.budget_after_action(action, decision, loop)
 
         answer_text = answer or decision.direct_answer or ""
+        # TOPIC CHANGE RESETS THE EXPLANATION LEDGER (audit B-4). `explanation_step`
+        # only ever incremented and `last_explanation_summary` only ever
+        # overwrote, so both quadratics probes in the audit reported step 230 and
+        # a trigonometry summary from a session the child had long left. Nothing
+        # reads these fields to make a decision — but they are emitted in every
+        # turn's diagnostic JSON and on /health, where they send the next person
+        # debugging a live session chasing the wrong topic.
+        _concept = ((loop_result or {}).get("concept") or {}).get("concept_id")
+        if _concept and _concept != ledger.data.get("explaining_concept"):
+            ledger.data["explaining_concept"] = _concept
+            ledger.data["explanation_step"] = 0
+            ledger.data["last_explanation_summary"] = ""
+            ledger.clear_micro_check()
         ledger.data["mode"] = _mode_for_action(action, triage.primary_intent)
         ledger.data["expected_response_type"] = budget.expected_response_type
         ledger.data["max_words"] = budget.max_words

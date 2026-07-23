@@ -32,6 +32,13 @@ from typing import Any, Dict, Optional
 
 COLD_START_MASTERY = 0.30  # unseen concept -> treat as near-beginner
 
+#: Minimum gap before an outcome counts as COLD recall rather than immediate
+#: recall (audit D-3). Answering right straight after being taught measures
+#: attention; answering right a day later measures retention.
+COLD_RECALL_MIN_GAP_DAYS = 1.0
+#: How many recent graded outcomes the confidence trend looks back over.
+CONFIDENCE_TREND_WINDOW = 6
+
 # ---------------------------------------------------------------------------
 # Struggle definition (hard thresholds)
 # ---------------------------------------------------------------------------
@@ -100,6 +107,120 @@ class LearnerState:
     def is_known(self, concept_id: str) -> bool:
         return concept_id in self.concept_states
 
+    def has_measured_mastery(self, concept_id: str) -> bool:
+        """Has this concept's mastery ever been MEASURED, or is `mastery()` just
+        handing back COLD_START_MASTERY?
+
+        `mastery()` silently substitutes the cold-start constant for an absent
+        value, so every caller — the ZPD band above all — reads a real number and
+        cannot tell an unmeasured concept from a genuinely mid-mastery one. On the
+        live device 30 of 40 touched concepts had no `mastery` value at all, i.e.
+        the band was cold-start for 75% of them while the ranking layer treated it
+        as evidence (audit D-4). This is the distinction that was missing; the
+        fallback behaviour of `mastery()` is deliberately unchanged.
+        """
+        return "mastery" in (self.concept_states.get(concept_id) or {})
+
+    # ------------------------------------------------------------------
+    # §6.4 per-concept fields that the architecture specified and nothing
+    # implemented (audit D-3). Each is written from EVIDENCE only — never
+    # inferred from the text of an utterance (§10/§13 rule 8).
+    # ------------------------------------------------------------------
+    def cold_recall_strength(self, concept_id: str) -> Optional[float]:
+        """Retention after a gap: how well the learner did on the first item of a
+        session on a concept last practised some days earlier. None = never
+        measured, which callers must treat as "unknown", not as zero."""
+        v = (self.concept_states.get(concept_id) or {}).get("cold_recall_strength")
+        try:
+            return None if v is None else max(0.0, min(1.0, float(v)))
+        except (TypeError, ValueError):
+            return None
+
+    def record_cold_recall(self, concept_id: str, correct: bool,
+                           gap_days: float, ema: float = 0.4) -> Optional[float]:
+        """Fold one cold-recall observation in. Only counts when the gap since
+        `last_practiced` clears COLD_RECALL_MIN_GAP_DAYS — answering correctly ten
+        seconds after being told the answer says nothing about retention."""
+        if gap_days < COLD_RECALL_MIN_GAP_DAYS:
+            return self.cold_recall_strength(concept_id)
+        cs = self.concept_states.setdefault(concept_id, {})
+        old = self.cold_recall_strength(concept_id)
+        obs = 1.0 if correct else 0.0
+        new = obs if old is None else (1.0 - ema) * old + ema * obs
+        cs["cold_recall_strength"] = round(new, 4)
+        cs["cold_recall_last"] = datetime.now(timezone.utc).isoformat()
+        return cs["cold_recall_strength"]
+
+    def confidence_trend(self, concept_id: str) -> str:
+        """"rising" / "falling" / "flat" / "unknown" over the recent outcome
+        history for this concept — the direction, which a single mastery number
+        cannot express (a child at 0.5 on the way up needs the opposite of a
+        child at 0.5 on the way down)."""
+        # item_history is keyed BY ITEM ({item_id: {last_seen, outcomes[]}}), not a
+        # flat log, so recover a chronological sequence by ordering items on
+        # last_seen and taking each one's outcomes in the order they were appended.
+        hist = (self.concept_states.get(concept_id) or {}).get("item_history") or {}
+        seq: list = []
+        for _iid, rec in sorted(hist.items(), key=lambda kv: (kv[1] or {}).get("last_seen") or ""):
+            seq.extend((rec or {}).get("outcomes") or [])
+        vals = [1.0 if o == "correct" else 0.5 if o == "partial" else 0.0
+                for o in seq[-CONFIDENCE_TREND_WINDOW:]]
+        if len(vals) < 3:
+            return "unknown"
+        half = len(vals) // 2
+        first, second = vals[:half], vals[len(vals) - half:]
+        delta = (sum(second) / len(second)) - (sum(first) / len(first))
+        return "rising" if delta > 0.15 else "falling" if delta < -0.15 else "flat"
+
+    def transfer_readiness(self, concept_id: str) -> float:
+        """0-1: how ready this concept is to be carried to a NEW situation.
+
+        Mastery is necessary but not sufficient — a learner who only ever
+        succeeds WITH hints is not transfer-ready, and one who cannot recall the
+        idea cold certainly is not. Combines the three accordingly, so §6.6's
+        transfer rule can consult a measured quantity instead of a one-turn
+        perception signal (which is what routed a student's own word problem to
+        TRANSFER_PROBLEM in the first place, audit A-2).
+        """
+        m = self.mastery(concept_id)
+        if not self.has_measured_mastery(concept_id):
+            return 0.0
+        cold = self.cold_recall_strength(concept_id)
+        hint_free = 1.0 - self.hint_dependency(concept_id)
+        score = 0.6 * m + 0.4 * hint_free
+        if cold is not None:
+            score = 0.7 * score + 0.3 * cold
+        return round(max(0.0, min(1.0, score)), 4)
+
+    def _days_since_practice(self, concept_id: str) -> Optional[float]:
+        """Days since this concept was last practised; None if never."""
+        lp = (self.concept_states.get(concept_id) or {}).get("last_practiced")
+        if not lp:
+            return None
+        try:
+            ts = datetime.fromisoformat(lp)
+            if ts.tzinfo is None:
+                ts = ts.replace(tzinfo=timezone.utc)
+        except (TypeError, ValueError):
+            return None
+        return (datetime.now(timezone.utc) - ts).total_seconds() / 86400.0
+
+    def hint_chain_position(self, concept_id: str, problem_id: Optional[str] = None) -> int:
+        """How far INTO the hint chain the learner currently is (0 = untouched).
+
+        §6.4 lists "hint dependency AND hint-chain position" as separate fields;
+        only the first existed. The position is what tells the tutor whether to
+        fade the next hint or switch action — `hints_used_current` already tracks
+        it per problem, this exposes it as the documented field.
+        """
+        cs = self.concept_states.get(concept_id) or {}
+        if problem_id is not None and cs.get("current_problem_id") != problem_id:
+            return 0
+        try:
+            return max(0, int(cs.get("hints_used_current", 0)))
+        except (TypeError, ValueError):
+            return 0
+
     def misconceptions(self, concept_id: str) -> list:
         return (self.concept_states.get(concept_id) or {}).get("misconceptions", [])
 
@@ -158,6 +279,28 @@ class LearnerState:
         for i in item_ids:
             if i not in self.served_items:
                 self.served_items.append(i)
+
+    def begin_session(self) -> dict:
+        """Clear the SESSION-scoped no-repeat sets. Call once per brain start.
+
+        §6.4 scopes `served_items` to "items already served **this session**", but
+        it lives in the persisted learner state and only `/api/reset-session` (a
+        different entry point) ever cleared it — so on the device it had grown to
+        593 permanently blacklisted chunks, monotonically starving retrieval: the
+        best chunk for a concept was excluded from every turn after the first,
+        forever, and rule 1b ("re-explain the same idea more simply") was denied
+        the very evidence that explains it (audit A-7/D-5).
+
+        Mastery, misconceptions, flags and history are per-LEARNER and are NOT
+        touched here — only the two per-session no-repeat sets.
+        """
+        session = self.data.setdefault("session", {})
+        cleared = {"served_items": len(session.get("served_items") or []),
+                   "bridges_served": len(session.get("bridges_served") or [])}
+        session["served_items"] = []
+        session["bridges_served"] = []
+        session["session_started_at"] = datetime.now(timezone.utc).isoformat()
+        return cleared
 
     def update_mastery(self, concept_id: str, new_mastery: float) -> None:
         cs = self.concept_states.setdefault(concept_id, {})
@@ -341,8 +484,14 @@ class LearnerState:
             discount = max(0.25, 1.0 - ITEM_HINT_DISCOUNT * min(3, int(hints_used)))
             delta *= discount
         before = self.mastery(concept_id)
+        # COLD RECALL (§6.4, audit D-3): measured BEFORE update_mastery rewrites
+        # last_practiced — the gap since the previous session is exactly what
+        # makes this outcome evidence about retention rather than about attention.
+        cold_gap = self._days_since_practice(concept_id)
         mastery = max(0.0, min(1.0, before + delta))
         self.update_mastery(concept_id, mastery)
+        if cold_gap is not None:
+            self.record_cold_recall(concept_id, outcome == "correct", cold_gap)
 
         cs = self.concept_states.setdefault(concept_id, {})
         hist = cs.setdefault("item_history", {})

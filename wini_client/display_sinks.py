@@ -17,8 +17,9 @@ Sinks:
                     no keepalive, no pre-flip (the driver owns orientation).
     ModeChannelSink— Pi DSI panel via the LVGL touch UI (wini_ui): serializes the
                     turn into {"cmd": ...} lines on the mode channel instead of
-                    rendering a raster frame. No figure crops (the UI vocabulary is
-                    cards + status, not images). Part 12 §5.6 / mode_channel.py.
+                    rendering a raster frame. Figure crops are resolved against
+                    the store, resized, written under /tmp and referenced by the
+                    {"cmd":"figure"} command. Part 12 §5.6 / mode_channel.py.
 """
 
 from __future__ import annotations
@@ -263,16 +264,28 @@ _LATEX_MACROS = {
 def _delatex(s: str) -> str:
     """Best-effort strip of the inline LaTeX the generator sometimes emits
     ($...$, \\pi, \\frac{a}{b}, ^{...}) so the display card reads as plain maths.
-    The spoken path has its own sanitizer; this is just for the panel."""
-    for d in ("$", r"\(", r"\)", r"\[", r"\]"):
-        s = s.replace(d, "")
-    for k, v in _LATEX_MACROS.items():
-        s = s.replace(k, v)
-    s = _re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"\1/\2", s)
-    s = _re.sub(r"([\^_])\{([^{}]*)\}", r"\1\2", s)       # x^{2} -> x^2
-    s = s.replace("{", "").replace("}", "")
-    s = _re.sub(r"\\([a-zA-Z]+)", r"\1", s)                # unknown macro: keep the word
-    return s.replace("\\", "")
+    The spoken path renders the same input differently (words, not symbols) —
+    that difference is intended; what was NOT intended is the two parsing it
+    differently, which is why the primitives now live in one module (audit B-5).
+
+    Falls back to the local implementation when `mathtext` is not importable:
+    this module also runs from the thin client, where the repo root is not
+    guaranteed to be on sys.path, and a display card must never take the turn
+    down with it.
+    """
+    try:
+        from mathtext import to_panel
+        return to_panel(s)
+    except Exception:  # noqa: BLE001 — see docstring
+        for d in ("$", r"\(", r"\)", r"\[", r"\]"):
+            s = s.replace(d, "")
+        for k, v in _LATEX_MACROS.items():
+            s = s.replace(k, v)
+        s = _re.sub(r"\\frac\{([^{}]*)\}\{([^{}]*)\}", r"\1/\2", s)
+        s = _re.sub(r"([\^_])\{([^{}]*)\}", r"\1\2", s)   # x^{2} -> x^2
+        s = s.replace("{", "").replace("}", "")
+        s = _re.sub(r"\\([a-zA-Z]+)", r"\1", s)           # unknown macro: keep the word
+        return s.replace("\\", "")
 
 
 def _pretty_concept(cid) -> str:
@@ -314,15 +327,21 @@ class ModeChannelSink:
     which the client hands the FULL turn dict — screen/stage/progress/feedback come
     from `mode`/`test`/`writeback`, which aren't in the display item.
 
-    No figure crops: the LVGL vocabulary is cards + status, not images, so a
-    figure-only turn simply leaves the current screen up (never a blank panel)."""
+    Figure crops (T9 items carrying `image_path`): the UI and the client share a
+    filesystem, so the sink resolves the crop against the store, scales it to fit
+    the card, writes a PNG under /tmp and sends {"cmd":"figure","path":...} — the
+    UI's figure_card loads it from disk. Turns without a figure send
+    {"cmd":"figure","off":1} so a previous turn's picture never lingers."""
 
     SCREEN = {"EXPLAIN": "explain", "PRACTICE": "practice", "TEST": "test"}
+    FIG_MAX_W, FIG_MAX_H = 500, 380        # fits the 600-wide portrait card
+    FIG_SLOTS = 4                          # /tmp/wini_fig_{0..3}.png, cycled
 
     def __init__(self, channel, store_dir=None):
         self._ch = channel                 # a mode_channel.ModeChannel (.send(dict))
         self.store = Path(store_dir) if store_dir else None
         self._mode = "EXPLAIN"
+        self._fig_n = 0
 
     # -- rich per-turn hook (client calls this before show/clear) --------------
     def on_turn(self, result: dict) -> None:
@@ -375,6 +394,11 @@ class ModeChannelSink:
                            "title": _clean(_pretty_concept(result.get("concept")), 40),
                            "body": _clean(result.get("answer"), 200)})
 
+        # 5. a turn WITHOUT a figure hides the previous turn's one (never stale);
+        #    a turn WITH one gets it via show() right after this hook.
+        if not display0.get("image_path"):
+            self._ch.send({"cmd": "figure", "off": 1})
+
     # -- narrow display seam --------------------------------------------------
     def show(self, item: dict) -> None:
         item = item or {}
@@ -393,7 +417,39 @@ class ModeChannelSink:
                            "caption": "Great job!" if passed else "Keep going!"})
             if passed:
                 self._ch.send({"cmd": "celebrate", "msg": "Well done!"})
-        # else: a figure crop — no LVGL command; keep whatever screen is up.
+        elif item.get("image_path"):
+            self._emit_figure(item)
+        # anything else: no LVGL command; keep whatever screen is up.
+
+    def _emit_figure(self, item: dict) -> None:
+        """Resolve the T9 figure crop, scale it to the card, write a PNG under
+        /tmp and point the UI at it. Any failure keeps the current screen."""
+        if not self.store:
+            return
+        try:
+            import cv2
+
+            path = self.store / item["image_path"]
+            img = cv2.imread(str(path), cv2.IMREAD_COLOR)
+            if img is None:
+                print(f"[display] figure missing/unreadable: {path}")
+                return
+            h, w = img.shape[:2]
+            scale = min(self.FIG_MAX_W / w, self.FIG_MAX_H / h, 1.0)
+            if scale < 1.0:
+                img = cv2.resize(img, (max(1, round(w * scale)),
+                                       max(1, round(h * scale))),
+                                 interpolation=cv2.INTER_AREA)
+            out = f"/tmp/wini_fig_{self._fig_n}.png"
+            self._fig_n = (self._fig_n + 1) % self.FIG_SLOTS
+            if not cv2.imwrite(out, img):
+                print(f"[display] figure write failed: {out}")
+                return
+            self._ch.send({"cmd": "figure", "path": out,
+                           "caption": _clean(item.get("alt_text"), 90)})
+            print(f"[display] figure -> {out} ({item.get('image_path')})")
+        except Exception as e:  # noqa: BLE001 — a figure must never crash a turn
+            print(f"[display] figure emit failed: {e}")
 
     def clear(self) -> None:
         # The card stays on screen (a quiz question must persist for the child to

@@ -546,6 +546,70 @@ class InputProcessor:
         formula_markers = ["=", "+", "-", "*", "/", "^", "∴", "∵"]
         return any(marker in text for marker in formula_markers) or bool(re.search(r"\b[a-zA-Z]\s*=\s*[^\s]", text))
 
+    # -- the student-problem cue (§6.1; gates SOLVE_STUDENT_PROBLEM, audit A-2/D-1) --
+    #
+    # Deliberately NOT `_contains_formula`, which is far too loose to route on: it
+    # fires on any '+' or '-' anywhere, so a hyphen in "well-known" would count as
+    # an equation. This detector answers a narrower question — "did the student
+    # bring an instance of their own that they want worked out?" — and it must be
+    # deterministic, because the whole point of A-2 is that the routing decision
+    # cannot depend on a model that scores a word problem as a transfer attempt.
+
+    #: an '=' with a term on each side, at least one of which carries a digit or a
+    #: lone variable letter — "x^2 - 5x + 6 = 0", "2y = 10". Prose containing '='
+    #: is vanishingly rare in speech, but requiring real terms keeps it honest.
+    _EQUATION_RE = re.compile(
+        r"[0-9a-z\)\]]\s*(?:=|equals)\s*[-+]?\s*[0-9a-z\(\[]", re.IGNORECASE)
+
+    #: an arithmetic operator sitting between two operands ("63/x", "2 * 4",
+    #: "x^2"), which makes an expression even without an '='. At least one side
+    #: must be a digit — otherwise "km/h" and "and/or" read as expressions.
+    _EXPRESSION_RE = re.compile(
+        r"(?:\d\s*[\^/*×÷]\s*[0-9a-z\(\[]|[0-9a-z\)\]]\s*[\^/*×÷]\s*\d)", re.IGNORECASE)
+
+    #: imperative "work this out" verbs. `what is`/`how much` are included because
+    #: that is how a child actually says it out loud.
+    _SOLVE_VERB_RE = re.compile(
+        r"\b(solve|calculate|compute|evaluate|simplify|factorise|factorize|"
+        r"expand|prove|derive|work out|figure out|what is|what's|how much|how many|"
+        r"find (?:the |out )?)\b", re.IGNORECASE)
+
+    _DIGIT_RE = re.compile(r"\d")
+
+    def detect_student_problem(self, text: str) -> Dict[str, Any]:
+        """Is this utterance a problem instance the student wants solved?
+
+        Returns ``{"is_problem": bool, "cue": str, "directive": bool}`` where
+        ``cue`` names which rule fired, for the decision trace. Two ways to
+        qualify:
+
+        * **equation/expression** — the utterance carries maths of its own
+          ("solve x^2 - 5x + 6 = 0"). Sufficient on its own.
+        * **solve verb + numerals** — an imperative plus concrete numbers
+          ("A train travels 63 km ... Find the speeds"). The numerals matter:
+          "find the area of a circle" is a request to *teach* the concept, not
+          to work an instance, and must keep routing to EXPLAIN.
+
+        ``directive`` says the student ASKED US to do it (an imperative
+        solve/find verb, or "what is …"). It exists to separate two utterances
+        that both carry an equation: replying "x = 5" to our own diagnostic is
+        an *answer attempt* and the grader owns it, whereas "solve 2x = 10" is a
+        command aimed at the tutor and can never be an answer to a question we
+        asked. Without the distinction a pending check swallows every problem
+        the student brings while one is armed.
+        """
+        s = (text or "").strip()
+        if not s:
+            return {"is_problem": False, "cue": "", "directive": False}
+        directive = bool(self._SOLVE_VERB_RE.search(s))
+        if self._EQUATION_RE.search(s):
+            return {"is_problem": True, "cue": "equation", "directive": directive}
+        if self._EXPRESSION_RE.search(s):
+            return {"is_problem": True, "cue": "expression", "directive": directive}
+        if directive and self._DIGIT_RE.search(s):
+            return {"is_problem": True, "cue": "solve_verb+numerals", "directive": True}
+        return {"is_problem": False, "cue": "", "directive": False}
+
 
 # -----------------------------------------------------------------------------
 # Convenience helpers

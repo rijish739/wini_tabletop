@@ -28,6 +28,23 @@ derive from it and are kept in lockstep:
   the components (MiniLM classifiers, HOPE detectors, pedagogy policy, knowledge tracing)
   against the schemas defined here.
 
+> **Audit RESOLVED (2026-07-23): `BRAIN_ARCHITECTURE_AUDIT.md`.** A device-verified audit of
+> this document against the deployed code found 16 defects, including 8 places where the code
+> and this document disagreed. **All 16 are fixed and verified on `winipi5`**; the contract
+> decisions the audit deferred to this document have been made here, in these sections:
+>
+> - **§6.1** — the deterministic `detect_student_problem` cue is now this layer's second live
+>   responsibility, and the note there settles which layer owns signals after Part 11.
+> - **§6.4** — the four specified-but-unimplemented per-concept fields now have contracts and
+>   APIs; measured vs. cold-start mastery is an explicit distinction; flags decay;
+>   `served_items` is cleared at session start.
+> - **§6.6** — `SOLVE_STUDENT_PROBLEM` added, with rule 4b placed above the transfer rule.
+> - **§6.7** — the grounding contract is split into `manifest_only` / `method_only`, and the
+>   missing relevance floor / abstention path is specified.
+>
+> Execution status and measured results: `complete_architecture_build_plan.md` Part 14.
+> Work log and gotchas: `rag_memory.md`.
+
 Where this document names store objects, it uses the **real store schema**: concept IDs are
 chapter-namespaced (`jemh104__discriminant_nature_of_roots`), chunk IDs follow
 `<doc_id>::page_<NNN>::chunk_<NNN>` (or `::summary`), concept cards carry `summary` and
@@ -200,6 +217,23 @@ This layer prepares the student message for interpretation.
   - a transfer attempt
   - a topic shift
 - Do not reduce the utterance to one label too early.
+- Detect whether the student has brought **a problem instance of their own** to be
+  worked out (`detect_student_problem`) — an equation or expression in the
+  utterance, or an imperative solve/find/calculate verb together with numerals.
+  This cue is **deterministic and model-free by design**, and it reports
+  `directive` separately: an utterance that *commands* the tutor ("solve
+  x²−5x+6=0") can never be an answer to a diagnostic the tutor asked, whereas a
+  bare equation ("x = 5") usually is. See §6.6 rule 4b.
+
+> **Who computes what (settled 2026-07-23).** Since the Part 11 pivot, the
+> signal list, the multi-label scores and `candidate_concepts` above are produced
+> by the Gemini perception call, **not** by `InputProcessor.process()`, which the
+> runtime does not call. What this layer still owns, and what nothing else
+> computes, is the deterministic pair: `normalize_input` and
+> `detect_student_problem`. Routing decisions that must not depend on a model's
+> judgement live here — rule 4b is the case in point, because the model correctly
+> scores a student's word problem as a transfer attempt and that is precisely
+> what used to misroute it.
 
 ### Why it matters
 
@@ -334,6 +368,37 @@ Each concept should track:
 - last practiced time
 - items already served this session (no-repeat set for chunks, probes, schemas, figures)
 
+**Field contracts (specified 2026-07-23; before this they were named here and had no
+implementation at all).**
+
+| Field | API | Written by | Absent means |
+|---|---|---|---|
+| `cold_recall_strength` | `cold_recall_strength()` / `record_cold_recall()` | a graded outcome whose gap since `last_practiced` clears `COLD_RECALL_MIN_GAP_DAYS` (1 day) | `None` = **never measured**; not zero |
+| `confidence_trend` | `confidence_trend()` | derived on read from the last `CONFIDENCE_TREND_WINDOW` (6) graded outcomes | `"unknown"` (fewer than 3 outcomes) |
+| `transfer_readiness` | `transfer_readiness()` | derived: 0.6·mastery + 0.4·(1−hint_dependency), folded 0.7/0.3 with cold recall when measured | `0.0` when mastery was never measured |
+| hint-chain position | `hint_chain_position()` | `record_hint_request` (`hints_used_current`, per problem) | `0` = chain untouched |
+| `representations_known` | `representations_known()` | a confirmed `REPRESENTATION_TRANSLATION`, **or** a correct answer on a representation-bearing item | `[]` = nothing demonstrated yet |
+
+**Measured vs. cold-start mastery.** `mastery()` substitutes `COLD_START_MASTERY`
+(0.30) for a concept with no recorded value, so its return is *not* evidence that
+anything was assessed. `has_measured_mastery()` is the distinction, and
+`Snapshot.mastery_measured` / `resolve_band`'s reason string carry it downstream.
+This matters more than it looks: on the live device 30 of 40 touched concept
+states had no mastery value, so the ZPD band was cold-start for **75%** of them
+while the ranking layer treated it as a measurement.
+
+**Flags decay.** Per-concept flags are transient turn signals, not durable
+knowledge (mastery and `misconception_states` carry that). Each is stamped in
+`flag_seen` on every observation and expires after `FLAG_TTL_DAYS` (14). They
+were previously append-only and never cleared, which made a single confused
+moment a permanent condition on the parent dashboard.
+
+**`served_items` is per-session and must be cleared at session start.**
+`LearnerState.begin_session()` does this and the brain calls it on boot. The set
+lives in the persisted state, so without an explicit reset it is not
+session-scoped at all — it had reached 593 permanently-excluded chunks on the
+device. Retrieval treats membership as a **penalty**, never an exclusion (§6.7).
+
 Bridge concepts (Class-9 prerequisites, §6.8) are tracked in the same mastery map with a
 cold-start mastery of **0.30**, exactly like unseen Class-10 concepts.
 
@@ -358,6 +423,29 @@ The learner state is not write-only from the Cognitive Analyzer. Two structured 
   instead of a recap widget, and doubles as the cold-start mastery probe.
 - `apply_probe_result(misconception_id, outcome)` — a misconception diagnostic outcome drives
   the §10 status machine and adjusts misconception confidence and concept mastery.
+- `apply_item_result(item_id, outcome, concept_id, *, kind, hints_used)` — **third evidence
+  API (Part 12).** A PRACTICE or TEST item outcome moves mastery by `ITEM_MASTERY_DELTA`,
+  **hint-discounted** (a hinted solve gains less), and appends to `item_history` /
+  `test_history`. Same non-attempt guardrail as the other two: a non-attempt moves nothing.
+  `record_test_result(concept_id, ...)` closes a completed quiz set: it appends one
+  `test_history` row (`{date, score, n, gate, threshold, item_results}`) and sets the
+  concept's `mastery_gate` (`passed` on ≥ 0.8, else `failed_pending_retest`). Mastery still
+  moves ONLY through these (now three) evidence APIs — the mode layer never writes state.
+
+**Part 12 session-mode contracts (design of record `PART12_PEDAGOGY_MODES_PLAN.md`).** The
+outer loop adds, without disturbing the inner loop: `session["mode"]` (EXPLAIN default,
+byte-identical to pre-Part-12) resolved by a `ModeController` (`session_modes.py`) at ONE
+dispatch point in `turn()` after `rules_decide`; the compact session structs `practice_plan`
+(ladder position) and `test_state` (`{concept_id, n, idx, schema_cycle, items, results,
+phase}`, capped at N); new per-concept state fields `item_history` / `test_history` /
+`mastery_gate` / `concepts_due_for_review`; and new decision actions `COMPLETION_STEP`,
+`ISOMORPHIC_PRACTICE`, `TEST_QUESTION`, `TEST_SUMMARY` (the TEST_* family are checks, not
+teaching — `_mode_for_action` maps them to `probe`). A TEST is **concept-locked** for the
+set's lifetime and its item **owns** `pending_check` (assessment precedes probe-first). TEST
+items are **generated at serve time** (the store carries no stored answers — audited zero)
+and graded by the deterministic `math_grade` floor under `judge_answer`. On a failed gate the
+mode drops to a corrective EXPLAIN (Bloom mastery cycle); a later "test me" is a parallel-form
+re-test. New spoken-pacing budgets for the five actions are in §21's contract table.
 
 **Grading contract (closed loop, `tutor_loop`):** these write-back APIs fire only for a reply that
 actually *attempts* the pending question. A **non-attempt** — an acknowledgment, an "I don't
@@ -507,6 +595,34 @@ This layer chooses what the tutor should do next.
 - corrective explanation (only after a failed diagnostic — see §10 ordering)
 - representation translation (using `integration_links` + visual assets)
 - metacognitive reflection (from `metacognitive_prompts`, after success or after struggle)
+- **solve the student's problem** (`SOLVE_STUDENT_PROBLEM`, added 2026-07-23) —
+  work the instance THE STUDENT BROUGHT through to its final result, using the
+  stored method
+
+> **Why that last one had to be added.** Every other action in this catalog is
+> served *from the store*: its object is a curriculum item. None of them has the
+> **utterance itself** as its object. So a child who brought their own word
+> problem fell through to the transfer rule — structurally a student-supplied
+> problem *is* a transfer attempt — and `TRANSFER_PROBLEM`'s contract is "give
+> them a NEW problem… do NOT solve it or give hints unless asked." The tutor
+> answered "find the speeds" with a different problem and an explicit refusal to
+> solve theirs. The signal was right; the catalog had no action to map it to.
+
+**`SOLVE_STUDENT_PROBLEM` contract.** Retrieval need = `schema` (the manifest
+supplies the METHOD). Grounding = `method_only` (§6.7). It must state the final
+result explicitly and must **never** leave the last step for the student —
+that behaviour belongs to `COMPLETION_STEP`, which is chosen deliberately, not
+by running out of words. Spoken budget is derivation-sized (130 words /
+9 sentences) rather than `EXPLAIN`'s 65/4.
+
+### Rule order (deterministic rules outrank inferred ones)
+
+Rule 4b, gated on §6.1's deterministic `detect_student_problem` cue, sits
+**above** rule 5 (transfer readiness) and below rule 4 (load/frustration). A
+*directive* problem also suppresses `learning_start` and counts as a
+**non-attempt** for grading: a child who sets our pending question aside to ask
+their own must not have that scored as a wrong answer (§13, "state moves only on
+evidence").
 
 ### Decision inputs
 
@@ -671,9 +787,60 @@ Every response carries (and the learning log persists) the exact evidence that j
 }
 ```
 
-The response layer may compose only from manifest items. This keeps every generated sentence
-traceable to an exact chunk / figure / bridge / misconception node, makes grounding auditable,
-and provides the labeled pairs the grounding-guard model trains on.
+### Grounding contract (two cases, split 2026-07-23)
+
+The manifest records which case applied, in `manifest.grounding`:
+
+- **`manifest_only`** — *curriculum teaching turns*. The response layer may compose
+  only from manifest items. Every generated sentence stays traceable to an exact
+  chunk / figure / bridge / misconception node.
+- **`method_only`** — *student-problem turns* (`SOLVE_STUDENT_PROBLEM`, §6.6). The
+  manifest grounds the **method**; the numbers, names and quantities in the
+  student's own utterance are authoritative for the **instance**, and the tutor
+  does that arithmetic itself.
+
+Stated as one absolute rule, this contract was **unenforceable and routinely
+violated**. A student's own problem cannot be in the manifest, so "use ONLY the
+evidence" and "answer this question" cannot both hold; the model resolved the
+contradiction by ignoring the instruction, which worked by luck. Worse, the
+learning log then recorded a manifest that had *not* produced the answer — and
+§6.7's whole justification for the manifest is that it "provides the labeled
+pairs the grounding-guard model trains on." Silently mislabelled pairs are worse
+than no pairs. Splitting the contract makes the log honest about which rule was
+in force.
+
+When retrieval abstains (below), the prompt says so plainly instead of asserting
+a grounding rule over an empty evidence set.
+
+### Relevance floor and abstention
+
+`w1_relevance` is normalised against the best item in the pool, so the top
+candidate always scores 1.0 on it — **even when the whole pool is irrelevant**.
+Combined with the hard concept-id pre-filter, a wrong concept resolution
+therefore produced a confidently-ranked pack of wrong evidence with no signal
+that anything had gone wrong, and there was no "retrieved nothing useful" path.
+
+Ranking is therefore gated on an **absolute** floor (`MIN_ABS_RELEVANCE`, 0.28,
+calibrated on the device: on-topic retrieval scores 0.36–0.63, a pool with no
+real match tops out near 0.24). Candidates below it are ineligible; if none
+qualify the ranker returns empty with `ranking_trace.abstained = true` and a
+reason. The same principle governs two other selections that had no floor:
+
+- the tier-3 **teaching visual** (`T9_VISUAL_MIN_RELEVANCE`, 0.30) — being tagged
+  with the resolved concept is not evidence that a crop illustrates *this*
+  utterance. Failing the floor means showing **no** visual: one that contradicts
+  the speech is worse than none.
+- the **prerequisite bridge** (`MIN_BRIDGE_RELEVANCE`, 0.20, §6.8) — the gate
+  used to select on graph adjacency and mastery alone, which was both unstable
+  and often irrelevant, and it arms a *graded* `pending_check`.
+
+### No-repeat is a penalty, not an exclusion
+
+`served_items` membership applies `w8_repeat_penalty`, it does not drop the
+candidate. Dropping outright meant the best chunk for a concept could never be
+seen twice — fatal for rule 1b, which re-explains the *same* idea and therefore
+wants the *same* evidence — and it starved retrieval monotonically as the set
+grew. As a penalty, a strong chunk resurfaces when nothing better exists.
 
 ---
 
@@ -954,6 +1121,45 @@ If symbolic is strong and graphical is weak:
 - teach the graph — serving the textbook's own cropped figure, not a verbal description of it
 - ask one of the figure's `good_for_questions` ("how many zeroes does this parabola show?")
 - reward representation translation (raises the learner's KI score)
+
+### When a visual is SHOWN (T9 display contract, updated 2026-07-20)
+
+`tutor_loop._build_display` puts at most ONE crop per turn on the device (working-memory
+limit). Three tiers, most pedagogy-specific first:
+
+1. **Gated `figure` evidence** — a representation gap (`reps_missing ∩
+   supports_representation`) or corrective disambiguation of an active misconception (§10).
+2. **Incidental figure-caption evidence** on inherently visual actions
+   (`REPRESENTATION_TRANSLATION` / `VISUAL_ANALOGY`).
+3. **Teaching visual (default-on, added 2026-07-20)** — on any teaching turn (not TEST,
+   and not a mode-controller-driven PRACTICE/TEST item). When the primary concept is
+   known: the top-ranked image-bearing chunk **tagged with that concept**, else the
+   concept's stored pool (`visuals_by_concept` — captions first, then formula crops),
+   else any ranked image-bearing chunk; concept unknown: the top-ranked image-bearing
+   chunk. (The concept-tagged preference matters because retrieval is only
+   concept-filtered when resolution didn't abstain — without it, an off-concept but
+   semantically similar caption can outrank the concept's own formula crop.) Added
+   because the graph's `illustrated_by`/`has_formula` edges cover only 7/108 concepts
+   (0/13 trigonometry), which left ordinary EXPLAIN turns text-only — "show, don't only
+   tell" was unreachable in practice. TEST turns still never carry a figure (test
+   integrity).
+
+The generation prompt receives `figure_on_screen` and teaches THROUGH the visual ("look at
+the figure on the screen").
+
+**The `visuals_by_concept` index (updated 2026-07-20, formula links)** merges two sources:
+
+- `figure_caption` chunks carrying `image_path` + `concept_ids` (244 rows, all chapters) —
+  these stay FIRST in each concept's pool;
+- **formula crops via `rag_store/formula_links.json`** — a derived artifact built by
+  `link_formulas.py` that assigns same-chapter concepts to every formula node
+  deterministically (0.6·page-inheritance from the chunk rows on the formula's page +
+  0.4·name/alias token match, ±definitional/worked-example adjustments, threshold 0.35,
+  ≤3 concepts per formula), plus the graph's original vision-emitted `has_formula` edges
+  (jemh102 only). Formula rows follow the captions, ordered by link score. This closed
+  the former store gap: concepts with ≥1 formula visual went **7/108 → 95/108** (every
+  chapter covered; jemh108 trig 8/8). graph.json itself is untouched — the links file is
+  merged at `TutorLoop.__init__`.
 
 ---
 
