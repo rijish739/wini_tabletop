@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wini — Parent Dashboard</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="logo">W</div>
+    <div>
+      <h1>Wini <span>Parent Dashboard</span></h1>
+      <p id="learner-line" class="muted">Loading…</p>
+    </div>
+  </div>
+  <div class="conn">
+    <span id="conn-dot" class="dot"></span>
+    <span id="conn-text" class="muted">connecting…</span>
+  </div>
+</header>
+
+<main id="app">
+  <!-- Safety alert banner (only shown when alerts exist) -->
+  <section id="alerts" class="hidden"></section>
+
+  <!-- At a glance -->
+  <section class="glance" id="glance"></section>
+
+  <!-- Topics -->
+  <section class="panel">
+    <h2>What your child is learning</h2>
+    <p class="hint">Each card is one topic Wini has worked on. The bar shows how solid it is so far.</p>
+    <div id="topics" class="cards"></div>
+  </section>
+
+  <!-- Quiz results (Part 12 TEST mode) -->
+  <section class="panel" id="quizzes-panel">
+    <h2>Quiz results</h2>
+    <p class="hint">Short check quizzes Wini gives to see what has really stuck. Passing needs 80%.</p>
+    <div id="quizzes"></div>
+  </section>
+
+  <!-- Trouble spots -->
+  <section class="panel">
+    <h2>Trouble spots</h2>
+    <p class="hint">Mix-ups Wini has noticed and is helping to clear up.</p>
+    <div id="trouble"></div>
+  </section>
+
+  <!-- Class 9 foundations -->
+  <section class="panel">
+    <h2>Class 9 foundations</h2>
+    <p class="hint">Older basics that new topics depend on. Low bars here mean a quick revision would help.</p>
+    <div id="foundations" class="cards"></div>
+  </section>
+
+  <!-- Thinking skills -->
+  <section class="panel">
+    <h2>Thinking skills</h2>
+    <p class="hint">Beyond marks — how your child <em>thinks</em>, measured from real answers over time.</p>
+    <div id="skills" class="skills"></div>
+  </section>
+
+  <!-- Recent activity -->
+  <section class="panel">
+    <h2>Recent activity</h2>
+    <div id="activity"></div>
+  </section>
+
+  <footer class="muted center" id="footer"></footer>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

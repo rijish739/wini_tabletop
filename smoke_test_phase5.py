@@ -143,10 +143,20 @@ def tutor_loop_guard_checks():
           len(disp) == 1 and bool(disp[0].get("image_path")),
           f"display={[d.get('image_path') for d in disp]}")
     check("T9b crop file exists on disk", bool(disp) and (STORE / disp[0]["image_path"]).exists())
+    # v5.1 (2026-07-20): plain teaching turns now carry a tier-3 teaching visual by
+    # default (build plan Part 7 v5.1) — the audio-only guarantee moved to non-teaching
+    # turns (TEST / mode-driven items), asserted directly on _build_display.
     loop.state.data = {"concept_states": {}, "misconception_states": {}, "session": {}, "global": {}}
     res = loop.turn("what is the quadratic formula")
-    check("T9c audio-only turn shows nothing", res.get("display") == [],
-          f"display={res.get('display')}")
+    disp = res.get("display") or []
+    check("T9c teaching turn carries at most ONE display item (tier-3 v5.1)",
+          len(disp) <= 1, f"display={[d.get('image_path') for d in disp]}")
+    check("T9c2 tier-3 crop (when shown) exists on disk",
+          not disp or (STORE / disp[0]["image_path"]).exists())
+    check("T9d non-teaching turn stays audio-only",
+          loop._build_display([], "EXPLAIN", teaching=False) == []
+          and loop._build_display([], "QUIZ", teaching=True, ranked=[],
+                                  primary_concept=None) == [])
 
 
 def main():

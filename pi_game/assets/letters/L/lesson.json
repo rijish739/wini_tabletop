@@ -1,0 +1,34 @@
+{
+  "letter": "L",
+  "phoneme": "luh",
+  "say": "luh",
+  "objects": [
+    {
+      "name": "Leaf",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "L",
+    "M",
+    "N",
+    "O"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter L.",
+    "listen": "L says luh.",
+    "touch_ask": "Can you touch L?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say luh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. luh.",
+    "repeat_move_on": "Thank you for trying. We will say luh again soon.",
+    "assoc": "Leaf begins with L.",
+    "activity_ask": "Can you bring me the leaf?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned L today. L for a leaf."
+  }
+}

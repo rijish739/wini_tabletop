@@ -44,13 +44,24 @@ SPI screen ◄─ wini_display_node ◄─ /wini/display/image ◄─ display ME
 
 | | |
 |---|---|
-| **SSH (hotspot LAN, preferred)** | `ssh roavai@172.20.10.2` |
+| **SSH by name (preferred, IP-independent)** | `ssh roavai@ubuntu.local` |
+| SSH by current home-LAN IP | `ssh roavai@192.168.29.39` |
+| SSH in hotspot mode | `ssh roavai@10.42.0.1` (joined to `Wini-Robot`; see §17) |
 | Tailscale (often down) | `ssh roavai@100.86.185.10` |
-| File copy | `scp localfile roavai@172.20.10.2:/home/roavai/` |
+| File copy | `scp localfile roavai@ubuntu.local:/home/roavai/` |
 
-> **IP note (2026-07-03):** the board now lives on the phone-hotspot network at
-> `172.20.10.2`. The old home-LAN address `192.168.29.x` is retired — do not use it.
-> Cloud-brain mode (§14) needs this network to have internet (Vertex + Cloud APIs).
+> **IP note (updated 2026-07-09):** prefer the mDNS name **`ubuntu.local`** — avahi
+> is now enabled (§17), so it resolves to whatever address the board currently holds
+> (home Wi-Fi, hotspot, anywhere) with no IP hunting. It works from Windows/macOS/Linux.
+> Today the board is on home Wi-Fi **`ROAVAI Pvt Ltd` at `192.168.29.39`**; when it
+> falls back to its own **`Wini-Robot`** hotspot it is the gateway **`10.42.0.1`**. The
+> earlier `172.20.10.2` phone-hotspot address is stale. Cloud-brain mode (§14) needs the
+> active network to have internet (Vertex + Cloud APIs) — the `Wini-Robot` fallback does
+> **not**, which is what §17's provisioning portal is for.
+>
+> **scp with spaces** (the study core is `…/cloud CLI/…`): modern scp uses SFTP and drops
+> the quote trick — stage to a space-free path (`scp x roavai@…:/home/roavai/x`) then
+> `ssh … 'cp /home/roavai/x "…/cloud CLI/…"'`.
 
 - Auth is **key-based** (`~/.ssh/id_ed25519` is in the Jetson's `authorized_keys`), so
   non-interactive `ssh`/`scp` work. Windows OpenSSH will **not** accept a password
@@ -61,7 +72,7 @@ SPI screen ◄─ wini_display_node ◄─ /wini/display/image ◄─ display ME
 Quick liveness check:
 
 ```bash
-ssh -o ConnectTimeout=8 roavai@172.20.10.2 'echo OK; hostname; uptime'
+ssh -o ConnectTimeout=8 roavai@ubuntu.local 'echo OK; hostname; uptime'
 ```
 
 ---
@@ -420,6 +431,9 @@ All logs: `~/wini_test_logs/`. Backups: `~/ROS2WS_audio_pipeline/_wini_backups/`
 | SSH command returns **255**, node not up | You backgrounded + polled in one call — use the launcher-script pattern (§2.1). Re-check with a fresh `pgrep -af`. |
 | **No sound** | `pactl info \| grep Default` → both must be `...usb-C-Media...`. Run `select_usb_audio.sh`. TTS must use `output_device='pulse'`. |
 | TTS `paInvalidSampleRate` | You pinned raw `hw:0,0`; route via `pulse` instead (§4.2). |
+| **Works after a manual restart but NOT on a fresh boot** — brain/display/touch come up ("pipeline ready") but the mic client dies. Two distinct stages, fixed together: | Both are boot-only because a manual restart from an SSH shell inherits a warm, fully-set-up session. |
+| &nbsp;&nbsp;① `Error opening InputStream: Invalid sample rate [-9997]` / `No input device matching 'pulse'` | Cron `@reboot` has **no login session** → `XDG_RUNTIME_DIR` unset → the ALSA `pulse` device can't find `/run/user/UID/pulse/native`, so the mic falls back to the onboard card and rejects 16 kHz. Fixed in `run_wini_platform.sh`: `export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"` + `DBUS_SESSION_BUS_ADDRESS`. (`pactl`/libpulse derive the path from the uid themselves, so `select_usb_audio.sh` still succeeds at boot — only the ALSA pulse plugin needs the var.) |
+| &nbsp;&nbsp;② `PaAlsaStream_WaitForFrames … failed` → `Unanticipated host error [-9999]: 'Input/output error' [ALSA error -5]` | Even with pulse reachable, PulseAudio's USB source is still **settling** the instant a fast chin-hold starts the client; the first capture read EIOs and killed the session. Fixed in `supervisor._wait_capture_ready()`: it probes a one-block capture and retries (~1 s, up to 25 s) before `run_session`, so a cold source is waited out instead of fatal. A warm source passes on the first try. |
 | Display shows **face only** | Publisher stopped (need >2 Hz keepalive), or wrong size/encoding (must be 480×320 rgb8). |
 | Display **mirrored / upside-down** | Apply `cv2.flip(canvas, 1)` on the **sender** (§7.2). Re-verify with `run_cal.sh`. |
 | First `/speech_text` publish ignored | DDS discovery drop — use `ros2 topic pub -w 1`, or warm up with a throwaway message. |
@@ -568,6 +582,14 @@ cd '~/ROS2WS_audio_pipeline/cloud CLI' && .venv/bin/python -u -m wini_client.cli
 Measured (2026-07-03, warm-ish): STT ~1.5–2 s + brain ~2.5–5 s + TTS ~3–4.5 s per turn;
 display frames ~4–5 Hz while speaking.
 
+**Since Part 13 (2026-07-20) `/voice_turn` streams NDJSON** — an early transcript line, a
+`turn_meta` line, then `{"part":"audio","seq":N,…}` chunks as the answer is synthesized.
+`curl` above still works, but pass **`-N`** or curl buffers the body and you will conclude
+streaming is broken when it is not. The final line still carries the complete `audio_b64`,
+so a reader that parses only the last line is unaffected; a streaming reader must skip that
+final audio when `"audio_streamed": true` or the answer is spoken twice. Measured
+time-to-first-audio on winipi5: **3.3–4.4 s** (was 10.5–19.9 s) — build plan §15.
+
 ### 15.3 Thin-mode gotchas (all hit during bring-up)
 
 - **PulseAudio default re-grab:** the onboard card steals the default sink/source back
@@ -652,3 +674,50 @@ relaunch), and `run_wini_platform.sh` now TERMs the old instance (platform handl
 SIGTERM cleanly) before the `-9` belt. If a panel ever looks dead while logs are clean:
 `python3 /home/roavai/panel_color_test.py` flashes full-screen colors via a fresh
 driver init — colors visible ⇒ hardware fine, re-init the owner process.
+
+---
+
+## 17. Wi-Fi hotspot failover + provisioning (move the board to a new network, headless)
+
+The board runs a **failover watchdog** (`wifi-watchdog.service` →
+`/usr/local/bin/wifi-failover.sh`): when no known Wi-Fi is in range it raises a WPA2
+hotspot **`Wini-Robot`** (NM profile `WiniHotspot`, `ipv4.method=shared` ⇒ the board is
+the gateway **`10.42.0.1`**). That state has **no internet and no obvious IP**, which used
+to strand the board. Two layers fix it (repo: `jetson_platform/wifi_provisioning/`,
+installed 2026-07-09):
+
+1. **mDNS (`avahi-daemon`, now enabled):** reach the board as **`ubuntu.local`** on ANY
+   network — home Wi-Fi, the hotspot (`ubuntu.local` → `10.42.0.1`), anywhere. No IP hunting.
+2. **A captive provisioning portal** (`wini-provision.service`, root, binds `:80`): join
+   `Wini-Robot`, open **`http://10.42.0.1`** (or `http://ubuntu.local`) — a "Sign in to
+   network" page pops up automatically (dnsmasq catch-all `wini-captive.conf`). Enter your
+   Wi-Fi **name + password → Connect**; the board switches onto it and the hotspot drops.
+
+### 17.1 How the switch stays sane (single radio + the watchdog)
+
+`POST /connect` shells `/usr/local/bin/wini-wifi-connect.sh <ssid> <pw>`, which:
+`touch /dev/shm/wifi_lock` (the watchdog **skips its check while this exists** — the
+override was already built into `wifi-failover.sh`) → `nmcli con down WiniHotspot` (free the
+single radio) → `nmcli dev wifi connect …` → write `/dev/shm/wini_wifi_status` (`ok|failed`)
+→ `rm` the lock. On success the watchdog sees a real network and leaves the hotspot down; on
+failure it re-raises `Wini-Robot` in ~30 s so you can retry. The portal's `/connect` only
+acts in hotspot mode (a read-only status page otherwise), so the LAN can't reprovision it.
+
+### 17.2 Operate / verify
+
+```bash
+# install onto a fresh board (needs sudo once — roavai has NO passwordless sudo):
+scp -r jetson_platform/wifi_provisioning roavai@ubuntu.local:/home/roavai/
+ssh roavai@ubuntu.local 'cd ~/wifi_provisioning && sudo bash install.sh'   # --with-failover if the watchdog is missing
+# health:
+ssh roavai@ubuntu.local 'systemctl is-active wini-provision avahi-daemon wifi-watchdog'
+curl -s http://ubuntu.local/status        # {"hotspot":false|true,"ip":…,"host":"ubuntu"}
+ping ubuntu.local                          # mDNS from Windows/macOS/Linux
+```
+
+Verified end-to-end 2026-07-09: raise `Wini-Robot` → portal answered at `10.42.0.1`
+(`hotspot:true`) → `wini-wifi-connect.sh` rejoined `ROAVAI Pvt Ltd` (`ok|…|192.168.29.39`),
+whole cycle ~28 s. Test it yourself with `wifi_provisioning/test_switch.sh` — a
+**self-healing** detached root script that always rejoins home Wi-Fi (90 s safety net), so a
+dropped SSH can't lock you out (there is no Tailscale lifeline — it was down that day).
+Full design + end-user flow: `jetson_platform/wifi_provisioning/README.md`.

@@ -1,0 +1,13 @@
+# SNAPSHOT (2026-07-09) of the on-device /etc/systemd/system/wifi-watchdog.service.
+# Pre-existing; runs wifi-failover.sh at boot. Kept here for provenance.
+[Unit]
+Description=Wini Wi-Fi Hotspot Failover
+After=NetworkManager.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/wifi-failover.sh
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

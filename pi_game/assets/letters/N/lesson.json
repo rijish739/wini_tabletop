@@ -1,0 +1,34 @@
+{
+  "letter": "N",
+  "phoneme": "nuh",
+  "say": "nuh",
+  "objects": [
+    {
+      "name": "Nest",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "N",
+    "O",
+    "P",
+    "Q"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter N.",
+    "listen": "N says nuh.",
+    "touch_ask": "Can you touch N?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say nuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. nuh.",
+    "repeat_move_on": "Thank you for trying. We will say nuh again soon.",
+    "assoc": "Nest begins with N.",
+    "activity_ask": "Can you bring me the nest?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned N today. N for a nest."
+  }
+}

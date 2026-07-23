@@ -1,0 +1,34 @@
+{
+  "letter": "F",
+  "phoneme": "fuh",
+  "say": "fuh",
+  "objects": [
+    {
+      "name": "Fish",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "F",
+    "G",
+    "H",
+    "I"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter F.",
+    "listen": "F says fuh.",
+    "touch_ask": "Can you touch F?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say fuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. fuh.",
+    "repeat_move_on": "Thank you for trying. We will say fuh again soon.",
+    "assoc": "Fish begins with F.",
+    "activity_ask": "Can you bring me the fish?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned F today. F for a fish."
+  }
+}

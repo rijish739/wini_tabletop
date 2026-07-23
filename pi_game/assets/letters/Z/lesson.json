@@ -1,0 +1,34 @@
+{
+  "letter": "Z",
+  "phoneme": "zzz",
+  "say": "zzz",
+  "objects": [
+    {
+      "name": "Zebra",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "A",
+    "B",
+    "C",
+    "Z"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter Z.",
+    "listen": "Z says zzz.",
+    "touch_ask": "Can you touch Z?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say zzz?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. zzz.",
+    "repeat_move_on": "Thank you for trying. We will say zzz again soon.",
+    "assoc": "Zebra begins with Z.",
+    "activity_ask": "Can you bring me the zebra?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned Z today. Z for a zebra."
+  }
+}

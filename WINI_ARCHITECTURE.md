@@ -111,11 +111,20 @@ system in this repo and is fully built; Layers A/C are the speech edges.
 The orchestrator is [`tutor_loop.py`](tutor_loop.py) (`TutorLoop.turn(text)`), which runs
 B0–B7. Full per-box detail: [`WINI_VOICE_STUDY_ARCHITECTURE.md`](WINI_VOICE_STUDY_ARCHITECTURE.md) §4.
 
+**Session modes (Part 12, outer loop).** Above this per-turn inner loop sits an additive
+EXPLAIN / PRACTICE / TEST mode layer (`session["mode"]` + `ModeController` in
+`session_modes.py`, dispatched once in `turn()`). EXPLAIN is the default and byte-identical to
+pre-Part-12; PRACTICE runs an adaptive fading ladder; TEST runs a short runtime-generated quiz
+set with a deterministic grader, an 80% mastery gate, and a Bloom corrective loop. It reads and
+writes only via the three evidence APIs — no inner-loop guardrail changes. Design of record:
+[`PART12_PEDAGOGY_MODES_PLAN.md`](PART12_PEDAGOGY_MODES_PLAN.md); Stages 1–4 + 6 built.
+
 ### Study-core invariants (the rules the pipeline never breaks)
 
 1. **State moves on evidence, not text.** The analyzer (B1) writes only *soft* state (global
    EMA + concept *flags*). Mastery and misconception status move only through evidence-driven
-   write-backs (`apply_probe_result` / `apply_bridge_result`) in B6.
+   write-backs — now three: `apply_probe_result` / `apply_bridge_result` / `apply_item_result`
+   (the last for Part 12 PRACTICE/TEST items) in B6.
 2. **Probe before correcting.** For an active misconception the diagnostic question is served
    first; `why_wrong`/`correct_idea` only after the answer reveals the broken model.
 3. **Bridges are gated.** A Class-9 prerequisite recap is served only when the prerequisite's
@@ -194,6 +203,16 @@ Two deployments share the same study core:
 The cognition contract for short spoken turns (one state channel moves per turn; action-aware
 spoken budget; deliver-don't-announce) lives in architecture §21 and is implemented in
 `pacing/`. Deferred for both: AEC → full-duplex + semantic barge-in.
+
+**A voice turn is a STREAM, not a request/response (Part 13, 2026-07-20).** `/voice_turn`
+returns NDJSON: an early transcript line, a `turn_meta` line, then the answer's audio as
+`{"part":"audio","seq":N,…}` chunks synthesized and played incrementally. Generation streams
+too — the answer's first sentence is handed to TTS the moment it exists, while the rest is
+still being written. Time-to-first-audio went **10.5–19.9 s → 3.3–4.4 s** on winipi5 and no
+longer scales with answer length; **answer length itself stays LLM-driven — Part 13 changed
+scheduling, not pedagogy.** The final line still carries the complete audio, so a
+non-streaming reader is unaffected. Contract detail: `wini_client/README.md`; measured
+results: build plan §15; design of record: `PART13_LATENCY_STREAMING_PLAN.md`.
 
 ---
 

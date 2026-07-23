@@ -11,6 +11,7 @@ independent of voice/config.py's location (STT/TTS models there default to
 from __future__ import annotations
 
 import os
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FutureTimeoutError
 from dataclasses import dataclass
@@ -26,8 +27,13 @@ DEFAULT_REGION = os.getenv("VERTEX_REGION", "asia-south1")
 # Generous enough to survive a cold first call + a large manifest-grounded prompt,
 # while still bounding the "stalled for hours" SDK failure mode (CLAUDE.md gotcha).
 DEFAULT_TIMEOUT_S = float(os.getenv("VERTEX_GENERATION_TIMEOUT_S", "20"))
+# Max gap between two streamed deltas before we call the stream dead (Part 13
+# Stage 2). Separate from the overall bound: a stream that produces one token and
+# then hangs must abort quickly, not sit until the overall deadline.
+STREAM_CHUNK_TIMEOUT_S = float(os.getenv("VERTEX_STREAM_CHUNK_TIMEOUT_S", "10"))
 
 _executor = ThreadPoolExecutor(max_workers=4)
+_STREAM_DONE = object()
 
 
 @dataclass
@@ -45,6 +51,10 @@ class JsonResult:
 
 
 _clients: dict[str, object] = {}
+# Guards the memo: the server now warms Gemini generation and perception
+# CONCURRENTLY, and an unlocked check-then-set would let both threads pay the
+# 4-9 s construction and one of them throw its client away.
+_clients_lock = threading.Lock()
 
 
 def _client(location: str):
@@ -65,8 +75,11 @@ def _client(location: str):
             "GOOGLE_CLOUD_PROJECT is not set. Add it to .env or export it "
             "(gcloud config get-value project can tell you the active one)."
         )
-    client = genai.Client(vertexai=True, project=project, location=location)
-    _clients[location] = client
+    with _clients_lock:
+        client = _clients.get(location)      # re-check: another thread may have won
+        if client is None:
+            client = genai.Client(vertexai=True, project=project, location=location)
+            _clients[location] = client
     return client
 
 
@@ -115,6 +128,74 @@ def generate_reply(
         raise TimeoutError(f"Gemini Flash call exceeded {timeout_s}s") from exc
     latency_ms = int((time.perf_counter() - t0) * 1000)
     return FlashResult(text=(getattr(response, "text", "") or "").strip(), latency_ms=latency_ms)
+
+
+def generate_reply_stream(
+    prompt: str,
+    *,
+    system: str | None = None,
+    model: str = DEFAULT_MODEL,
+    location: str = DEFAULT_REGION,
+    timeout_s: float = DEFAULT_TIMEOUT_S,
+    chunk_timeout_s: float = STREAM_CHUNK_TIMEOUT_S,
+    temperature: float = 0.4,
+    max_output_tokens: int = 200,
+):
+    """Stream one Vertex Gemini Flash reply as text deltas.
+
+    Same prompt, same config, same `thinking_budget=0` as ``generate_reply`` —
+    only the transport differs, so the concatenated deltas are the reply the
+    non-streaming call would have returned.
+
+    Bounded on BOTH axes (CLAUDE.md gotcha: SDK deadlines have stalled for
+    hours). ``chunk_timeout_s`` bounds the gap between deltas and ``timeout_s``
+    bounds the whole generation; a stalled stream raises TimeoutError so the
+    caller can fall back, rather than hanging the turn forever.
+    """
+    import queue as _queue
+
+    from google.genai import types
+
+    client = _client(location)
+    q: "_queue.Queue[object]" = _queue.Queue(maxsize=256)
+
+    def _worker():
+        try:
+            stream = client.models.generate_content_stream(
+                model=model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=temperature,
+                    max_output_tokens=max_output_tokens,
+                    system_instruction=system,
+                    thinking_config=types.ThinkingConfig(thinking_budget=0),
+                ),
+            )
+            for chunk in stream:
+                piece = getattr(chunk, "text", None)
+                if piece:
+                    q.put(piece)
+            q.put(_STREAM_DONE)
+        except Exception as e:  # noqa: BLE001 — re-raised on the consumer side
+            q.put(e)
+
+    threading.Thread(target=_worker, name="gemini-gen-stream", daemon=True).start()
+
+    t0 = time.perf_counter()
+    while True:
+        remaining = timeout_s - (time.perf_counter() - t0)
+        if remaining <= 0:
+            raise TimeoutError(f"Gemini streamed generation exceeded {timeout_s}s")
+        try:
+            item = q.get(timeout=min(chunk_timeout_s, remaining))
+        except _queue.Empty:
+            raise TimeoutError(
+                f"Gemini stream stalled {chunk_timeout_s}s waiting for a delta")
+        if item is _STREAM_DONE:
+            return
+        if isinstance(item, Exception):
+            raise item
+        yield item
 
 
 def _extract_json(text: str):

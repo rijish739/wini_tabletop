@@ -9,6 +9,7 @@
 #include "widgets/explanation_card.h"
 #include "widgets/formula_card.h"
 #include "widgets/illustration_card.h"
+#include "widgets/figure_card.h"
 #include "app/app_state.h"
 
 lv_obj_t *wini_screen_explain_create(lv_obj_t *parent)
@@ -41,8 +42,11 @@ lv_obj_t *wini_screen_explain_create(lv_obj_t *parent)
     wini_explanation_card_set(ec, NULL,
         "I'm listening \xe2\x80\x94 ask me a question to begin.");
 
-    /* The formula/illustration cards have no IPC command yet: keep them hidden
-     * so they can never show content the brain didn't send. */
+    /* Brain figure crops arrive over IPC ({"cmd":"figure"}); starts hidden. */
+    lv_obj_t *fg = wini_figure_card_create(f.content);
+
+    /* The formula/illustration demo cards have no IPC command yet: keep them
+     * hidden so they can never show content the brain didn't send. */
     lv_obj_t *fc = wini_formula_card_create(f.content);
     lv_obj_add_flag(fc, LV_OBJ_FLAG_HIDDEN);
 
@@ -53,5 +57,6 @@ lv_obj_t *wini_screen_explain_create(lv_obj_t *parent)
 
     wini_app_bind_header(WINI_SCREEN_EXPLAIN, h, ft);
     wini_app_bind_explain(ec);
+    wini_app_bind_figure(WINI_SCREEN_EXPLAIN, fg);
     return root;
 }

@@ -23,6 +23,7 @@
 #include "screens/screen_mgr.h"
 #include "app/app_state.h"
 #include "widgets/pause_button.h"
+#include "widgets/close_button.h"
 #include "platform/brightness.h"
 #include "platform/audio_fx.h"
 #include "ipc.h"
@@ -34,6 +35,10 @@
 
 static volatile sig_atomic_t g_quit = 0;
 static void on_signal(int s) { (void)s; g_quit = 1; }
+
+/* The on-screen close button's exit path (widgets/close_button.h): same flag as
+ * SIGTERM, so there is exactly one way out of the loop. */
+void wini_ui_request_quit(void) { g_quit = 1; }
 
 static uint32_t millis_cb(void)
 {
@@ -98,9 +103,10 @@ int main(int argc, char **argv)
      * splash; then create the global overlays. */
     wini_screen_mgr_init(lv_screen_active());
     wini_app_init();
-    /* Floating mic-mute toggle, created LAST on the top layer so it stays
-     * tappable above the loading/celebration overlays. */
+    /* Floating mic-mute toggle + package close button, created LAST on the top
+     * layer so they stay tappable above the loading/celebration overlays. */
     wini_pause_button_create(lv_layer_top());
+    wini_close_button_create(lv_layer_top());
 
     /* Open the mode channel: outbound mode picks + inbound turn commands. */
     ipc_init(host, port);

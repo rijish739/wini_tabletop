@@ -1,0 +1,34 @@
+{
+  "letter": "M",
+  "phoneme": "muh",
+  "say": "muh",
+  "objects": [
+    {
+      "name": "Moon",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "M",
+    "N",
+    "O",
+    "P"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter M.",
+    "listen": "M says muh.",
+    "touch_ask": "Can you touch M?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say muh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. muh.",
+    "repeat_move_on": "Thank you for trying. We will say muh again soon.",
+    "assoc": "Moon begins with M.",
+    "activity_ask": "Can you bring me the moon?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned M today. M for a moon."
+  }
+}

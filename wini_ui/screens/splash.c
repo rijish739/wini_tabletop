@@ -3,12 +3,32 @@
 #include "screens/screen_mgr.h"
 #include "theme/wini_theme.h"
 
-#define SPLASH_HOLD_MS 1500
+/* The splash does NOT auto-advance: it holds until the voice client reports the
+ * brain is warm ({"cmd":"ready"} -> app_state -> wini_screen_show(IDLE)). A
+ * picker that is tappable before the brain answers is worse than a wait — that
+ * was the "the icon doesn't start everything" complaint. The launcher normally
+ * defers wini_ui until /health is ready, so this is usually a blink; the timer
+ * below only exists so a brain that never warms says so instead of sitting on
+ * "Getting ready…" forever. */
+#define SPLASH_TICK_MS   15000
+#define SPLASH_SLOW_MS   20000    /* reassure */
+#define SPLASH_STUCK_MS  90000    /* admit failure */
 
-static void to_idle_cb(lv_timer_t *t)
+static void wait_tick_cb(lv_timer_t *t)
 {
-    (void)t;
-    wini_screen_show(WINI_SCREEN_IDLE);
+    lv_obj_t *sub = (lv_obj_t *)lv_timer_get_user_data(t);
+    if (wini_screen_current() != WINI_SCREEN_SPLASH) {   /* ready — we're done */
+        lv_timer_delete(t);
+        return;
+    }
+    static uint32_t waited = 0;
+    waited += SPLASH_TICK_MS;
+    if (waited >= SPLASH_STUCK_MS) {
+        lv_label_set_text(sub, "Wini can't wake up. Please restart.");
+        lv_timer_delete(t);
+    } else if (waited >= SPLASH_SLOW_MS) {
+        lv_label_set_text(sub, "Almost there\xe2\x80\xa6");
+    }
 }
 
 lv_obj_t *wini_screen_splash_create(lv_obj_t *parent)
@@ -35,8 +55,6 @@ lv_obj_t *wini_screen_splash_create(lv_obj_t *parent)
     lv_obj_set_style_text_color(sub, wini_color(WINI_COLOR_TEXT_MUTED), 0);
     lv_label_set_text(sub, "Getting ready\xe2\x80\xa6");   /* Getting ready… */
 
-    /* One-shot auto-advance to the home screen. */
-    lv_timer_t *t = lv_timer_create(to_idle_cb, SPLASH_HOLD_MS, NULL);
-    lv_timer_set_repeat_count(t, 1);
+    lv_timer_create(wait_tick_cb, SPLASH_TICK_MS, sub);
     return root;
 }

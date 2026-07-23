@@ -133,3 +133,4 @@ must be propagated to the others in the same work session, plus the work log:
 - Perception is gemini-only at runtime since Stage 6 (2026-07-02); `PERCEPTION_BACKEND=qwen_heads` is retired (prints a notice, uses gemini). Head artifacts stay for the evals + §5.5 cross-check.
 - Tutor chat: `python tutor_loop.py` (Qwen server must be up); scripted: `--once "msg" [--no-answer]`
 - Store scorecard: `python verify_store.py --fail-under 90`
+- Rebuild concept->formula links: `python link_formulas.py` (writes rag_store/formula_links.json; re-run after any graph/chunks/concepts rebuild)

@@ -257,11 +257,29 @@ def extract_topic_request(text: str):
     return " ".join(words)
 
 
+# A bare topic is a NOUN-PHRASE label ("Natural numbers", "Trigonometry"), never
+# an imperative or a plea. These tokens mark a command/request directed at the
+# tutor ("GIVE ME a challenge", "HELP ME", "EXPLAIN THIS", "TELL ME MORE", "I WANT
+# to study", "LET ME try"); any of them disqualifies the phrase as a topic name.
+# Without this guard the broad letters-and-spaces match hijacked ordinary requests
+# into a bogus topic shift (test_results.md Bug 1, 2026-07-17). Chosen so none of
+# them appears in an NCERT Class-10 topic title (note: "some" is deliberately
+# excluded — "Some Applications of Trigonometry" is a real chapter).
+_NONTOPIC_TOKENS = frozenset({
+    "i", "im", "me", "my", "mine", "we", "us", "our", "you", "your",
+    "this", "that", "it", "them", "these", "those",
+    "please", "help", "give", "gimme", "tell", "show", "let", "lemme",
+    "want", "wanna", "explain", "teach", "do", "try", "start", "make",
+    "ask", "say", "more", "again", "another", "challenge",
+})
+
+
 def is_bare_topic(text: str) -> bool:
     """True for a short bare noun-phrase turn that looks like a topic label
     ("Natural numbers.", "Trigonometry"). Deliberately narrow: no question form,
-    no answer/ack/hint cue, no digits or operators. The caller must additionally
-    require that no diagnostic/micro question is open."""
+    no answer/ack/hint cue, no digits or operators, and no imperative/request token
+    (so "give me a challenge" / "please explain" are NOT read as topics). The caller
+    must additionally require that no diagnostic/micro question is open."""
     t = (text or "").strip().rstrip(".!").strip()
     if not t or "?" in text:
         return False
@@ -273,6 +291,9 @@ def is_bare_topic(text: str) -> bool:
     if is_question(t) or is_pure_ack(t) or ANSWER_RE.search(t) or HINT_RE.search(t):
         return False
     if re.match(r"^(yes|yeah|ya|yep|no|nope|nah|ok|okay|hmm+|uh+|um+)\b", t, re.IGNORECASE):
+        return False
+    # imperative/plea, not a noun-phrase label — reject if any word is a request token
+    if any(re.sub(r"[^a-z']", "", w.lower()) in _NONTOPIC_TOKENS for w in words):
         return False
     return bool(re.fullmatch(r"[a-zA-Z][a-zA-Z \-']*", t))
 

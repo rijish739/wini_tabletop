@@ -31,11 +31,21 @@ class HopeDetector:
         self.signal_map = signal_map  # e.g. {"bridge": "KT"}
 
     @classmethod
-    def load(cls, model_dir: Path | str = DEFAULT_MODEL_DIR, device: Optional[str] = None) -> "HopeDetector":
-        model_dir = Path(model_dir)
-        from sentence_transformers import SentenceTransformer
+    def load(cls, model_dir: Path | str = DEFAULT_MODEL_DIR, device: Optional[str] = None,
+             embedder=None) -> "HopeDetector":
+        """Load the signal heads. Pass `embedder` to REUSE an existing MiniLM.
 
-        embedder = SentenceTransformer(MODEL_NAME, device=device)
+        Constructing a SentenceTransformer costs ~6.7 s on the Pi and does not get
+        cheaper the second time, so building one here only for the caller to
+        overwrite it is 6.7 s of pure boot latency — which is exactly what
+        tutor_loop used to do. Callers that already have (or lazily provide) an
+        embedder pass it in; only a standalone user pays for a fresh one.
+        """
+        model_dir = Path(model_dir)
+        if embedder is None:
+            from sentence_transformers import SentenceTransformer
+
+            embedder = SentenceTransformer(MODEL_NAME, device=device)
         w = np.load(model_dir / "signal_heads.npz")
         config = json.loads((model_dir / "config.json").read_text(encoding="utf-8"))
         heads = {

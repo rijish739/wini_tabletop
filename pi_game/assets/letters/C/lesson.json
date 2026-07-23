@@ -1,0 +1,34 @@
+{
+  "letter": "C",
+  "phoneme": "kuh",
+  "say": "kuh",
+  "objects": [
+    {
+      "name": "Cat",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "C",
+    "D",
+    "E",
+    "F"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter C.",
+    "listen": "C says kuh.",
+    "touch_ask": "Can you touch C?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say kuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. kuh.",
+    "repeat_move_on": "Thank you for trying. We will say kuh again soon.",
+    "assoc": "Cat begins with C.",
+    "activity_ask": "Can you bring me the cat?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned C today. C for a cat."
+  }
+}

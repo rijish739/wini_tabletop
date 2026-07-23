@@ -1,0 +1,34 @@
+{
+  "letter": "H",
+  "phoneme": "huh",
+  "say": "huh",
+  "objects": [
+    {
+      "name": "House",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "H",
+    "I",
+    "J",
+    "K"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter H.",
+    "listen": "H says huh.",
+    "touch_ask": "Can you touch H?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say huh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. huh.",
+    "repeat_move_on": "Thank you for trying. We will say huh again soon.",
+    "assoc": "House begins with H.",
+    "activity_ask": "Can you bring me the house?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned H today. H for a house."
+  }
+}

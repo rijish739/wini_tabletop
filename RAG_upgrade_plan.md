@@ -68,6 +68,15 @@ mostly vector graphics, not embedded bitmaps
 
 **Verdict: adopt.** Highest pedagogy-per-rupee item in the plan; mostly local computation.
 
+> **Addendum (2026-07-20) — concept→formula links.** The executed build cropped 644 formula
+> images, but the vision pass emitted `likely_concept_ids` only for jemh102, so the graph's
+> 266 `has_formula` edges covered 7/108 concepts and no other chapter could surface a formula
+> crop. `link_formulas.py` now derives chapter-wide links into a NEW artifact,
+> `rag_store/formula_links.json` (page-inheritance from the chunk rows on the formula's page
+> + name/alias token match; graph.json untouched), merged into `TutorLoop.visuals_by_concept`
+> at load. Coverage: concepts with ≥1 formula visual **7/108 → 95/108**. Details: build plan
+> Part 7 v5.2; log: rag_memory.md 2026-07-20.
+
 ### 2.2 Point 2 — Class-9 prerequisite bridges ("bridge-gap" recall)
 
 **What the research says.** Activating accurate prior knowledge before new instruction is one of
@@ -530,3 +539,17 @@ Requiring pilot learners (staged — defined now, measured when real users exist
 - [MIT Teaching + Learning Lab — Retain, Organize, Integrate Knowledge](https://tll.mit.edu/teaching-resources/how-to-teach/help-students-retain-organize-and-integrate-knowledge/)
 - [Virginia Tech CETL — Activating Prior Knowledge](https://teaching.vt.edu/teachingresources/adjustinginstruction/priorknowledge.html)
 - [CAST UDL Guidelines — Connect Prior Knowledge to New Learning](https://udlguidelines.cast.org/representation/building-knowledge/prior-knowledge/)
+
+---
+
+## Part 12 addendum (2026-07-15) — no quiz-bank builder; the store is unchanged
+
+Part 12 TEST mode needed gradeable quiz items. A store audit answered whether the existing
+store could supply them: **it cannot.** Across `rag_store/graph.json` — 245 `problem_schema`,
+286 example, 647 exercise nodes — **0/245 schema instances carry an `expected_answer`**, and
+**0/108 concepts have ≥5 schemas** (median 2, max 4). No stored quiz bank is assemblable, so
+the planned offline `build_quiz_bank.py` batch was **not built (the long pole was designed
+away)** and **the store build pipeline is unchanged** — no new nodes, no re-index. TEST items
+are instead generated at serve time from a concept's `problem_schema` nodes (see the build
+plan §14 and `PART12_PEDAGOGY_MODES_PLAN.md` §4.4). Consequently the plan's §7.4 `verify_store`
+"≥5 test-eligible items per concept" metric is **N/A / not added** — there is no bank to verify.

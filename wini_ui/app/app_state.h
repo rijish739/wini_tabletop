@@ -9,6 +9,7 @@
  * once per frame to drain the IPC queue.
  *
  * Inbound command vocabulary (flat JSON, one per line):
+ *   {"cmd":"ready"}                       (brain warm — releases the splash)
  *   {"cmd":"screen","to":"idle|explain|practice|test|result|settings|error"}
  *   {"cmd":"status","v":"listening|thinking|teaching|checking|waiting|offline"}
  *   {"cmd":"stage","v":"explain|practice|test"}
@@ -23,6 +24,7 @@
  *   {"cmd":"loading","on":0|1,"text":"..."}
  *   {"cmd":"score","score":N,"of":M,"caption":"..."}
  *   {"cmd":"celebrate","msg":"..."}
+ *   {"cmd":"figure","path":"/tmp/wini_fig_0.png","caption":"..."} | {"cmd":"figure","off":1}
  */
 #ifndef WINI_APP_APP_STATE_H
 #define WINI_APP_APP_STATE_H
@@ -44,6 +46,7 @@ void wini_app_bind_practice(lv_obj_t *question, lv_obj_t *hint, lv_obj_t *feedba
 void wini_app_bind_test(lv_obj_t *question);
 void wini_app_bind_explain(lv_obj_t *explanation);
 void wini_app_bind_result(lv_obj_t *result_card);
+void wini_app_bind_figure(wini_screen_id_t id, lv_obj_t *figure_card);
 
 /* Drain and apply every queued inbound line. Call from the LVGL thread. */
 void wini_app_poll(void);

@@ -9,6 +9,7 @@
 #include "widgets/answer_feedback.h"
 #include "widgets/explanation_card.h"
 #include "widgets/result_card.h"
+#include "widgets/figure_card.h"
 #include "overlays/overlay_base.h"
 #include "overlays/loading.h"
 #include "overlays/celebration.h"
@@ -38,6 +39,9 @@ static struct {
 static struct { lv_obj_t *question; } s_test;
 static struct { lv_obj_t *explanation; } s_explain;
 static struct { lv_obj_t *result; } s_result;
+
+/* Brain figure cards, one per screen that can show one (explain/practice). */
+static lv_obj_t *s_figure[WINI_SCREEN_COUNT];
 
 /* Global overlays (top layer) used when the current screen has no bound one. */
 static lv_obj_t *s_loading;
@@ -70,6 +74,12 @@ void wini_app_bind_practice(lv_obj_t *question, lv_obj_t *hint, lv_obj_t *feedba
 void wini_app_bind_test(lv_obj_t *question)    { s_test.question = question; }
 void wini_app_bind_explain(lv_obj_t *expl)     { s_explain.explanation = expl; }
 void wini_app_bind_result(lv_obj_t *card)      { s_result.result = card; }
+
+void wini_app_bind_figure(wini_screen_id_t id, lv_obj_t *card)
+{
+    if (id < 0 || id >= WINI_SCREEN_COUNT) return;
+    s_figure[id] = card;
+}
 
 /* ---- tiny flat-JSON scanners (no allocator, no nesting) ------------------- */
 
@@ -180,7 +190,14 @@ void wini_app_dispatch(const char *line)
     char sv[256];
     int  iv;
 
-    if (!strcmp(cmd, "screen")) {
+    if (!strcmp(cmd, "ready")) {
+        /* The client's brain-warm signal (re-sent on every UI reconnect, so a UI
+         * that starts late still gets it). Only releases the splash — mid-session
+         * it must not yank the student off their screen. */
+        if (wini_screen_current() == WINI_SCREEN_SPLASH)
+            wini_screen_show(WINI_SCREEN_IDLE);
+
+    } else if (!strcmp(cmd, "screen")) {
         wini_screen_id_t id;
         if (jstr(line, "to", sv, sizeof(sv)) && map_screen(sv, &id))
             wini_screen_show(id);
@@ -280,6 +297,20 @@ void wini_app_dispatch(const char *line)
 
     } else if (!strcmp(cmd, "brightness")) {
         if (jint(line, "pct", &iv)) wini_brightness_set_percent(iv);
+
+    } else if (!strcmp(cmd, "figure")) {
+        if (jint(line, "off", &iv) && iv) {
+            /* No figure this turn: hide on EVERY screen — a picture left from
+             * a previous turn is stale wherever it is. */
+            for (int i = 0; i < WINI_SCREEN_COUNT; i++)
+                if (s_figure[i]) wini_figure_card_clear(s_figure[i]);
+        } else {
+            char path[288], cap[160] = "";
+            jstr(line, "caption", cap, sizeof(cap));
+            lv_obj_t *card = s_figure[wini_screen_current()];
+            if (jstr(line, "path", path, sizeof(path)) && card)
+                wini_figure_card_set(card, path, cap[0] ? cap : NULL);
+        }
     }
 }
 

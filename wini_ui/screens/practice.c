@@ -9,6 +9,7 @@
 #include "widgets/question_card.h"
 #include "widgets/hint_indicator.h"
 #include "widgets/answer_feedback.h"
+#include "widgets/figure_card.h"
 
 #include "overlays/overlay_base.h"
 #include "overlays/listening.h"
@@ -79,6 +80,9 @@ lv_obj_t *wini_screen_practice_create(lv_obj_t *parent)
     lv_obj_t *hi = wini_hint_indicator_create(f.content, 3);
     wini_hint_indicator_set(hi, 0);
 
+    /* Brain figure crops arrive over IPC ({"cmd":"figure"}); starts hidden. */
+    lv_obj_t *fg = wini_figure_card_create(f.content);
+
     /* Hidden until a real graded outcome arrives (app_state "feedback" cmd);
      * a permanent demo "Correct" banner read as feedback for the last answer. */
     lv_obj_t *fb = wini_answer_feedback_create(f.content);
@@ -97,5 +101,6 @@ lv_obj_t *wini_screen_practice_create(lv_obj_t *parent)
     /* Register the live widgets so the FSM (app_state) can drive this screen. */
     wini_app_bind_header(WINI_SCREEN_PRACTICE, h, ft);
     wini_app_bind_practice(qc, hi, fb, ov, think);
+    wini_app_bind_figure(WINI_SCREEN_PRACTICE, fg);
     return root;
 }

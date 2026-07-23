@@ -1,0 +1,34 @@
+{
+  "letter": "W",
+  "phoneme": "wuh",
+  "say": "wuh",
+  "objects": [
+    {
+      "name": "Window",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "W",
+    "X",
+    "Y",
+    "Z"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter W.",
+    "listen": "W says wuh.",
+    "touch_ask": "Can you touch W?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say wuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. wuh.",
+    "repeat_move_on": "Thank you for trying. We will say wuh again soon.",
+    "assoc": "Window begins with W.",
+    "activity_ask": "Can you bring me the window?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned W today. W for a window."
+  }
+}

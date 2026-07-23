@@ -29,9 +29,10 @@ Newline-delimited JSON over TCP. **The Python client is the server** (listens on
 
 - **UI → client (implemented):** `{"event":"mode_selected","mode":"EXPLAIN|PRACTICE|TEST"}`
 - **client → UI (implemented, UI side):** flat `{"cmd":...}` command lines drive the FSM
-  (`app/app_state.c`) — `screen` / `status` / `stage` / `lines` / `progress` / `question` /
+  (`app/app_state.c`) — `ready` / `screen` / `status` / `stage` / `lines` / `progress` / `question` /
   `explain` / `feedback` / `hint` / `listening` / `thinking` / `loading` / `score` / `celebrate`
-  / `brightness`. Full table + one-full-turn verification: `../WINI_UI_STATUS.md` §9. The Python
+  / `brightness`. `ready` is the brain-warm signal that releases the splash (the splash has no
+  auto-advance timer — it holds until the brain answers). Full table + one-full-turn verification: `../WINI_UI_STATUS.md` §9. The Python
   **emitter** in `wini_client` (a display sink onto this socket) is the remaining integration step.
 
 ## Build (Raspberry Pi / Linux, X11)

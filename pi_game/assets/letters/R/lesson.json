@@ -1,0 +1,34 @@
+{
+  "letter": "R",
+  "phoneme": "ruh",
+  "say": "ruh",
+  "objects": [
+    {
+      "name": "Rainbow",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "R",
+    "S",
+    "T",
+    "U"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter R.",
+    "listen": "R says ruh.",
+    "touch_ask": "Can you touch R?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say ruh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. ruh.",
+    "repeat_move_on": "Thank you for trying. We will say ruh again soon.",
+    "assoc": "Rainbow begins with R.",
+    "activity_ask": "Can you bring me the rainbow?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned R today. R for a rainbow."
+  }
+}

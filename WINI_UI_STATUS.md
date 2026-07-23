@@ -97,7 +97,8 @@ learning log, so every turn is attributable to a mode.
 
 | Gap | Detail |
 |---|---|
-| ~~The Python client doesn't yet EMIT the inbound commands~~ **RESOLVED 2026-07-16** | The emitter is live: `wini_client --display lvgl` builds a `ModeChannelSink` (display_sinks.py) that serializes each turn into `{"cmd":...}` lines on the mode-channel socket (`ModeChannel.send`, mode_channel.py). Verified with the real Gemini brain on the panel. **Sync fixes same day:** the header now follows the turn's concept via `{"cmd":"lines","l1":"Chapter N","l2":"Topic"}` (pinned to the test's locked concept while a set is serving), and the screens' hard-coded demo content (Chapter 4 header, formula/illustration cards, permanent ✓ Correct banner, fake progress) was removed/hidden so the panel can never show content the brain didn't send — the "old chapter title/image stays after a topic shift" bug. The formula/illustration cards exist but stay HIDDEN (no IPC command drives them yet). |
+| ~~The Python client doesn't yet EMIT the inbound commands~~ **RESOLVED 2026-07-16** | The emitter is live: `wini_client --display lvgl` builds a `ModeChannelSink` (display_sinks.py) that serializes each turn into `{"cmd":...}` lines on the mode-channel socket (`ModeChannel.send`, mode_channel.py). Verified with the real Gemini brain on the panel. **Sync fixes same day:** the header now follows the turn's concept via `{"cmd":"lines","l1":"Chapter N","l2":"Topic"}` (pinned to the test's locked concept while a set is serving), and the screens' hard-coded demo content (Chapter 4 header, formula/illustration cards, permanent ✓ Correct banner, fake progress) was removed/hidden so the panel can never show content the brain didn't send — the "old chapter title/image stays after a topic shift" bug. |
+| **Brain figure images** ~~not wired~~ **RESOLVED 2026-07-17** | The T9 figure crops the brain selects (`display[]` items carrying `image_path`, e.g. the NCERT parabola / triangle / distance-formula diagrams) now paint on the panel. `ModeChannelSink._emit_figure` resolves the crop against the local store, scales it to fit the card, writes a PNG under `/tmp/wini_fig_{0..3}.png` (cycled), and sends `{"cmd":"figure","path":..,"caption":..}`; a turn without a figure sends `{"cmd":"figure","off":1}`. The UI's `widgets/figure_card.c` (an `lv_image` + caption, bound on explain+practice) loads it via the POSIX FS driver + lodepng. **Verified end-to-end on winipi5** (3 distinct brain images rendered — Fig. 2.2 parabola, Fig. 6.8 similar figures, Fig. 7.3 distance formula). **Gotcha found + fixed:** LVGL's default BUILTIN allocator is capped at `LV_MEM_SIZE` (was 1 MB) and silently OOMs decoding a ~370 KB full-page crop alongside all 8 persistent screens — the PNG drew blank. Switched `lv_conf.h` to `LV_USE_STDLIB_MALLOC 1` (C-library malloc) — no cap on the Pi. The formula/illustration *demo* cards still stay HIDDEN (no IPC command drives them). |
 | **Stage 5 perception signals** | Deferred. Mode requests are detected by **deterministic cues** (which work); the learned `practice_request`/`test_request` signal is an optimization, not a dependency. |
 | **Boot integration** | The picker + client are started manually (see §7); folding `wini_ui` into `wini_platform/supervisor.py` for auto-start on boot is a follow-on. |
 
@@ -187,11 +188,29 @@ in-flight recording, drops a captured utterance, skips speech on an in-flight tu
 tap resumes. The button turns soft-orange "Mic off - resume" and sets the status chip to Offline.
 Events carry the absolute on-value, so a duplicated delivery is harmless (idempotent).
 
-**One-press start (2026-07-16):** `run_wini_package.sh` (repo root) starts brain + client
-(`--display lvgl --ui-port 8140 --wait-for-mode --on-session-end exit`) + `wini_ui`, idempotent
-(exits if all three already run; kills a half-set first). On winipi5 the desktop icon
-`~/Desktop/Wini.desktop` runs it — launch from the panel/desktop (NOT bare SSH) so the processes
-inherit the desktop audio session.
+**One-press start (2026-07-16; warm-gated 2026-07-20):** `run_wini_package.sh` (repo root) starts
+brain + client (`--display lvgl --ui-port 8140 --wait-for-mode --on-session-end exit`) + `wini_ui`,
+idempotent (exits if all three already run; kills a half-set first). On winipi5 the desktop icon
+`~/Desktop/Wini.desktop` runs it (canonical copy: `Wini.desktop` at the repo root) — launch from the
+panel/desktop (NOT bare SSH) so the processes inherit the desktop audio session.
+
+The UI is now started **only after `/health` reports `ready`** (poll, 180 s cap), so the panel stays
+dark through the ~15 s warmup and lights up working instead of showing a picker whose taps go
+nowhere — that dead picker was the whole "the desktop icon isn't the same as the script" report.
+Concurrent launches are serialized by `flock` on `logs/.launch.lock`, and the script tees to
+`logs/launch.log` (the icon runs `Terminal=false`, so that file is the only record).
+
+> **Gotcha (cost a debugging cycle):** every long-lived child must be spawned with `9>&-`. Without
+> it the child inherits the lock fd and holds the lock after the launcher exits — the leak came out
+> through `wini_ui` → close button → `stop_wini_package.sh` → `touch_service.py`, and the *next*
+> icon tap then silently no-opped forever.
+
+**Close button (2026-07-20):** `widgets/close_button.c`, a floating pill bottom-LEFT (mirroring the
+pause pill bottom-right, so the two are never adjacent to a mis-tap). Tap → a confirm dialog
+("Finish for now?" / Keep going · Close Wini) — a stray tap from a child must not end the session.
+Confirming runs `$WINI_STOP_CMD` (set by the launcher to `stop_wini_package.sh`) detached via
+`setsid`, which kills brain + client + UI and resumes the background touch-emotion service, then
+requests its own quit so the panel clears even where the script is absent.
 
 **The client→UI contract (now implemented, UI side).** Newline-delimited flat JSON on the same
 `127.0.0.1:8140` connection the UI already uses for `mode_selected`. `app_state` parses each and
@@ -199,6 +218,7 @@ drives the live screen:
 
 | Command | Effect |
 |---|---|
+| `{"cmd":"ready"}` | brain is warm — releases the splash to Idle (2026-07-20). Sticky: the client re-sends it to every UI that connects, because the launcher starts the UI *after* the brain is ready. Ignored unless the splash is showing, so it can't yank a student mid-session. |
 | `{"cmd":"screen","to":"idle\|explain\|practice\|test\|result\|settings\|error"}` | crossfade to a screen |
 | `{"cmd":"status","v":"listening\|thinking\|teaching\|checking\|waiting\|offline"}` | header robot-status chip |
 | `{"cmd":"stage","v":"explain\|practice\|test"}` · `{"cmd":"lines","l1":..,"l2":..}` | header stage chip / topic lines |
@@ -208,6 +228,7 @@ drives the live screen:
 | `{"cmd":"listening"\|"thinking"\|"loading","on":0\|1, ...}` | show/hide a voice-state overlay (parented to CONTENT — chrome stays visible) |
 | `{"cmd":"score","score":N,"of":M,"caption":..}` | fill the result card + go to Result |
 | `{"cmd":"celebrate","msg":..}` · `{"cmd":"brightness","pct":N}` | celebration overlay / backlight |
+| `{"cmd":"figure","path":"/tmp/wini_fig_0.png","caption":..}` · `{"cmd":"figure","off":1}` | show a brain figure crop on the current screen's figure card / hide it (2026-07-17) |
 
 **Verified end-to-end against one full PRACTICE turn (2026-07-16, on the panel).** A stand-in
 `wini_client` listened on :8140, launched the UI, tapped **Practice** (UI → `mode_selected:PRACTICE`

@@ -96,6 +96,11 @@ class ModeChannel:
         self._conn_lock = threading.Lock()   # guards the _conn reference
         self._send_lock = threading.Lock()    # serializes writes on that conn
         self._thread: threading.Thread | None = None
+        # Latching state the UI needs no matter WHEN it connects (today: the
+        # brain-ready signal that releases the splash). The UI is normally
+        # launched only after the brain is warm, i.e. AFTER we would have sent
+        # it, so a plain send() would go to nobody.
+        self._sticky: list[dict] = []
 
     # ── lifecycle ─────────────────────────────────────────────────────────────
     def start(self) -> "ModeChannel":
@@ -110,6 +115,17 @@ class ModeChannel:
     def _set_conn(self, conn: socket.socket | None) -> None:
         with self._conn_lock:
             self._conn = conn
+        if conn is not None:
+            for obj in list(self._sticky):
+                self.send(obj)
+
+    def set_sticky(self, obj: dict) -> None:
+        """Send `obj` now AND re-send it to every UI that connects later.
+
+        For one-shot lifecycle facts (brain ready) — not for turn content, which
+        would be stale on a reconnect."""
+        self._sticky.append(obj)
+        self.send(obj)
 
     # ── client -> UI (the emitter path) ───────────────────────────────────────
     def send(self, obj: dict) -> bool:

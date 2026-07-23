@@ -122,8 +122,11 @@ forks.
    `bash ~/ROS2WS_audio_pipeline/select_usb_audio.sh` (runbook §4) — the onboard card
    re-grabs the default, so launchers also export `PULSE_SINK`/`PULSE_SOURCE` and the
    client opens streams with `device="pulse"`.
-5. Network: the device's network must reach Vertex/Cloud APIs (the phone-hotspot LAN
-   the Jetson uses does).
+5. Network: the device's network must reach Vertex/Cloud APIs. To move a headless
+   board to a new Wi-Fi (no screen, unknown IP), install the provisioning portal
+   (`jetson_platform/wifi_provisioning/`, runbook §17): it falls back to a `Wini-Robot`
+   hotspot and serves a captive page at `http://10.42.0.1` to enter new credentials,
+   and enables mDNS so the board is always reachable at `ubuntu.local`.
 
 ### 4.2 Today's Jetson bring-up (ROS platform)
 
@@ -140,8 +143,8 @@ Boot flow (installed via `crontab -e` → `@reboot bash /home/roavai/run_boot_pl
 1. Power on → display node (face) + head node (touch) + touch-trigger node start.
 2. **Hold the CHIN sensor ≥ 3 s** → "Loading…" card → `run_thin.sh` (server + client)
    → "Ready!" after ~40 s → talk to Wini.
-3. During each turn the face shows the **thinking animation** (`CONFUSED 8` + wandering
-   gaze via `/wini/thinking`); figures appear per the T9 display channel.
+3. During each turn the face shows the **thinking animation** (`XEYES 12` — the
+   X-eyes "loading/busy" look; was `CONFUSED 8`); figures appear per the T9 display channel.
 4. Say **"bye"** → farewell → client exits (sleep; mic off; brain stays warm).
 5. **Hold CHIN again** → fast wake (~3–5 s, client-only restart via `run_client.sh`).
    A chin hold while everything is running just flashes "Wini is awake!" (idempotent).

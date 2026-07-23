@@ -58,7 +58,30 @@ replace the blocking wait with the GPIO/touch callback.
   carries `filler`/`bank` text and `audio_b64`/`audio_rate` to play immediately. The
   Jetson rig keeps them OFF and shows a thinking face instead — see below.)
 
-  The **last line** is the full turn:
+  Then, with streaming on (Part 13, default), the turn's UI metadata and the answer's
+  audio arrive **incrementally** — this is what makes Wini start speaking in ~3-4 s
+  instead of ~10-20 s:
+
+```json
+{"part": "turn_meta", "answer": "...", "display": [...], "mode": "EXPLAIN", ...}
+{"part": "audio", "seq": 0, "audio_b64": "<base64 PCM>", "audio_rate": 24000}
+{"part": "audio", "seq": 1, "audio_b64": "...", "audio_rate": 24000}
+```
+
+  A device must:
+  - play `audio` parts **in `seq` order**, writing into one persistent output stream
+    (per-chunk open/close clicks on cheap USB codecs; per-chunk fades dip audibly —
+    fade in on the first chunk and out on the last, not in between);
+  - keep its "speaking" state (TTS-exclusivity for touch/emotion sounds) across the
+    **whole** chunk sequence, not per chunk;
+  - tolerate `audio` arriving **before** `turn_meta`. With streamed generation speech
+    starts before the turn is fully decided, so either order is legal.
+
+  The **last line** is the full turn. It still carries the complete `audio_b64` so a
+  non-streaming reader that parses only this line works unchanged — but when
+  `"audio_streamed": true` is present a streaming client **must not** play it again:
+
+
 
 ```json
 {

@@ -21,6 +21,8 @@ signal/concept/intent *perception* moves to Gemini.
 from __future__ import annotations
 
 import json
+import threading
+import time
 from pathlib import Path
 from typing import Callable, Dict, List, Optional, Sequence
 
@@ -80,6 +82,7 @@ class GeminiPerception:
         self._call_fn = call_fn
         self._device = device
         self._embedder = None
+        self._embedder_lock = threading.Lock()
         self._schema = None
         self._cache: Dict[str, dict] = {}
         self._cache_order: List[str] = []
@@ -90,6 +93,11 @@ class GeminiPerception:
         self._xresolver = None  # lazy ConceptResolver for the §5.5 cross-check (shares MiniLM)
         self._cc_resolved = False   # Stage 5 context cache, resolved once per process
         self._cc_name: Optional[str] = None
+        # Part 13 diagnostics: per-turn sub-timings (ms). The server's single
+        # `perception` counter cannot say whether a slow turn was the Gemini
+        # round-trip, the MiniLM candidate hints, or the §5.5 cross-check —
+        # all three live inside it. Reset by timing_reset(), read after the turn.
+        self.timing: Dict[str, int] = {}
 
     # ------------------------------------------------------------------ load
     @classmethod
@@ -100,12 +108,21 @@ class GeminiPerception:
     @property
     def embedder(self):
         """Lazily-loaded MiniLM — shared with HOPE + the chunk index (one model
-        in VRAM), exactly as the retired classifier's embedder was."""
-        if self._embedder is None:
-            from cognitive_classifier.classifier import MODEL_NAME
-            from sentence_transformers import SentenceTransformer
+        in VRAM), exactly as the retired classifier's embedder was.
 
-            self._embedder = SentenceTransformer(MODEL_NAME, device=self._device)
+        Locked: the tutor's background prewarm thread and the first turn can
+        race into this property, and two concurrent SentenceTransformer
+        constructions corrupt each other via accelerate's global
+        init_empty_weights state ("Cannot copy out of meta tensor") — both
+        loads then fail. Single-flight construction fixes it.
+        """
+        if self._embedder is None:
+            with self._embedder_lock:
+                if self._embedder is None:
+                    from cognitive_classifier.classifier import MODEL_NAME
+                    from sentence_transformers import SentenceTransformer
+
+                    self._embedder = SentenceTransformer(MODEL_NAME, device=self._device)
         return self._embedder
 
     def embed(self, texts: Sequence[str]) -> np.ndarray:
@@ -127,14 +144,24 @@ class GeminiPerception:
         return self._processor.normalize_input(text or "")
 
     # ------------------------------------------------------------- perceive
+    def timing_reset(self) -> None:
+        """Start a fresh per-turn sub-timing ledger (Part 13 diagnostics)."""
+        self.timing = {}
+
+    def _bump(self, key: str, t0: float) -> None:
+        self.timing[key] = self.timing.get(key, 0) + int((time.perf_counter() - t0) * 1000)
+
     def _perceive(self, text: str, session: Optional[dict] = None) -> dict:
         """The ONE Gemini call per utterance, memoized by normalized text so
         route/classify/resolve/score_matrix share a single network round-trip."""
         norm = self._normalize(text)
         cached = self._cache.get(norm)
         if cached is not None:
+            self.timing["memo_hits"] = self.timing.get("memo_hits", 0) + 1
             return cached
+        t0 = time.perf_counter()
         raw = self._invoke(norm, session or {})
+        self._bump("invoke_ms", t0)
         perception = self._validate(raw)
         self._cache[norm] = perception
         self._cache_order.append(norm)
@@ -144,13 +171,21 @@ class GeminiPerception:
         return perception
 
     def _invoke(self, norm_text: str, session: dict) -> Optional[dict]:
+        # Split the two costs: building the prompt pulls MiniLM (candidate hints),
+        # the call itself is the network round-trip. They fail very differently.
+        t0 = time.perf_counter()
         prompt = self._dynamic_prompt(norm_text, session)
+        self._bump("prompt_ms", t0)
         if self._call_fn is not None:
             try:
                 return self._call_fn(prompt, self.context)
             except Exception:  # noqa: BLE001 — injected stub failures -> fallback
                 return None
-        return self._gemini_call(prompt)
+        t1 = time.perf_counter()
+        try:
+            return self._gemini_call(prompt)
+        finally:
+            self._bump("gemini_ms", t1)
 
     def _concept_candidates(self, norm_text: str) -> List[tuple]:
         """§5.5 concept hardening: top-K catalog concepts by MiniLM similarity to the
@@ -250,6 +285,12 @@ class GeminiPerception:
 
         cc = self._cached_content()
         for attempt_cc in ([cc, None] if cc else [None]):
+            # Count attempts and time each one: a 6 s perception call is either
+            # ONE slow round-trip or a failed cached attempt plus a fallback, and
+            # those have entirely different fixes.
+            self.timing["gem_attempts"] = self.timing.get("gem_attempts", 0) + 1
+            self.timing["gem_cached"] = int(attempt_cc is not None)
+            _ta = time.perf_counter()
             try:
                 result = llm_vertex.generate_json(
                     prompt,
@@ -263,6 +304,8 @@ class GeminiPerception:
                 )
             except Exception:  # noqa: BLE001 — timeout / transport
                 result = None
+            self.timing[f"gem_try{self.timing['gem_attempts']}_ms"] = \
+                int((time.perf_counter() - _ta) * 1000)
             if result is not None and result.ok:
                 return result.data
             if attempt_cc is not None:
@@ -393,14 +436,19 @@ class GeminiPerception:
 
     def _crosscheck(self, text: str, primary: str, secondaries: List[str]) -> str:
         """Apply fuse_primary using the local resolver's scores; best-effort."""
+        t0 = time.perf_counter()
         res = self.crosscheck_resolver
+        self._bump("xresolver_build_ms", t0)
         if res is None:
             return primary
+        t1 = time.perf_counter()
         try:
             row = res.score_texts([self._normalize(text)])[0]
             return fuse_primary(primary, secondaries, row, res.concept_ids, res.tau)
         except Exception:  # noqa: BLE001
             return primary
+        finally:
+            self._bump("crosscheck_ms", t1)
 
     def resolve(self, text: str, current_concept: Optional[str] = None, top_k: int = 3) -> dict:
         p = self._perceive(text)
