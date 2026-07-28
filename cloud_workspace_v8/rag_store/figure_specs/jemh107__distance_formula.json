@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "concept_id": "jemh107__distance_formula",
+  "title": "Distance Formula",
+  "canvas": { "w": 500, "h": 380, "pad": 22, "equal_aspect": true },
+  "view": { "x0": 0, "y0": 0, "x1": 10, "y1": 8 },
+  "elements": [
+    { "t": "label", "text": "d = √((x₂−x₁)² + (y₂−y₁)²)",
+      "at": [5, 7.6], "anchor": "center", "color": "accent", "size": 19 },
+
+    { "t": "axes", "x0": 0, "y0": 0, "x1": 9.6, "y1": 7.1, "grid": true, "step": 1, "arrows": true },
+
+    { "t": "polygon", "pts": [[2, 2], [8, 6], [8, 2]], "fill": "accent_soft", "stroke": "none", "w": 0 },
+
+    { "t": "segment", "pts": [[2, 2], [8, 2]], "stroke": "muted", "w": 2, "dash": true },
+    { "t": "segment", "pts": [[8, 2], [8, 6]], "stroke": "muted", "w": 2, "dash": true },
+    { "t": "segment", "pts": [[2, 2], [8, 6]], "stroke": "accent", "w": 4 },
+
+    { "t": "right_angle", "at": [8, 2], "from": [2, 2], "to": [8, 6], "size": 0.55, "stroke": "ink" },
+
+    { "t": "label", "text": "d", "at": [4.7, 4.35], "anchor": "center", "color": "accent", "size": 23, "italic": true },
+    { "t": "label", "text": "x₂ − x₁", "at": [5, 1.85], "anchor": "n", "color": "ink", "size": 16 },
+    { "t": "label", "text": "y₂ − y₁", "at": [8.2, 4], "anchor": "w", "color": "ink", "size": 16 },
+
+    { "t": "point", "at": [2, 2], "r": 5, "fill": "accent2", "label": "A (x₁, y₁)", "label_anchor": "n", "color": "ink", "size": 16 },
+    { "t": "point", "at": [8, 6], "r": 5, "fill": "accent2", "label": "B (x₂, y₂)", "label_anchor": "sw", "color": "ink", "size": 16 },
+    { "t": "label", "text": "(x₂, y₁)", "at": [8, 1.7], "anchor": "n", "color": "muted", "size": 14 }
+  ]
+}

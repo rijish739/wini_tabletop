@@ -1,0 +1,50 @@
+{
+  "jemh104__discriminant_nature_of_roots": {
+    "scene": "rag_store/figure_specs/jemh104__discriminant_nature_of_roots.scene.json",
+    "beats": 6,
+    "title": "Discriminant and Nature of Roots",
+    "shape": "derivation"
+  },
+  "jemh104__forming_quadratic_equations": {
+    "scene": "rag_store/figure_specs/jemh104__forming_quadratic_equations.scene.json",
+    "beats": 6,
+    "title": "Forming Quadratic Equations from Word Problems",
+    "shape": "derivation"
+  },
+  "jemh104__identifying_quadratic_equations": {
+    "scene": "rag_store/figure_specs/jemh104__identifying_quadratic_equations.scene.json",
+    "beats": 5,
+    "title": "Identifying Quadratic Equations",
+    "shape": "derivation"
+  },
+  "jemh104__quadratic_equation_definition": {
+    "scene": "rag_store/figure_specs/jemh104__quadratic_equation_definition.scene.json",
+    "beats": 5,
+    "title": "Standard Form of a Quadratic Equation",
+    "shape": "derivation"
+  },
+  "jemh104__quadratic_formula": {
+    "scene": "rag_store/figure_specs/jemh104__quadratic_formula.scene.json",
+    "beats": 6,
+    "title": "The Quadratic Formula",
+    "shape": "derivation"
+  },
+  "jemh104__roots_of_quadratic_equation": {
+    "scene": "rag_store/figure_specs/jemh104__roots_of_quadratic_equation.scene.json",
+    "beats": 4,
+    "title": "Roots of a Quadratic Equation",
+    "shape": "graph"
+  },
+  "jemh104__solving_by_factorization": {
+    "scene": "rag_store/figure_specs/jemh104__solving_by_factorization.scene.json",
+    "beats": 5,
+    "title": "Solving Quadratic Equations by Factorization",
+    "shape": "derivation"
+  },
+  "jemh104__solving_real_world_problems": {
+    "scene": "rag_store/figure_specs/jemh104__solving_real_world_problems.scene.json",
+    "beats": 7,
+    "title": "Solving Real-World Problems with Quadratics",
+    "shape": "derivation"
+  }
+}

@@ -1,0 +1,110 @@
+[
+  {
+    "category": 1,
+    "utterance": "this graph is so confusing what is even happening here",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "confusion, curiosity, graphical, question, representation_shift, request_representation"
+  },
+  {
+    "category": 1,
+    "utterance": "what is sin cos tan in real life? just numbers means nothing to me",
+    "action": "EXPLAIN",
+    "labels": "algebraic, curiosity, question, transfer_attempt"
+  },
+  {
+    "category": 2,
+    "utterance": "the zeroes of polynomial, is it like when the output is zero for some input? what does that mean in like, a business graph?",
+    "action": "EXPLAIN",
+    "labels": "algebraic, curiosity, graphical, question, representation_shift, request_representation"
+  },
+  {
+    "category": 2,
+    "utterance": "this trigonometry, like what is the use of sin cos in real life, where do we use it na?",
+    "action": "EXPLAIN",
+    "labels": "algebraic, curiosity, question, transfer_attempt"
+  },
+  {
+    "category": 3,
+    "utterance": "what is zero of polynomial only? it's like the point where graph cuts x-axis na? or is it something else, so confusing definitions",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "algebraic, confusion, curiosity, diagrammatic, graphical, question, representation_shift, request_representation"
+  },
+  {
+    "category": 3,
+    "utterance": "this is too much for today, my head is aching after so many sums",
+    "action": "ENCOURAGE",
+    "labels": "cognitive_overload, frustration"
+  },
+  {
+    "category": 4,
+    "utterance": "i don't even know how to plot points on a graph properly, distance formula is too advanced for me right now.",
+    "action": "EXPLAIN",
+    "labels": "algebraic, answer_attempt, curiosity, graphical, procedural_focus, question, representation_shift, request_representation, self_monitoring"
+  },
+  {
+    "category": 4,
+    "utterance": "we are done with this right? can we go to next topic?",
+    "action": "RESUME_STATE",
+    "labels": "answer_attempt, curiosity, question, ready_for_next, topic_shift"
+  },
+  {
+    "category": 5,
+    "utterance": "I still can't really imagine what the zeroes mean on the parabola. What if they ask to draw it for me?",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "algebraic, curiosity, diagrammatic, graphical, low_confidence, question, representation_shift, request_representation, self_monitoring, verbal_analogy"
+  },
+  {
+    "category": 5,
+    "utterance": "i just feel so dumb today, nothing is going into my head.",
+    "action": "ENCOURAGE",
+    "labels": "cognitive_overload, frustration, low_confidence, physical, self_monitoring"
+  },
+  {
+    "category": 6,
+    "utterance": "distance formula, section formula, midpoint formula, if i know these three, can i do all coordinate geometry sums? like without understanding the graph part",
+    "action": "MISCONCEPTION_PROBE",
+    "labels": "algebraic, curiosity, graphical, high_confidence, misconception_clue, procedural_focus, question, representation_shift, request_representation, transfer_attempt"
+  },
+  {
+    "category": 6,
+    "utterance": "this quadratic formula is very important for boards na? i just need to memorize it properly.",
+    "action": "EXPLAIN",
+    "labels": "algebraic, anxiety, curiosity, procedural_focus, question, shortcut_seeking"
+  },
+  {
+    "category": 7,
+    "utterance": "My teacher said 'many solutions' for this graph means dependent, but the notes here say 'consistent'. What's the difference between dependent and consistent, I am confused?",
+    "action": "EXPLAIN",
+    "labels": "conflict, confusion, curiosity, graphical, question, representation_shift, request_representation"
+  },
+  {
+    "category": 7,
+    "utterance": "My teacher said something else only, are you sure this is the right way?",
+    "action": "EXPLAIN",
+    "labels": "answer_attempt, conflict, curiosity, question, skepticism"
+  },
+  {
+    "category": 8,
+    "utterance": "this graph for quadratic na, the curve is not coming proper, something is off",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "algebraic, graphical, representation_shift, request_representation"
+  },
+  {
+    "category": 8,
+    "utterance": "i don't know what is going on here, everything is like jumbled in my head",
+    "action": "EXPLAIN",
+    "labels": "cognitive_overload, confusion, curiosity, question"
+  },
+  {
+    "category": 9,
+    "utterance": "midpoint formula, can you show me on like a big graph paper, with strings or something, how it perfectly cuts the line?",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "algebraic, curiosity, diagrammatic, graphical, procedural_focus, question, representation_shift, request_representation"
+  },
+  {
+    "category": 9,
+    "utterance": "can you like use some actual stuff, like blocks or something, to show what this means?",
+    "action": "REPRESENTATION_TRANSLATION",
+    "labels": "curiosity, physical, question, representation_shift, request_representation"
+  }
+]

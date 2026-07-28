@@ -1,0 +1,108 @@
+jemh101__fundamental_theorem_of_arithmetic | Fundamental Theorem of Arithmetic
+jemh101__prime_factorization_hcf_lcm | HCF and LCM using Prime Factorization
+jemh101__hcf_lcm_product_relation | Relationship between HCF, LCM, and Product of Two Numbers
+jemh101__irrational_numbers_definition | Definition of Irrational Numbers
+jemh101__proof_by_contradiction_method | Proof by Contradiction Method
+jemh101__theorem_p_divides_a_squared | Theorem: If a prime p divides a², then p divides a
+jemh101__proving_irrationality_root_n | Proving Irrationality of √n (e.g., √2, √3)
+jemh101__proving_irrationality_expressions | Proving Irrationality of Expressions (e.g., a ± √b, a√b)
+jemh102__polynomial_degree | Degree of a Polynomial
+jemh102__zero_of_polynomial | Zero of a Polynomial
+jemh102__linear_zero_geometry | Geometrical Meaning of Linear Zeroes
+jemh102__quadratic_zero_geometry | Geometrical Meaning of Quadratic Zeroes
+jemh102__cubic_zero_geometry | Geometrical Meaning of Cubic Zeroes
+jemh102__quadratic_coefficients | Zeroes and Coefficients of a Quadratic
+jemh102__cubic_coefficients | Zeroes and Coefficients of a Cubic
+jemh103__pair_linear_equations_intro | Pair of Linear Equations in Two Variables
+jemh103__graphical_method_solving | Graphical Method for Solving Linear Equations
+jemh103__system_classification | Classification of Systems: Consistent, Inconsistent, Dependent
+jemh103__coefficient_ratios_analysis | Analysis using Coefficient Ratios
+jemh103__substitution_method | Substitution Method for Solving
+jemh103__elimination_method | Elimination Method for Solving
+jemh104__quadratic_equation_definition | Definition and Standard Form of a Quadratic Equation
+jemh104__identifying_quadratic_equations | Identifying Quadratic Equations
+jemh104__forming_quadratic_equations | Forming Quadratic Equations from Word Problems
+jemh104__roots_of_quadratic_equation | Roots of a Quadratic Equation
+jemh104__solving_by_factorization | Solving Quadratic Equations by Factorization
+jemh104__quadratic_formula | The Quadratic Formula
+jemh104__discriminant_nature_of_roots | Discriminant and Nature of Roots
+jemh104__solving_real_world_problems | Solving Real-World Problems using Quadratic Equations
+jemh105__ap_definition_identification | Arithmetic Progression (AP) Definition and Identification
+jemh105__ap_components_general_form | Components and General Form of an AP
+jemh105__nth_term_formula | Nth Term of an AP
+jemh105__sum_n_terms_formula | Sum of N Terms of an AP
+jemh105__arithmetic_mean | Arithmetic Mean
+jemh105__ap_applications | Real-world Applications of APs
+jemh106__similar_figures | Similar Figures
+jemh106__basic_proportionality_theorem | Basic Proportionality Theorem
+jemh106__converse_bpt | Converse of Basic Proportionality Theorem
+jemh106__triangle_similarity_criteria_intro | Triangle Similarity Criteria
+jemh106__aaa_similarity | AAA (Angle-Angle-Angle) Similarity Criterion
+jemh106__aa_similarity | AA (Angle-Angle) Similarity Criterion
+jemh106__sss_similarity | SSS (Side-Side-Side) Similarity Criterion
+jemh106__sas_similarity | SAS (Side-Angle-Side) Similarity Criterion
+jemh107__cartesian_coordinate_system | Cartesian Coordinate System
+jemh107__distance_formula | Distance Formula
+jemh107__collinearity_of_points | Collinearity of Points
+jemh107__geometric_figure_properties | Properties of Geometric Figures
+jemh107__section_formula | Section Formula
+jemh107__midpoint_formula | Midpoint Formula
+jemh107__finding_division_ratio | Finding Ratio of Division
+jemh107__trisection_of_segment | Trisection of a Line Segment
+jemh108__intro_trigonometry | Introduction to Trigonometry and Right-Angled Triangles
+jemh108__fundamental_trig_ratios | Fundamental Trigonometric Ratios
+jemh108__reciprocal_quotient_identities | Reciprocal and Quotient Trigonometric Identities
+jemh108__consistency_trig_ratios | Consistency of Trigonometric Ratios for Similar Triangles
+jemh108__trig_ratios_specific_angles | Trigonometric Ratios for Specific Angles (0°, 30°, 45°, 60°, 90°)
+jemh108__pythagorean_trig_identities | Pythagorean Trigonometric Identities
+jemh108__apply_trig_ratios | Application of Trigonometric Ratios to Solve Triangles
+jemh108__proving_trig_identities | Proving and Manipulating Trigonometric Identities
+jemh109__line_of_sight | Line of Sight
+jemh109__angle_of_elevation | Angle of Elevation
+jemh109__angle_of_depression | Angle of Depression
+jemh109__application_trig_ratios | Application of Trigonometric Ratios
+jemh109__heights_distances_problem_solving | Problem-Solving in Heights and Distances
+jemh110__lines_and_circles_definitions | Relationships between a Line and a Circle
+jemh110__tangent_radius_perpendicularity | Tangent Perpendicular to Radius at Point of Contact
+jemh110__number_of_tangents_from_a_point | Number of Tangents from a Point to a Circle
+jemh110__equal_tangent_lengths | Lengths of Tangents from an External Point
+jemh110__applications_of_tangent_properties | Applying Tangent Properties to Solve Problems
+jemh111__sector_segment_definitions | Definitions of Sector and Segment
+jemh111__sector_arc_formula_derivation | Derivation of Area of Sector and Length of Arc Formulas
+jemh111__area_of_sector | Area of a Sector
+jemh111__length_of_arc | Length of an Arc
+jemh111__triangle_area_calculation | Area of a Triangle within a Sector
+jemh111__area_of_segment | Area of a Segment
+jemh111__applications_circle_areas | Applications of Areas Related to Circles
+jemh112__properties_of_basic_3d_shapes | Surface Area and Volume of Basic 3D Shapes
+jemh112__decomposition_of_composite_solids | Decomposition of Composite Solids
+jemh112__surface_area_combined_solids | Calculating Surface Area of Combined Solids
+jemh112__volume_combined_solids | Calculating Volume of Combined Solids
+jemh112__real_world_applications | Real-World Applications of Surface Area and Volume
+jemh113__grouped_frequency_distribution | Grouped Frequency Distribution
+jemh113__mean_grouped_data | Mean of Grouped Data
+jemh113__mode_grouped_data | Mode of Grouped Data
+jemh113__cumulative_frequency | Cumulative Frequency
+jemh113__median_grouped_data | Median of Grouped Data
+jemh113__interpreting_measures | Interpreting Measures of Central Tendency
+jemh114__random_experiment_equally_likely | Random Experiments and Equally Likely Outcomes
+jemh114__sample_space_events | Sample Space and Events
+jemh114__theoretical_probability_formula | Theoretical Probability Definition and Formula
+jemh114__probability_range | Range of Probability: Impossible and Sure Events
+jemh114__complementary_events | Complementary Events
+jemh114__sum_elementary_probabilities | Sum of Probabilities of All Elementary Events
+jemh114__geometric_probability | Geometric Probability
+jemh1a1__mathematical_statement | Mathematical Statement
+jemh1a1__deductive_reasoning | Deductive Reasoning
+jemh1a1__conjecture_counterexample | Conjecture and Counterexample
+jemh1a1__direct_proof | Direct Proof
+jemh1a1__negation_of_statements | Negation of Statements
+jemh1a1__conditional_converse | Conditional Statements and Converses
+jemh1a1__proof_by_contradiction | Proof by Contradiction
+jemh1a2__mathematical_modelling | Mathematical Modelling
+jemh1a2__modelling_stages | Stages of Mathematical Modelling
+jemh1a2__problem_formulation | Problem Understanding and Formulation
+jemh1a2__solving_model | Solving the Mathematical Problem
+jemh1a2__interpretation_validation | Interpreting and Validating the Solution
+jemh1a2__iterative_modelling | Iterative Nature of Modelling
+jemh1a2__modelling_importance | Importance and Applications of Mathematical Modelling

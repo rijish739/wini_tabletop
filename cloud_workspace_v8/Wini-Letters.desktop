@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Wini Letters
+Comment=Meet the alphabet with Wini
+Exec=/home/winipi5/cloud_tutor/cloud-CLI/pi_game/run_alphabet.sh
+Icon=accessories-character-map
+Terminal=false
+Categories=Education;
+StartupNotify=false

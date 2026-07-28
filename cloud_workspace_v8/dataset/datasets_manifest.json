@@ -1,0 +1,71 @@
+{
+  "built": "2026-06-11",
+  "store_schema_version": 2,
+  "holdout_chapters": [
+    "jemh105",
+    "jemh111"
+  ],
+  "datasets": {
+    "concept_resolver.jsonl": {
+      "rows": 12748,
+      "splits": {
+        "val": 1800,
+        "test": 1789,
+        "train": 8327,
+        "holdout_chapter": 832
+      },
+      "tiers": {
+        "store": 2748,
+        "generated": 10000
+      }
+    },
+    "retrieval_relevance.jsonl": {
+      "rows": 9176,
+      "splits": {
+        "train": 5824,
+        "test": 1200,
+        "val": 1171,
+        "holdout_chapter": 981
+      },
+      "tiers": {
+        "store": 9176
+      }
+    },
+    "representation_tagger.jsonl": {
+      "rows": 953,
+      "splits": {
+        "train": 594,
+        "test": 134,
+        "val": 119,
+        "holdout_chapter": 106
+      },
+      "tiers": {
+        "store": 953
+      }
+    },
+    "misconception_clue_bank.jsonl": {
+      "rows": 1504,
+      "splits": {
+        "val": 209,
+        "train": 943,
+        "test": 208,
+        "holdout_misconception": 144
+      },
+      "tiers": {
+        "store": 1504
+      }
+    },
+    "grounding_guard.jsonl": {
+      "rows": 3584,
+      "splits": {
+        "train": 2279,
+        "val": 487,
+        "test": 483,
+        "holdout_chapter": 335
+      },
+      "tiers": {
+        "store": 3584
+      }
+    }
+  }
+}

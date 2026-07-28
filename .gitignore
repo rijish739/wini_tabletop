@@ -81,3 +81,6 @@ models/exemplar_classifier/_old_splits/
 
 # Jetson field-diagnostic scratch scripts (device-specific, not part of the build)
 _jetson_diag/
+
+# cloud_workspace_v8 source archive snapshot (284MB, exceeds GitHub 100MB limit)
+cloud_workspace_v8/source.tgz

@@ -1,0 +1,8 @@
+{
+  "method": "logreg",
+  "alpha": 0.3,
+  "k": 16,
+  "tau": 0.02,
+  "n_concepts": 108,
+  "limitation": "logreg cannot resolve the 10 store concepts unseen in training data; blend artifacts are kept for fallback/reasons"
+}

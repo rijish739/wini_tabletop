@@ -1,0 +1,223 @@
+{
+  "subject": "mathematics",
+  "grade": 10,
+  "chapter": 2,
+  "chapter_name": "Polynomials",
+  "core_concepts": [
+    {
+      "concept_id": "polynomial_degree",
+      "name": "Degree of a Polynomial",
+      "aliases": [
+        "degree",
+        "linear polynomial",
+        "quadratic polynomial",
+        "cubic polynomial"
+      ],
+      "summary": "Degree is the highest power of the variable; degree 1 linear, degree 2 quadratic, degree 3 cubic.",
+      "prerequisites": [],
+      "representations": [
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        "degree_equals_number_of_terms"
+      ]
+    },
+    {
+      "concept_id": "zero_of_polynomial",
+      "name": "Zero of a Polynomial",
+      "aliases": [
+        "zeroes",
+        "roots",
+        "x-intercepts"
+      ],
+      "summary": "A real number k is a zero if p(k)=0; geometrically it is an x-coordinate where y=p(x) intersects the x-axis.",
+      "prerequisites": [
+        "polynomial_degree"
+      ],
+      "representations": [
+        "symbolic",
+        "graphical",
+        "verbal"
+      ],
+      "misconceptions": [
+        "zero_means_number",
+        "only_for_quadratics"
+      ]
+    },
+    {
+      "concept_id": "linear_zero_geometry",
+      "name": "Geometrical Meaning of Linear Zeroes",
+      "aliases": [
+        "line intersects x-axis",
+        "linear polynomial graph"
+      ],
+      "summary": "A linear polynomial ax+b has exactly one zero, equal to the x-coordinate where its straight-line graph cuts the x-axis.",
+      "prerequisites": [
+        "zero_of_polynomial"
+      ],
+      "representations": [
+        "graphical",
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        "line_can_have_two_zeroes"
+      ]
+    },
+    {
+      "concept_id": "quadratic_zero_geometry",
+      "name": "Geometrical Meaning of Quadratic Zeroes",
+      "aliases": [
+        "quadratic graph",
+        "parabola zeroes"
+      ],
+      "summary": "A quadratic ax^2+bx+c can have two distinct zeroes, one repeated zero, or no real zero depending on how the parabola intersects the x-axis.",
+      "prerequisites": [
+        "zero_of_polynomial"
+      ],
+      "representations": [
+        "graphical",
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        "quadratic_always_has_two_real_zeroes"
+      ]
+    },
+    {
+      "concept_id": "cubic_zero_geometry",
+      "name": "Geometrical Meaning of Cubic Zeroes",
+      "aliases": [
+        "cubic graph",
+        "cubic zeroes"
+      ],
+      "summary": "A cubic can have at most three real zeroes; graph intersections with x-axis correspond to zeroes.",
+      "prerequisites": [
+        "zero_of_polynomial"
+      ],
+      "representations": [
+        "graphical",
+        "symbolic",
+        "verbal"
+      ],
+      "misconceptions": [
+        "cubic_has_more_than_three_zeroes"
+      ]
+    },
+    {
+      "concept_id": "quadratic_coefficients",
+      "name": "Zeroes and Coefficients of a Quadratic",
+      "aliases": [
+        "sum and product",
+        "quadratic coefficients"
+      ],
+      "summary": "If alpha and beta are zeroes of ax^2+bx+c, then alpha+beta = -b/a and alpha beta = c/a.",
+      "prerequisites": [
+        "quadratic_zero_geometry"
+      ],
+      "representations": [
+        "symbolic",
+        "algebraic"
+      ],
+      "misconceptions": [
+        "sum_is_b_over_a"
+      ],
+      "transfer_links": [
+        {
+          "target": "quadratic_equation",
+          "target_chapter": "Chapter 4: Quadratic Equations",
+          "transfer_type": "near",
+          "note": "Sum/product of roots reused when solving and constructing quadratic equations."
+        },
+        {
+          "target": "projectile_motion",
+          "target_chapter": "Science: Motion",
+          "transfer_type": "far",
+          "note": "Quadratic models the height-time path of a thrown object; zeroes are launch/landing times."
+        }
+      ]
+    },
+    {
+      "concept_id": "cubic_coefficients",
+      "name": "Zeroes and Coefficients of a Cubic",
+      "aliases": [
+        "cubic relations",
+        "Vieta cubic"
+      ],
+      "summary": "If alpha beta gamma are zeroes of ax^3+bx^2+cx+d, then alpha+beta+gamma = -b/a, alpha beta+beta gamma+gamma alpha = c/a, alpha beta gamma = -d/a.",
+      "prerequisites": [
+        "cubic_zero_geometry"
+      ],
+      "representations": [
+        "symbolic",
+        "algebraic"
+      ],
+      "misconceptions": [
+        "pairwise_sum_is_minus_c_over_a"
+      ]
+    }
+  ],
+  "figure_map": [
+    {
+      "page": 3,
+      "label": "Fig. 2.1",
+      "concept_id": "linear_zero_geometry",
+      "description": "Graph of y = 2x + 3 showing the x-intercept at x = -3/2."
+    },
+    {
+      "page": 4,
+      "label": "Table 2.1 / Fig. 2.2",
+      "concept_id": "quadratic_zero_geometry",
+      "description": "Quadratic y = x^2 - 3x - 4 with sample values and a parabola crossing the x-axis at x = -1 and x = 4."
+    },
+    {
+      "page": 5,
+      "label": "Fig. 2.3",
+      "concept_id": "quadratic_zero_geometry",
+      "description": "Case (i): parabola cuts the x-axis at two distinct points."
+    },
+    {
+      "page": 5,
+      "label": "Fig. 2.4",
+      "concept_id": "quadratic_zero_geometry",
+      "description": "Case (ii): parabola touches the x-axis at exactly one point (double root)."
+    },
+    {
+      "page": 6,
+      "label": "Fig. 2.5",
+      "concept_id": "quadratic_zero_geometry",
+      "description": "Case (iii): parabola lies entirely above or below the x-axis, so no real zero."
+    },
+    {
+      "page": 6,
+      "label": "Table 2.2 / Fig. 2.6",
+      "concept_id": "cubic_zero_geometry",
+      "description": "Cubic y = x^3 - 4x with zeroes at -2, 0, 2."
+    },
+    {
+      "page": 7,
+      "label": "Fig. 2.7",
+      "concept_id": "cubic_zero_geometry",
+      "description": "Graph of y = x^3, showing a single zero at x = 0."
+    },
+    {
+      "page": 7,
+      "label": "Fig. 2.8",
+      "concept_id": "cubic_zero_geometry",
+      "description": "Graph of y = x^3 - x^2 = x^2(x-1), showing zeroes at x = 0 and x = 1."
+    },
+    {
+      "page": 8,
+      "label": "Fig. 2.9",
+      "concept_id": "cubic_zero_geometry",
+      "description": "Examples of counting zeroes from graphs."
+    },
+    {
+      "page": 9,
+      "label": "Fig. 2.10",
+      "concept_id": "cubic_zero_geometry",
+      "description": "Exercise graphs for counting number of zeroes."
+    }
+  ]
+}

@@ -1,0 +1,358 @@
+1) Cognitive Input Processor
+What it does
+
+This is the front gate. It cleans the student text and extracts surface-level signals before any deeper reasoning.
+
+Technical implementation
+
+Use a Python preprocessing module plus a semantic exemplar classifier:
+
+deterministic normalization:
+Unicode NFKC
+trim whitespace
+collapse repeated spaces
+remove zero-width chars
+preserve equations and symbols
+lightweight signal tags:
+question
+answer attempt
+explanation
+confusion marker
+misconception clue
+transfer attempt
+topic shift
+self-correction
+curiosity
+
+The best fit in your stack is the same pattern already used elsewhere: MiniLM embeddings + ExemplarClassifier rather than regex rules. The updated prototype explicitly replaced regex intent/CT/KI logic with semantic exemplar classification.
+
+Output
+
+A structured object like:
+
+{
+  "normalized_text": "...",
+  "signals": {
+    "question": 0.91,
+    "answer_attempt": 0.73,
+    "confusion": 0.62,
+    "transfer_attempt": 0.20
+  },
+  "candidate_concepts": ["ohm_law", "current", "resistance"]
+}
+Used by
+
+The cognitive analyzer consumes this as priors, not as final truth.
+
+2) Fast Retrieval Layer
+What it does
+
+This layer retrieves candidate curriculum material before the LLM reasons.
+
+Technical implementation
+
+Use:
+
+sentence-transformers/all-MiniLM-L6-v2 for query embeddings
+faiss-cpu with IndexFlatIP over normalized vectors
+metadata per chunk: {chunk_id, domain, chapter, concept_id}
+
+The KB build pipeline is already defined as:
+
+PDF → chapter split → chunker (~512 tokens, 64 overlap) → MiniLM → FAISS + metadata.json
+
+What if topic is not known?
+
+Do not wait for perfect topic certainty. Retrieve against:
+
+candidate concepts from the input processor,
+current concept from learner state,
+prerequisite neighbors from the concept graph,
+current chapter anchors.
+
+If the best retrieval score stays below the knowledge-gap floor, treat it as off-syllabus / uncertain and redirect rather than quiz. That behavior is explicitly part of the RAG design.
+
+3) Concept Resolver / Knowledge Service
+What it does
+
+This decides which concept the student is actually talking about.
+
+Technical implementation
+
+Use the curriculum graph as the backbone:
+
+NetworkX directed prerequisite graph
+concept text anchors encoded with MiniLM
+concept matching uses text-vs-text cosine between student query and concept descriptions
+lexical rescue with difflib for spelling noise
+curriculum-depth tiebreaker when scores are close
+
+The docs are explicit that the graph embedding is for structure, while the concept match is text-vs-text.
+
+Output
+
+Example:
+
+{
+  "concept_id": "ohm_law",
+  "confidence": 0.88,
+  "secondary_concepts": ["current", "resistance"]
+}
+Used by
+learner model update
+retrieval scope
+pedagogy policy
+HOPE judging when concept representations matter
+4) Cognitive Analyzer / Policy Pre-Processor
+What it does
+
+This is the central replacement for the intent router in the cognitive-style architecture.
+
+Technical implementation
+
+Use a structured local LLM call in JSON mode plus rubric-style scoring. The architecture already uses structured JSON judging for KI/KT/CT and grounding. The same pattern should be reused here.
+
+The analyzer receives:
+
+normalized text,
+input processor signal scores,
+retrieved chunks,
+concept candidates,
+recent turn history,
+current learner snapshot.
+
+It outputs a JSON object with fields like:
+
+confusion
+confidence
+curiosity
+misconception_probability
+transfer_attempt
+abstraction_attempt
+self_correction
+explanation_quality
+cognitive_load
+How to estimate each signal
+
+Do not make one label decide all. Use a hybrid score:
+
+deterministic cue score from the input processor
+semantic exemplar score from MiniLM + ExemplarClassifier
+LLM rubric score in JSON mode
+
+Then merge them, usually with max() or a weighted rule.
+
+This is consistent with how the prototype already handles CT and KI: semantic stub + local LLM judge, max-of-two.
+
+5) Learner State Model
+What it does
+
+This is the authoritative memory of the student.
+
+Technical implementation
+
+Use the DKVMN-style learner model on CPU / numpy, as already specified:
+
+M_K: static key memory
+M_V: dynamic value memory
+one M_V per (user_id, domain)
+ZPD calibrator
+response-time decomposition: reading time vs cognitive time
+HOPE signals as additional state inputs
+
+The docs state the prototype uses DKVMN (numpy, CPU) with M_K initialized from the prerequisite graph embedding and M_V as the learner’s knowledge state.
+
+What lives in learner state
+mastery per concept
+misconception map
+representation coverage
+ZPD difficulty
+recent correctness
+hint dependency
+pending transfer concepts
+recent KI / KT / CT scores
+cognitive load / engagement
+Used by
+pedagogy policy
+hint selection
+cold recall
+session persistence
+6) HOPE Detectors
+What they do
+
+These are the learning-signal detectors for:
+
+KI: knowledge integration / representation translation
+KT: transfer
+CT: critical thinking
+Technical implementation
+
+The current prototype uses structured LLM judges plus semantic stubs:
+
+KI judge input: learner answer + concept representations
+KT judge input: transfer problem + answer
+CT judge input: utterance
+
+The rubric is defined in ADR-0012, and the deterministic fallback has moved to exemplar-based semantic classifiers in ADR-0014.
+
+How KI/CT style detection works
+
+This is where MiniLM + exemplar scoring is used most directly:
+
+CT: exemplar classifier over “hypothetical manipulation / error analysis” versus factual questions
+KI: exemplar classifier over representation phrases, plus a linking-phrase bank
+KT: judge the transfer response when a transfer problem is active
+
+That is already documented in the runtime loop and judge ADRs.
+
+7) Pedagogy Policy Engine
+What it does
+
+This chooses the actual tutor move.
+
+Technical implementation
+
+Keep it rule-based in the prototype, not PPO-trained yet. The documented action space is:
+
+EXPLAIN
+VISUAL_ANALOGY
+WORKED_EXAMPLE
+SOCRATIC_COUNTEREXAMPLE
+SOCRATIC_Q
+QUIZ
+GIVE_HINT
+FADING_HINT
+TRANSFER_PROBLEM
+ENCOURAGE
+REVIEW
+
+The policy uses learner state, recent signals, ZPD, and hint history. Anti-gaming is already defined as “3 consecutive hints without attempt → ENCOURAGE.”
+
+Technical rule examples
+low mastery + abstract science → VISUAL_ANALOGY
+procedural math concept → WORKED_EXAMPLE
+wrong-but-confident misconception → SOCRATIC_COUNTEREXAMPLE
+ct_score > 0.6 → SOCRATIC_Q or TRANSFER_PROBLEM
+high mastery + stable performance → harder quiz or review
+repeated hint requests → encourage instead of more hints
+8) Grounded Response Layer
+What it does
+
+This generates the student-facing reply.
+
+Technical implementation
+
+Use the local LLM backend via llama.cpp JSON / streaming mode. The response is generated from:
+
+selected pedagogical action
+retrieved NCERT chunks
+current concept
+learner state / misconception flags
+
+Then run a grounding / leakage check using the structured judge contract. The prototype explicitly has a grounding guard that checks whether the response is supported by retrieved context and whether it leaks the answer.
+
+Output forms
+
+Depending on action, the response may be:
+
+explanation
+Socratic question
+hint
+counterexample
+transfer problem
+review prompt
+
+For this prototype, keep “physical task” phrased as a textual analogy or guided experiment description, not as a real operational task.
+
+9) Persistence Layer
+What it does
+
+This stores the long-lived state and logs.
+
+Technical implementation
+
+Three tiers, exactly as in ADR-0010:
+
+learner.db → mutable authority
+sars_log.db → append-only logs
+in-memory context → transient cache, snapshotted into context_json
+
+This separation is a hard requirement in the prototype.
+
+What is stored
+
+learner.db:
+
+mastery
+ZPD
+session/mode state
+learner profile
+DKVMN M_V
+
+sars_log.db:
+
+state
+action
+reward components
+delayed reward
+cold recall
+
+context_json:
+
+rolling conversation summary
+recent turns
+resume snapshot
+10) Observability / Diagnostics
+What it does
+
+This lets you inspect whether the cognitive pipeline is behaving well.
+
+Technical implementation
+
+The prototype defines observability topics such as:
+
+/wini/system/health
+/wini/diagnostics/latency
+/wini/router/uncertain
+/wini/system/pressure
+
+These help measure routing confidence, latency, and degraded states.
+
+11) The full technical flow per turn
+Student text arrives.
+Input processor normalizes text and extracts surface signals.
+MiniLM retrieval fetches candidate concept chunks and graph neighbors.
+Cognitive analyzer runs structured JSON inference with the learner snapshot and recent history.
+Learner model updates mastery / misconception / load.
+HOPE judges score KI / KT / CT when relevant.
+Pedagogy policy chooses the action.
+Grounded response is generated from retrieved NCERT context.
+Grounding guard validates support and answer leakage.
+State and logs are persisted.
+12) Recommended implementation modules
+
+A clean code split would be:
+
+input_processor.py
+semantic_classifier.py
+knowledge_service.py
+rag_service.py
+cognitive_analyzer.py
+learner_model.py
+hope_judges.py
+pedagogy_engine.py
+hint_bank.py
+persistence.py
+llm_client.py
+grounding.py
+context_manager.py
+13) If you want the shortest technical summary
+Input processor: deterministic normalization + MiniLM exemplar signal extraction.
+Retrieval: MiniLM → FAISS NCERT chunks + concept graph neighbors.
+Concept resolver: MiniLM text anchors + prerequisite graph + lexical rescue.
+Cognitive analyzer: local LLM in JSON mode + rubric scoring + semantic priors.
+Learner model: DKVMN + ZPD + response-time split.
+HOPE: structured judges + exemplar-backed stubs.
+Policy: rule-based tutor action selection.
+Response: grounded local LLM generation with leakage guard.
+Persistence: learner.db, sars_log.db, context_json.
