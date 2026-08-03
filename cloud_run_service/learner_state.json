@@ -1,0 +1,168 @@
+{
+  "concept_states": {
+    "jemh110__lines_and_circles_definitions": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "topic_shift"
+      ]
+    },
+    "jemh108__intro_trigonometry": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "request_representation",
+        "topic_shift"
+      ]
+    },
+    "jemh104__quadratic_equation_definition": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "question"
+      ]
+    },
+    "jemh112__surface_area_combined_solids": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "example_request",
+        "physical",
+        "question"
+      ]
+    },
+    "jemh108__fundamental_trig_ratios": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "request_representation"
+      ]
+    },
+    "jemh102__quadratic_zero_geometry": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "request_representation",
+        "verbal_analogy"
+      ]
+    },
+    "jemh104__solving_real_world_problems": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "example_request",
+        "physical",
+        "question"
+      ]
+    },
+    "jemh102__quadratic_coefficients": {
+      "flag_seen": {},
+      "flags": [],
+      "last_signals": [
+        "request_representation"
+      ]
+    }
+  },
+  "global": {
+    "confidence": 0.5,
+    "curiosity": 0.0001,
+    "cognitive_load": 0.0001,
+    "engagement": 0.5001
+  },
+  "session": {
+    "served_items": [
+      "bridge::grade9::quadratic_polynomials::jemh104",
+      "grade9::quadratic_polynomials",
+      "jemh104__forming_quadratic_equations",
+      "figcap::fig::jemh104::fig_4_1",
+      "jemh104::page_003::summary",
+      "jemh104::page_008::summary",
+      "jemh104::page_001::summary",
+      "jemh104::page_001::chunk_000",
+      "jemh1a2::page_001::summary",
+      "jemh104::page_007::chunk_001",
+      "jemh104::page_005::chunk_000",
+      "jemh1a2::page_011::summary",
+      "jemh1an::page_003::summary",
+      "jemh1a2::page_002::summary",
+      "jemh1a2::page_002::chunk_000",
+      "jemh1a2::page_004::chunk_000",
+      "bridge::grade9::graph_of_a_quadratic_polynomial::jemh102",
+      "grade9::graph_of_a_quadratic_polynomial",
+      "jemh102__quadratic_zero_geometry",
+      "figcap::fig::jemh102::fig_2_2",
+      "jemh102::page_003::chunk_001",
+      "jemh102::page_004::chunk_001",
+      "jemh102::page_004::summary",
+      "figcap::fig::jemh102::fig_2_3_ii",
+      "jemh104::page_002::summary"
+    ],
+    "bridges_served": [],
+    "session_started_at": "2026-08-01T04:29:57.469036+00:00",
+    "steer_streak": 0,
+    "current_concept": "jemh102__quadratic_coefficients",
+    "context": [
+      {
+        "role": "student",
+        "text": "Give me a real life example of quadratics with everyday objects I can count and see."
+      },
+      {
+        "role": "wini",
+        "text": "Imagine you have 7 pencils. You want to arrange them into a square shape, but you find you need 2 more pencils to complete the next bigger square. The maths helps you find how many pencils you started with to form the first square."
+      },
+      {
+        "role": "student",
+        "text": "Give me a real life example of quadratics with everyday objects I can count and see."
+      },
+      {
+        "role": "wini",
+        "text": "Imagine you have 5 coins. You want to arrange them into a square shape, but you find you need 4 more coins to complete the next bigger square. The maths helps you find how many coins you started with to form the first square."
+      },
+      {
+        "role": "student",
+        "text": "Give me a real life example of quadratics with everyday objects I can count and see."
+      },
+      {
+        "role": "wini",
+        "text": "Imagine you have 6 balls. You want to arrange them into a square shape, but you find you need 3 more balls to complete the next bigger square. The maths helps you find how many balls you started with to form the first square."
+      },
+      {
+        "role": "student",
+        "text": "Show me with a real time animation how y = a x squared changes as a grows from 1 to 3."
+      },
+      {
+        "role": "wini",
+        "text": "Watch the parabola for y = a x squared. The curve opens upwards. As the value of 'a' grows from 1 to 3, the parabola becomes narrower, getting steeper."
+      }
+    ],
+    "last_action": "REPRESENTATION_TRANSLATION",
+    "last_repr_targets": [],
+    "pace": {
+      "mode": "idle",
+      "current_micro_goal": "",
+      "expected_response_type": "free",
+      "pending_micro_check": null,
+      "explanation_step": 0,
+      "explaining_concept": null,
+      "max_words": 60,
+      "last_explanation_summary": "",
+      "last_spoken_answer": "",
+      "last_voice_latency_ms": {}
+    },
+    "pending_check": {
+      "kind": "bridge",
+      "id": "grade9::graph_of_a_quadratic_polynomial",
+      "concept_id": "jemh102__quadratic_coefficients",
+      "question": "What is the name for the curve that represents the graph of a quadratic polynomial?",
+      "expected_answer": "Parabola",
+      "hint_chain": null
+    },
+    "pending_hope": {
+      "signal": "KI",
+      "id": "jemh102__quadratic_zero_geometry",
+      "prompt": "Watch the parabola for y = a x squared. The curve opens upwards. As the value of 'a' grows from 1 to 3, the parabola becomes narrower, getting steeper.",
+      "rubric_anchor": "Translating the algebraic relationships (sum and product of zeroes) to the graphical representation of a parabola helps visualize how the coefficients 'a', 'b', and 'c' influence the position of the x-intercepts and the symmetry of the curve."
+    }
+  },
+  "misconception_states": {}
+}

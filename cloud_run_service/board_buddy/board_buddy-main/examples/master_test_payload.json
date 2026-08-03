@@ -1,0 +1,83 @@
+[
+  {
+    "id": "header",
+    "type": "text",
+    "pos": [30, 15],
+    "text": "Board Buddy v1.0 Master Verification",
+    "size": "large",
+    "color": "#1A237E"
+  },
+  {
+    "id": "stickers_demo",
+    "type": "stickers",
+    "pos": [30, 60],
+    "name": "girl",
+    "count": 2,
+    "size": "large"
+  },
+  {
+    "id": "triangle_demo",
+    "type": "geometry",
+    "pos": [320, 60],
+    "shape": "triangle",
+    "size": "medium",
+    "color": "#E91E63",
+    "vertices": [[0, 100], [160, 100], [80, 10]]
+  },
+  {
+    "id": "numline_demo",
+    "type": "numberline",
+    "pos": [30, 240],
+    "size": "medium",
+    "min": 0,
+    "max": 10,
+    "hops": ["{hop:int}"],
+    "color": "#1976D2",
+    "title": "Number Line: {hop:int} Hops"
+  },
+  {
+    "id": "fraction_demo",
+    "type": "fraction",
+    "pos": [30, 410],
+    "size": "medium",
+    "numerator": ["{num_r:int}", 3],
+    "denominator": [3, 4],
+    "color": "#E65100",
+    "title": "2D Area Model Fraction Grid"
+  },
+  {
+    "id": "graph_demo",
+    "type": "graph",
+    "pos": [30, 580],
+    "size": "small",
+    "equation": "y = {a:2f} * x^2",
+    "x_range": [-3, 3],
+    "y_range": [-10, 10],
+    "color": "#388E3C",
+    "title": "Parabola: a = {a:2f}"
+  },
+  {
+    "id": "anim_hop",
+    "type": "animate_param",
+    "var": "hop",
+    "from": 1,
+    "to": 7,
+    "duration": 4.0
+  },
+  {
+    "id": "anim_a",
+    "type": "animate_param",
+    "var": "a",
+    "from": -2.0,
+    "to": 2.0,
+    "duration": 4.0
+  },
+  {
+    "id": "anim_rows",
+    "type": "animate_param",
+    "var": "num_r",
+    "from": 1,
+    "to": 3,
+    "duration": 4.0
+  }
+]

@@ -1,0 +1,52 @@
+# Part 15 Phase A — keep the Cloud Build context small and the image lean.
+# Exclude VCS, the bundled Cloud SDK, build junk, device/UI/tooling that the brain
+# service never imports, and every backup/scratch artifact.
+.git
+.gitignore
+.claude
+.claude/
+google-cloud-sdk
+**/__pycache__
+*.pyc
+*.pyo
+
+# backups / scratch / logs — never needed at runtime
+*.bak
+rag_store/*.bak
+rag_store/**/*.bak
+*.corrupt
+*.tmp
+*.log
+logs/
+*.output
+
+# large provenance / archives
+dataset/archive/
+
+# baked learner state would seed the container; on Cloud Run the durable store is
+# Firestore, so start cold and let Firestore be the source of truth.
+learner_state.json
+learner_state.*.bak
+
+# env is passed via Cloud Run --set-env-vars, not baked
+.env
+
+# device / UI / tooling packages — not part of the brain service
+wini_ui/
+wini_client/
+wini_platform/
+jetson_platform/
+_jetson_diag/
+pi_game/
+parent_ui/
+ui/
+_parent_cache/
+tools/
+eval/
+node_modules/
+.venv/
+venv/
+
+# docs & plans (not needed to run)
+*.md
+PI_ACCESS.md

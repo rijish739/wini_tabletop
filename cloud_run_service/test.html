@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Wini Brain — Debug Console</title>
+  <style>
+    :root {
+      --bg: #0d1117; --surface: #161b22; --border: #30363d;
+      --text: #e6edf3; --muted: #7d8590; --accent: #58a6ff;
+      --green: #3fb950; --yellow: #d29922; --red: #f85149;
+      --L0:#58a6ff;--L1:#3fb950;--L2:#bc8cff;--L3:#79c0ff;
+      --L4:#e3b341;--L5:#ffa657;--L6:#f778ba;--L7:#a5f3fc;
+      --L8:#34d399;--SRV:#7d8590;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;height:100vh;display:flex;flex-direction:column}
+
+    /* ── Header ── */
+    header{background:var(--surface);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:10px;flex-shrink:0}
+    header h1{font-size:14px;font-weight:700;white-space:nowrap}
+    header h1 span{color:var(--accent)}
+    #url-input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 10px;border-radius:6px;font-size:13px}
+    .btn{background:var(--accent);color:#000;border:none;padding:5px 13px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;white-space:nowrap;transition:opacity .15s}
+    .btn:hover{opacity:.85}
+    .btn.danger{background:var(--red);color:#fff}
+    .btn.ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+    #dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+    #dot.live{background:var(--green)}
+    #dot.err{background:var(--red)}
+    #status-txt{font-size:11px;color:var(--muted);white-space:nowrap}
+
+    /* ── Layout ── */
+    main{flex:1;display:flex;overflow:hidden}
+
+    /* ── Sidebar ── */
+    aside{width:200px;flex-shrink:0;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+    aside h3{font-size:10px;color:var(--muted);padding:10px 12px 5px;text-transform:uppercase;letter-spacing:.06em}
+    .lrow{display:flex;align-items:center;gap:7px;padding:3px 10px 3px 8px;cursor:pointer;border-radius:4px;margin:1px 4px}
+    .lrow:hover{background:rgba(255,255,255,.04)}
+    .lbadge{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;min-width:34px;text-align:center;color:#000;flex-shrink:0}
+    .lname{font-size:12px}
+    .lcnt{font-size:10px;color:var(--muted);margin-left:auto}
+    aside section{border-top:1px solid var(--border);padding:10px 10px 12px}
+
+    /* ── Mic recorder ── */
+    #mic-ring{width:72px;height:72px;border-radius:50%;background:var(--bg);border:3px solid var(--border);display:flex;align-items:center;justify-content:center;margin:8px auto;cursor:pointer;transition:all .2s;position:relative}
+    #mic-ring.ready{border-color:var(--accent)}
+    #mic-ring.rec{border-color:var(--red);box-shadow:0 0 0 6px rgba(248,81,73,.25);animation:pulse 1s infinite}
+    #mic-ring.busy{border-color:var(--yellow)}
+    @keyframes pulse{0%,100%{box-shadow:0 0 0 6px rgba(248,81,73,.25)}50%{box-shadow:0 0 0 12px rgba(248,81,73,.1)}}
+    #mic-icon{font-size:28px;pointer-events:none}
+    #mic-label{font-size:11px;color:var(--muted);text-align:center;margin-bottom:6px}
+    #mic-timer{font-size:11px;color:var(--red);text-align:center;height:16px;font-family:monospace}
+    #mic-hint{font-size:10px;color:var(--muted);text-align:center;margin-top:4px}
+
+    #vumeter{width:100%;height:6px;background:var(--bg);border-radius:3px;overflow:hidden;margin:4px 0}
+    #vubar{height:100%;background:var(--green);border-radius:3px;width:0;transition:width .05s}
+
+    /* STT output */
+    .res-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+    .res-box{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:7px;font-size:12px;min-height:40px;word-break:break-word;white-space:pre-wrap;color:var(--text)}
+    #transcript-box{color:var(--green)}
+    #answer-box{margin-top:6px;color:var(--yellow)}
+
+    /* Text turn */
+    #ttxt{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:6px 9px;border-radius:5px;font-size:12px;resize:vertical;min-height:50px;font-family:inherit;margin-bottom:5px}
+    #ttxt::placeholder{color:var(--muted)}
+
+    /* ── Log ── */
+    #log-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+    #log-toolbar{display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid var(--border);flex-shrink:0}
+    #log-toolbar label{font-size:12px;color:var(--muted)}
+    #srch{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 9px;border-radius:5px;font-size:12px}
+    #log{flex:1;overflow-y:auto;padding:2px 0}
+    .lev{display:flex;align-items:flex-start;gap:7px;padding:4px 10px;font-size:11.5px;font-family:'Cascadia Code','Fira Code','Consolas',monospace;border-left:2px solid transparent;cursor:pointer;transition:background .1s}
+    .lev:hover{background:rgba(255,255,255,.05)}
+    .lts{color:var(--muted);white-space:nowrap;min-width:80px;padding-top:1px;flex-shrink:0}
+    .lbg{font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;color:#000;min-width:34px;text-align:center;flex-shrink:0;margin-top:1px}
+    .levt{color:var(--accent);min-width:125px;flex-shrink:0;padding-top:1px;font-weight:600}
+    .lfld{color:var(--muted);flex:1;min-width:0;line-height:1.4}
+    .lfld .kk{color:var(--text);font-weight:600}
+    .lfld .kv{color:var(--green)}
+    .lfld .ks{color:#d29922}
+    .lfld .ke{color:var(--red)}
+    .lev.turn-sep{border-left:2px solid var(--accent);background:rgba(88,166,255,.06);margin:4px 0}
+
+    body.wrap-text .lfld {
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    body:not(.wrap-text) #log {
+      overflow-x: auto;
+    }
+    body:not(.wrap-text) .lfld {
+      white-space: nowrap;
+    }
+
+    /* ── Right panel ── */
+    #rpanel{width:310px;flex-shrink:0;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+    .tabs{display:flex;border-bottom:1px solid var(--border);flex-shrink:0}
+    .tab{flex:1;padding:7px;text-align:center;font-size:11px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:color .15s}
+    .tab.on{color:var(--accent);border-bottom-color:var(--accent)}
+    .pane{flex:1;overflow-y:auto;padding:8px;display:none}
+    .pane.on{display:block}
+
+    /* Latency bars */
+    .lat-row{display:flex;align-items:center;gap:5px;margin-bottom:5px}
+    .lat-lbl{font-size:10px;color:var(--muted);width:68px;text-align:right;flex-shrink:0}
+    .lat-track{flex:1;background:var(--bg);border-radius:3px;height:13px;overflow:hidden}
+    .lat-bar{height:100%;border-radius:3px;transition:width .4s}
+    .lat-val{font-size:10px;color:var(--text);min-width:44px}
+
+    /* Raw JSON */
+    #raw-pre{font-size:10px;color:var(--green);white-space:pre;overflow:auto;word-break:break-all}
+
+    ::-webkit-scrollbar{width:5px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Wini <span>Debug</span></h1>
+  <div id="dot"></div>
+  <span id="status-txt">Disconnected</span>
+  <input id="url-input" type="text" value="http://localhost:8123" placeholder="http://localhost:8123 or http://192.168.0.104:8123" />
+  <button class="btn" id="btn-connect">Connect</button>
+  <button class="btn ghost" id="btn-clr-ui">Clear UI</button>
+  <button class="btn danger" id="btn-clr-srv">Clear Server</button>
+</header>
+
+<main>
+  <!-- ── Sidebar ── -->
+  <aside>
+    <h3>Layers</h3>
+    <div id="layer-list"></div>
+
+    <!-- ── Mic section ── -->
+    <section>
+      <h3 style="padding:0 0 6px;letter-spacing:.06em;font-size:10px;color:var(--muted);text-transform:uppercase">🎤 Voice Test</h3>
+      <div id="mic-ring" title="Click to start/stop recording">
+        <span id="mic-icon">🎤</span>
+      </div>
+      <div id="mic-label">Click to record</div>
+      <div id="vumeter"><div id="vubar"></div></div>
+      <div id="mic-timer"></div>
+      <div id="mic-hint">Speaks into your laptop mic →<br>POSTs PCM to brain via HTTP</div>
+
+      <div class="res-label" style="margin-top:8px">Transcript</div>
+      <div class="res-box" id="transcript-box">—</div>
+      <div class="res-label" style="margin-top:6px">Answer</div>
+      <div class="res-box" id="answer-box">—</div>
+    </section>
+
+    <!-- ── Text turn ── -->
+    <section>
+      <h3 style="padding:0 0 6px;letter-spacing:.06em;font-size:10px;color:var(--muted);text-transform:uppercase">💬 Text Turn</h3>
+      <textarea id="ttxt" placeholder="Type message… (Ctrl+Enter sends)">hello wini</textarea>
+      <button class="btn" id="btn-turn" style="width:100%">▶ Send</button>
+      <div class="res-label" style="margin-top:6px">Answer</div>
+      <div class="res-box" id="text-answer-box">—</div>
+    </section>
+  </aside>
+
+  <!-- ── Log panel ── -->
+  <div id="log-wrap">
+    <div id="log-toolbar">
+      <label>Filter:</label>
+      <input id="srch" type="text" placeholder="search…" />
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="chk-wrap" checked /> Wrap Text
+      </label>
+      <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;user-select:none">
+        <input type="checkbox" id="chk-follow" checked /> Follow
+      </label>
+      <span id="total-cnt" style="font-size:11px;color:var(--muted)">0 events</span>
+    </div>
+    <div id="log"></div>
+  </div>
+
+  <!-- ── Right panel ── -->
+  <div id="rpanel">
+    <div class="tabs">
+      <div class="tab on" data-pane="latency">Latency</div>
+      <div class="tab" data-pane="raw">JSON</div>
+      <div class="tab" data-pane="diag">Diagnostics</div>
+      <div class="tab" data-pane="board">🎨 Board</div>
+    </div>
+    <div class="pane on" id="pane-latency">
+      <div id="lat-bars"></div>
+      <div id="lat-empty" style="font-size:12px;color:var(--muted);text-align:center;padding:20px 0">No turn yet</div>
+    </div>
+    <div class="pane" id="pane-raw">
+      <pre id="raw-pre">—</pre>
+    </div>
+    <div class="pane" id="pane-diag">
+      <div id="diag-content" style="font-size:11px;line-height:1.7"></div>
+    </div>
+    <div class="pane" id="pane-board">
+      <div id="board-preview-container" style="text-align:center;">
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Rendered Board Buddy Canvas</div>
+        <img id="board-img" style="max-width:100%;border:1px solid var(--border);border-radius:6px;background:#F7EBD9;display:none;" />
+        <div id="board-empty" style="font-size:12px;color:var(--muted);padding:20px 0;">No board rendered yet</div>
+        <div style="margin-top:12px;text-align:left;">
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">Test Board Payload JSON</div>
+          <textarea id="board-json-input" style="width:100%;height:80px;font-size:10px;font-family:monospace;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;padding:4px;" placeholder='[{"type":"geometry","shape":"right_triangle","pos":[300,400],"size":[220,150],"labels":[{"text":"A"},{"text":"B"},{"text":"C"}]}]'></textarea>
+          <button class="btn" id="btn-render-board" style="width:100%;margin-top:4px;">Render Payload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// Layer config
+// ─────────────────────────────────────────────────────────────────────────────
+const LAYERS = [
+  {id:"SRV",label:"SRV",name:"Server",   color:"#7d8590"},
+  {id:"L0", label:"L0", name:"Connect",  color:"#58a6ff"},
+  {id:"L1", label:"L1", name:"STT",      color:"#3fb950"},
+  {id:"L2", label:"L2", name:"Percept",  color:"#bc8cff"},
+  {id:"L3", label:"L3", name:"State",    color:"#79c0ff"},
+  {id:"L4", label:"L4", name:"Pedagogy", color:"#e3b341"},
+  {id:"L5", label:"L5", name:"Retrieval",color:"#ffa657"},
+  {id:"L6", label:"L6", name:"Gen / Response", color:"#f778ba"},
+  {id:"L7", label:"L7", name:"TTS",      color:"#a5f3fc"},
+  {id:"L8", label:"L8", name:"Writeback",color:"#34d399"},
+];
+const lColor = Object.fromEntries(LAYERS.map(l=>[l.id,l.color]));
+const lVis   = Object.fromEntries(LAYERS.map(l=>[l.id,true]));
+const lCnt   = Object.fromEntries(LAYERS.map(l=>[l.id,0]));
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sidebar layer rows
+// ─────────────────────────────────────────────────────────────────────────────
+const layerListEl = document.getElementById("layer-list");
+LAYERS.forEach(l => {
+  const row = document.createElement("div");
+  row.className = "lrow"; row.dataset.layer = l.id;
+  row.innerHTML = `<div class="lbadge" style="background:${l.color}">${l.label}</div>
+    <span class="lname">${l.name}</span>
+    <span class="lcnt" id="cnt-${l.id}">0</span>`;
+  row.onclick = () => { lVis[l.id]=!lVis[l.id]; row.style.opacity=lVis[l.id]?"1":"0.3"; renderLog(); };
+  layerListEl.appendChild(row);
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Panel tabs
+// ─────────────────────────────────────────────────────────────────────────────
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".pane").forEach(x=>x.classList.remove("on"));
+  t.classList.add("on");
+  document.getElementById("pane-"+t.dataset.pane).classList.add("on");
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// State
+// ─────────────────────────────────────────────────────────────────────────────
+let evtSrc=null, allEvs=[], total=0, lastTurn=null;
+
+function base(){return document.getElementById("url-input").value.trim().replace(/\/$/,"");}
+
+function setDot(state,txt){
+  const d=document.getElementById("dot"), s=document.getElementById("status-txt");
+  d.className=state; s.textContent=txt;
+}
+
+// Restore saved URL if present
+const savedUrl = localStorage.getItem("wini_debug_url");
+if(savedUrl) document.getElementById("url-input").value = savedUrl;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SSE connect
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById("btn-connect").onclick=connect;
+document.getElementById("url-input").onkeydown=e=>{if(e.key==="Enter")connect();};
+function connect(){
+  if(evtSrc){evtSrc.close();evtSrc=null;}
+  localStorage.setItem("wini_debug_url", base());
+  setDot("","Connecting…");
+  evtSrc=new EventSource(base()+"/debug/stream");
+  evtSrc.onopen=()=>setDot("live","Live · "+base());
+  evtSrc.onmessage=e=>{try{ingest(JSON.parse(e.data));}catch(_){}};
+  evtSrc.onerror=()=>setDot("err","Disconnected — retrying…");
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Ingest
+// ─────────────────────────────────────────────────────────────────────────────
+function switchTab(paneId){
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".pane").forEach(x=>x.classList.remove("on"));
+  const tab=document.querySelector(`.tab[data-pane="${paneId}"]`);
+  const pane=document.getElementById(`pane-${paneId}`);
+  if(tab)tab.classList.add("on");
+  if(pane)pane.classList.add("on");
+}
+
+function ingest(e){
+  allEvs.push(e); total++;
+  const ly=e.layer||"??";
+  if(ly in lCnt){lCnt[ly]++;const el=document.getElementById("cnt-"+ly);if(el)el.textContent=lCnt[ly];}
+  document.getElementById("total-cnt").textContent=total+" events";
+  if(e.event === "board_buddy_rendered" && e.image_data_url) {
+    showBoardImage(e.image_data_url);
+    switchTab("board");
+  }
+  appendRow(e);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Rendering
+// ─────────────────────────────────────────────────────────────────────────────
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+function fmtTs(iso){try{return iso.slice(11,23);}catch(_){return iso;}}
+function fmtFields(e){
+  const skip=new Set(["ts","layer","event"]);
+  return Object.entries(e).filter(([k])=>!skip.has(k)).map(([k,v])=>{
+    let vs = typeof v==="string"?v:JSON.stringify(v);
+    if(k==="image_data_url" && vs.length>50) vs = vs.slice(0,40)+"... ["+vs.length+" bytes]";
+    let cls="kv"; if(typeof v==="string")cls="ks"; if(k==="error")cls="ke";
+    return `<span class="kk">${esc(k)}</span>=<span class="${cls}">${esc(vs)}</span>`;
+  }).join("  ");
+}
+function matchSearch(e){
+  const q=document.getElementById("srch").value.trim().toLowerCase();
+  return !q||JSON.stringify(e).toLowerCase().includes(q);
+}
+
+const logEl=document.getElementById("log");
+const chkWrap=document.getElementById("chk-wrap");
+function applyWrap(){
+  document.body.classList.toggle("wrap-text", chkWrap.checked);
+}
+chkWrap.onchange=applyWrap;
+applyWrap();
+
+function appendRow(e){
+  const ly=e.layer||"??";
+  if(!lVis[ly]||!matchSearch(e))return;
+  const col=lColor[ly]||"#7d8590";
+  const isSep=e.event==="stt_start"||e.event==="brain_load_start";
+  const row=document.createElement("div");
+  row.className="lev"+(isSep?" turn-sep":"");
+  row.style.borderLeftColor=col;
+  row.title="Click to inspect event JSON / Board view";
+  row.innerHTML=`<span class="lts">${fmtTs(e.ts)}</span>
+    <span class="lbg" style="background:${col}">${esc(ly)}</span>
+    <span class="levt">${esc(e.event||"")}</span>
+    <span class="lfld">${fmtFields(e)}</span>`;
+  row.onclick=()=>{
+    if(e.image_data_url){
+      showBoardImage(e.image_data_url);
+      switchTab("board");
+    } else {
+      switchTab("raw");
+    }
+    document.getElementById("raw-pre").textContent=JSON.stringify(e,null,2);
+  };
+  logEl.appendChild(row);
+  if(document.getElementById("chk-follow").checked)row.scrollIntoView({block:"nearest"});
+}
+function renderLog(){logEl.innerHTML="";allEvs.forEach(appendRow);}
+document.getElementById("srch").oninput=renderLog;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Clear
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById("btn-clr-ui").onclick=()=>{
+  allEvs=[];total=0;logEl.innerHTML="";
+  LAYERS.forEach(l=>{lCnt[l.id]=0;const el=document.getElementById("cnt-"+l.id);if(el)el.textContent=0;});
+  document.getElementById("total-cnt").textContent="0 events";
+};
+document.getElementById("btn-clr-srv").onclick=async()=>{
+  try{await fetch(base()+"/debug/clear",{method:"POST"});}catch(e){alert("Clear failed: "+e);}
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Latency chart
+// ─────────────────────────────────────────────────────────────────────────────
+const LAT=[
+  {key:"stt",       label:"STT",        color:"#3fb950"},
+  {key:"perception",label:"Perception", color:"#bc8cff"},
+  {key:"grade_join",label:"Grade",      color:"#79c0ff"},
+  {key:"brain",     label:"Brain",      color:"#e3b341"},
+  {key:"tts_first_chunk",label:"TTS 1st",color:"#a5f3fc"},
+  {key:"tts",       label:"TTS total",  color:"#58a6ff"},
+];
+function renderLatency(lms){
+  const el=document.getElementById("lat-bars"), em=document.getElementById("lat-empty");
+  if(!lms||!Object.keys(lms).length){em.style.display="";el.innerHTML="";return;}
+  em.style.display="none";
+  const max=Math.max(...LAT.map(s=>lms[s.key]||0),1);
+  el.innerHTML=LAT.map(s=>{
+    const v=lms[s.key]; if(v==null)return"";
+    const pct=Math.round((v/max)*100);
+    return`<div class="lat-row"><div class="lat-lbl">${s.label}</div>
+      <div class="lat-track"><div class="lat-bar" style="width:${pct}%;background:${s.color}"></div></div>
+      <div class="lat-val">${v} ms</div></div>`;
+  }).join("")+`<div style="font-size:10px;color:var(--muted);margin-top:5px">* bars scaled to longest segment</div>`;
+}
+
+function renderDiag(data){
+  const d=data.diagnostics||{}; const el=document.getElementById("diag-content");
+  if(!d.action){el.innerHTML="<span style='color:var(--muted)'>No diagnostics</span>";return;}
+  const row=(k,v)=>`<div><span style="color:var(--muted)">${k}:</span> <span style="color:var(--green)">${esc(String(v??"-"))}</span></div>`;
+  el.innerHTML=[
+    row("action",d.action), row("why",d.why), row("need",d.need),
+    row("mode",d.mode), row("concept",d.concept),
+    row("mastery",d.mastery), row("signals",(d.signals||[]).join(", ")||"-"),
+    row("writeback",d.writeback), row("n_evidence",d.n_evidence),
+    row("hope_update",d.hope?JSON.stringify(d.hope):"-"),
+  ].join("");
+}
+
+function handleTurnResult(data){
+  lastTurn=data;
+  document.getElementById("raw-pre").textContent=JSON.stringify(data,null,2);
+  renderLatency(data.latency_ms||{});
+  renderDiag(data);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ── 🎤 MICROPHONE RECORDER ──────────────────────────────────────────────────
+// Records from the browser mic, converts to LINEAR16 PCM, POSTs to /voice_turn
+// No mic is needed on the Pi — developer speaks from their laptop browser.
+// ─────────────────────────────────────────────────────────────────────────────
+let mediaRec=null, audioCtx=null, analyser=null, vuRaf=null;
+let recChunks=[], recStream=null, recStart=null, timerInterval=null;
+let isRecording=false;
+
+const micRing   = document.getElementById("mic-ring");
+const micIcon   = document.getElementById("mic-icon");
+const micLabel  = document.getElementById("mic-label");
+const micTimer  = document.getElementById("mic-timer");
+const vuBar     = document.getElementById("vubar");
+
+micRing.onclick = ()=>{ if(isRecording) stopRecording(); else startRecording(); };
+
+async function startRecording(){
+  try{
+    recStream = await navigator.mediaDevices.getUserMedia({audio:{sampleRate:16000,channelCount:1,echoCancellation:true,noiseSuppression:true},video:false});
+  }catch(e){
+    micLabel.textContent="⚠ Mic denied: "+e.message; return;
+  }
+  recChunks=[];
+  // Use a sample rate of 16000 if supported, otherwise whatever the browser gives
+  audioCtx  = new AudioContext({sampleRate:16000});
+  analyser  = audioCtx.createAnalyser(); analyser.fftSize=256;
+  const src = audioCtx.createMediaStreamSource(recStream);
+  src.connect(analyser);
+  // VU meter
+  const vuData=new Uint8Array(analyser.frequencyBinCount);
+  function vuTick(){
+    analyser.getByteFrequencyData(vuData);
+    const avg=vuData.reduce((a,b)=>a+b,0)/vuData.length;
+    vuBar.style.width=Math.min(100,avg*2)+"%";
+    vuRaf=requestAnimationFrame(vuTick);
+  }
+  vuTick();
+
+  mediaRec=new MediaRecorder(recStream,{mimeType:"audio/webm;codecs=opus"});
+  mediaRec.ondataavailable=e=>{if(e.data&&e.data.size>0)recChunks.push(e.data);};
+  mediaRec.onstop=processAudio;
+  mediaRec.start(100);
+  isRecording=true;
+  recStart=Date.now();
+  micRing.className="mic-ring rec"; micIcon.textContent="⏹"; micLabel.textContent="Recording… click to stop";
+  timerInterval=setInterval(()=>{
+    const s=Math.floor((Date.now()-recStart)/1000);
+    micTimer.textContent=`${s}s`;
+  },500);
+}
+
+function stopRecording(){
+  if(!mediaRec||mediaRec.state==="inactive")return;
+  mediaRec.stop();
+  recStream.getTracks().forEach(t=>t.stop());
+  cancelAnimationFrame(vuRaf); vuBar.style.width="0";
+  clearInterval(timerInterval);
+  micRing.className="mic-ring busy"; micIcon.textContent="⏳"; micLabel.textContent="Processing…";
+  isRecording=false;
+}
+
+async function processAudio(){
+  // Decode the webm/opus blob to PCM using AudioContext
+  const blob=new Blob(recChunks,{type:"audio/webm"});
+  const arrayBuf=await blob.arrayBuffer();
+  let decoded;
+  try{
+    decoded=await audioCtx.decodeAudioData(arrayBuf);
+  }catch(e){
+    micLabel.textContent="⚠ Decode error: "+e; micRing.className="mic-ring ready"; micIcon.textContent="🎤"; return;
+  }
+  audioCtx.close(); audioCtx=null;
+
+  // Convert Float32 → LINEAR16 (int16) at 16 kHz
+  const rate=decoded.sampleRate;
+  const ch=decoded.getChannelData(0);  // mono
+  let samples=ch;
+  // Resample to 16000 if needed
+  if(rate!==16000){
+    const ratio=rate/16000;
+    const n=Math.floor(ch.length/ratio);
+    samples=new Float32Array(n);
+    for(let i=0;i<n;i++) samples[i]=ch[Math.floor(i*ratio)];
+  }
+  const pcm=new Int16Array(samples.length);
+  for(let i=0;i<samples.length;i++) pcm[i]=Math.max(-32768,Math.min(32767,samples[i]*32767));
+
+  micTimer.textContent=`${(samples.length/16000).toFixed(1)}s of audio`;
+  document.getElementById("transcript-box").textContent="⏳ Sending to brain STT…";
+  document.getElementById("answer-box").textContent="—";
+
+  await sendVoiceTurn(pcm.buffer, 16000);
+
+  micRing.className="mic-ring ready"; micIcon.textContent="🎤"; micLabel.textContent="Click to record again";
+}
+
+async function sendVoiceTurn(pcmBuffer, rate){
+  const url=base()+"/voice_turn";
+  let resp;
+  try{
+    resp=await fetch(url,{
+      method:"POST",
+      headers:{"Content-Type":"application/octet-stream","X-Sample-Rate":String(rate)},
+      body:pcmBuffer,
+    });
+  }catch(e){
+    document.getElementById("transcript-box").textContent="❌ Network error: "+e;
+    return;
+  }
+  // Stream the NDJSON response
+  const reader=resp.body.getReader();
+  const dec=new TextDecoder();
+  let buf="";
+  while(true){
+    const {done,value}=await reader.read();
+    if(done) break;
+    buf+=dec.decode(value,{stream:true});
+    const lines=buf.split("\n");
+    buf=lines.pop();
+    for(const line of lines){
+      const t=line.trim(); if(!t) continue;
+      try{
+        const obj=JSON.parse(t);
+        const part=obj.part||"final";
+        if(part==="filler"){
+          document.getElementById("transcript-box").textContent=obj.transcript||"(empty)";
+        } else if(part==="turn_meta"){
+          // Rich data available — update diag panel
+          handleTurnResult(obj);
+        } else if(part==="audio"){
+          // streaming audio chunk — ignore in console
+        } else {
+          // final line
+          if(obj.transcript) document.getElementById("transcript-box").textContent=obj.transcript;
+          const ans=(obj.answer||"").trim();
+          document.getElementById("answer-box").textContent=ans||"(no answer)";
+          handleTurnResult(obj);
+        }
+      }catch(_){}
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Text turn
+// ─────────────────────────────────────────────────────────────────────────────
+document.getElementById("btn-turn").onclick=sendTextTurn;
+document.getElementById("ttxt").onkeydown=e=>{if(e.ctrlKey&&e.key==="Enter")sendTextTurn();};
+
+async function sendTextTurn(){
+  const text=document.getElementById("ttxt").value.trim(); if(!text) return;
+  document.getElementById("text-answer-box").textContent="⏳ Sending…";
+  try{
+    const r=await fetch(base()+"/turn",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text,speak:false}),
+    });
+    const data=await r.json();
+    document.getElementById("text-answer-box").textContent=(data.answer||"").trim()||JSON.stringify(data);
+    handleTurnResult(data);
+  }catch(e){document.getElementById("text-answer-box").textContent="❌ "+e;}
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WAV file fallback — drag or drop a WAV
+// ─────────────────────────────────────────────────────────────────────────────
+document.addEventListener("dragover",e=>{e.preventDefault();});
+document.addEventListener("drop",async e=>{
+  e.preventDefault();
+  const file=[...e.dataTransfer.files].find(f=>f.name.match(/\.(wav|pcm|raw)$/i));
+  if(!file)return;
+  micLabel.textContent="WAV: "+file.name; micRing.className="mic-ring busy"; micIcon.textContent="⏳";
+  const buf=await file.arrayBuffer();
+  // Strip WAV header
+  const u8=new Uint8Array(buf);
+  let pcmBuf, rate=16000;
+  if(u8[0]===0x52&&u8[1]===0x49){ // RIFF
+    const dv=new DataView(buf); rate=dv.getUint32(24,true);
+    // find data chunk
+    let off=12;
+    while(off+8<=u8.length){
+      const id=String.fromCharCode(u8[off],u8[off+1],u8[off+2],u8[off+3]);
+      const sz=new DataView(buf,off+4,4).getUint32(0,true);
+      if(id==="data"){pcmBuf=buf.slice(off+8,off+8+sz);break;}
+      off+=8+sz;
+    }
+    if(!pcmBuf) pcmBuf=buf.slice(44);
+  } else { pcmBuf=buf; }
+  document.getElementById("transcript-box").textContent="⏳ Sending WAV to brain STT…";
+  document.getElementById("answer-box").textContent="—";
+  await sendVoiceTurn(pcmBuf, rate);
+  micRing.className="mic-ring ready"; micIcon.textContent="🎤"; micLabel.textContent="Drop another WAV or click to record";
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Board Buddy rendering preview
+// ─────────────────────────────────────────────────────────────────────────────
+const DEFAULT_BOARD_PNG = "data:image/png;base64,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";
+
+document.getElementById("btn-render-board").onclick = async () => {
+  const jsonStr = document.getElementById("board-json-input").value.trim();
+  const empty = document.getElementById("board-empty");
+  const img = document.getElementById("board-img");
+  if (!jsonStr) return;
+  empty.textContent = "⏳ Rendering board payload...";
+  empty.style.display = "block";
+  try {
+    const payload = JSON.parse(jsonStr);
+    const targetUrl = (base() || "http://localhost:8123") + "/board/render";
+    const r = await fetch(targetUrl, {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({payload})
+    });
+    const res = await r.json();
+    if (res.image_data_url) {
+      showBoardImage(res.image_data_url);
+    } else {
+      empty.textContent = "❌ Render failed: " + (res.error || "unknown error");
+      empty.style.display = "block";
+    }
+  } catch (e) {
+    empty.textContent = "❌ JSON error: " + e.message;
+    empty.style.display = "block";
+  }
+};
+
+function showBoardImage(dataUrl) {
+  if (!dataUrl) return;
+  const img = document.getElementById("board-img");
+  const empty = document.getElementById("board-empty");
+  img.onload = () => {
+    empty.style.display = "none";
+    img.style.display = "inline-block";
+  };
+  img.onerror = () => {
+    empty.textContent = "⚠️ Image decoding failed";
+    empty.style.display = "block";
+    img.style.display = "none";
+  };
+  img.src = dataUrl;
+  empty.style.display = "none";
+  img.style.display = "inline-block";
+}
+
+// Initialise mic ring as ready and auto-connect on load
+micRing.className="mic-ring ready";
+showBoardImage(DEFAULT_BOARD_PNG);
+setTimeout(connect, 300);
+</script>
+</body>
+</html>

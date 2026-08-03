@@ -1,0 +1,31 @@
+{
+  "actions": [
+    "ANALOGOUS_EXAMPLE",
+    "BRIDGE_RECAP",
+    "ENCOURAGE",
+    "EXPLAIN",
+    "ISOMORPHIC_PRACTICE",
+    "METACOGNITIVE_REFLECT",
+    "MISCONCEPTION_PROBE",
+    "QUIZ",
+    "REPRESENTATION_TRANSLATION",
+    "REVIEW",
+    "SOCRATIC_Q",
+    "TRANSFER_PROBLEM",
+    "VISUAL_ANALOGY",
+    "WORKED_EXAMPLE"
+  ],
+  "update_keys": [
+    "confusion",
+    "curiosity",
+    "confidence",
+    "misconception_probability",
+    "transfer_attempt",
+    "abstraction_attempt",
+    "self_correction",
+    "cognitive_load",
+    "engagement",
+    "frustration_risk"
+  ],
+  "n_label_scores": 38
+}

@@ -1,0 +1,32 @@
+1. STT at present batch mode - 
+
+convert into stream mode with adaptive end pointer. use VAD temporary silence of 1 sec and trigger point
+(like trigger the STT and waiting for 1-2 sec silence, when the stt output arrived and silence confirmed, directly trigger perception call)
+below implementation is present but it needs to be fixed.
+if you look at voice/cloud_stt.py (Line 60), the codebase was designed with this exact optimization in mind (Part 15 Phase D):
+might have to change the standard https to gRPC or something different with bi direction. 
+
+2. Interim route for perception call and gemini warmup
+need some work to be done here.
+
+3. check if en-IN gives better result than en-US
+
+4. right now in STT the parameter of the STT is not tuned, it can be tuned to get better response
+
+5. right now safety and nonsense is in regex form, this can be checked and improved. 
+
+6. check if the local context overall can be stored in the LRU type of cache
+
+7. perception_context.md need to be made proper with multi intent and more example, this need to improve. (understand what is logreg ressolver vs trained knn train_bank.npz)
+
+
+1. STT with student tantrum, reducing overall hallucination
+2. stt with active code switching, STT with emotions
+3. finding and regulating emotions of the student, simple STT loses this info
+
+
+
+
+question:
+
+what is LRU cache, where is it used? where is the miniLM model is running right now? will it run before the perception call? if miniLM is producing the top-8 topic, how we validate against gemini's concept prediction. i did not understand the topic shift fallback execution, if it is inherit topic why is it need to check in MiniLM anchor similarity. if gemini perception is used for concept id and later miniLM is used for RAG retrieval of concept, is it not creating difference. why are we using perception layer concept id at all if MiniLM is used for shadow policy and all the previous work, why do we need to work twice and create different result. I did not see _sample_train_anchors, all signals just had one example. when will the local hybrid cross_check is happening, if the cross check result is false what is going to happen?
