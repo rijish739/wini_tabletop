@@ -6,8 +6,20 @@ Offline: no Vertex, no torch, no pytest. Exit code is non-zero if any suite fail
 this is usable as a pre-deploy gate. Skips (e.g. the device-only `figures/` renderer,
 absent from the lean Cloud Run image) are reported but do not fail the run.
 
-Baseline recorded 2026-08-02 after restoring the four suites that were missing from
-cloud_run_service/: 68 passed, 0 failed, 1 skipped.
+Baseline recorded 2026-08-02 (Stages 0+1 of BOARD_BUDDY_REGRESSION_AUDIT.md):
+
+    test_board_buddy       34 passed
+    test_response_layer    25 passed, 1 skipped (device-only figures/ renderer)
+    test_compilers          2 passed
+    test_runner_outcomes    3 passed
+    test_scene_adaptation   4 passed
+    test_screen_cue         4 passed
+    ------------------------------------------------
+    72 passed, 0 failed, 1 skipped
+
+Verified identical on py3.10 (device-like) and py3.12 (cloud-like), and stable across
+repeated runs — test_board_buddy used to be a coin toss because two of its tests reached
+live Gemini (see _deterministic_board in that file).
 """
 
 from __future__ import annotations
@@ -20,6 +32,7 @@ SUITES = (
     "test_compilers",
     "test_runner_outcomes",
     "test_scene_adaptation",
+    "test_screen_cue",     # imports tutor_loop; SKIPs on the device venv (no numpy)
 )
 
 

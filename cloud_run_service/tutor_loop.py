@@ -483,6 +483,7 @@ def _gemini_chat(prompt: str, temperature: float, max_tokens: int,
 def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter_hint: str,
                 writeback_note: str = "", history: list[dict] | None = None,
                 answer_budget: dict | None = None, figure_on_screen: bool = False,
+                board_pending: bool = False,
                 clarify: bool = False, intro: bool = False, visualize: bool = False,
                 animate: bool = False, real_life: bool = False,
                 same_problem: bool = False,
@@ -653,6 +654,8 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         )
     screen_cue = ""
     if figure_on_screen and not (animate or real_life):
+        # A textbook CROP is already on the screen as we generate, so pointing at it is
+        # correct and safe — the picture exists before the first word is spoken.
         # For an animation / real-life turn the on-screen visual is a FRESH board authored
         # from this answer (not a textbook crop), so the "look at Fig X" anchoring is wrong —
         # it pulled the answer to a big-number textbook case with no drawable objects.
@@ -661,6 +664,21 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             "Refer to it directly ('look at the figure on the screen', 'in the picture you "
             "can see…') and use it to make your point. Do NOT describe the picture in words "
             "as if they cannot see it — point them to it.\n"
+        )
+    elif board_pending:
+        # DRAW-THE-ANSWER path: nothing is on the screen yet. The board is authored FROM
+        # this answer and drawn AFTER generation, and the draw can still decline (the
+        # grounding belt drops ungrounded elements, and scene authoring may return None).
+        # Speech is streamed sentence-by-sentence to TTS as it is generated, so a deictic
+        # promise made here is ALREADY SPOKEN by the time we know whether a board exists —
+        # it cannot be retracted downstream. So: ask for the step-by-step structure that
+        # makes a board extractable, and forbid pointing at it.
+        screen_cue = (
+            "YOUR ANSWER MAY BE DRAWN ON A BOARD BESIDE YOU WHILE YOU SPEAK. Work the idea "
+            "in clear ordered steps — one idea per sentence, stating the key numbers and "
+            "equations explicitly so each step can be drawn. Your words must stand on their "
+            "own: do NOT refer to the board or a picture ('look at the figure', 'as you can "
+            "see', 'in the diagram'), because the drawing may not be there.\n"
         )
     # Hard style rules: the spoken budget is small, so filler is fatal. A greeting,
     # a self-introduction, or an apology eats the whole reply and teaches nothing
@@ -1778,9 +1796,16 @@ class TutorLoop:
         if allowed:
             # DRAW THE ANSWER: a visual is earned. Defer the actual figure until the
             # answer exists — turn() calls scene_author AFTER generation and fills
-            # `scene` + flips arm_scene. figure_on_screen=True so the answer is
-            # presented step-by-step (cleaner board extraction). No crop shown; the
-            # drawn board IS the figure (crop stays as a fallback if drawing declines).
+            # `scene` + flips arm_scene. No crop shown; the drawn board IS the figure
+            # (crop stays as a fallback if drawing declines).
+            #
+            # figure_on_screen stays FALSE here: nothing is on the screen yet, and the
+            # draw can still decline. The generator is told about the pending board via
+            # the directive's `pending_draw` (-> qwen_answer(board_pending=True)), which
+            # asks for step-by-step structure WITHOUT letting it promise a picture. The
+            # old figure_on_screen=True emitted the textbook cue, so the model said
+            # "look at the figure on the screen" — already streamed to TTS before we
+            # knew whether a board existed, which no post-hoc sanitizer can undo.
             directive = {
                 "type": "generated_declarative_scene_spec", "allowed": True,
                 "arm_scene": False, "pending_draw": True, "scene": None,
@@ -1788,7 +1813,7 @@ class TutorLoop:
                 "reason": reason, "script_id": script.script_id,
             }
             display = list(mode_cards)
-            figure_on_screen = True
+            figure_on_screen = False
         else:
             directive = {"type": "none", "allowed": False, "arm_scene": False,
                          "asset": None, "narration_mode": "script_override",
@@ -3104,6 +3129,8 @@ class TutorLoop:
                 answer = qwen_answer(text, action, blocks, chapter_hint, writeback_note=note,
                                      history=session.get("context", [])[-6:],
                                      answer_budget=gen_budget, figure_on_screen=figure_on_screen,
+                                     board_pending=bool(rl_visual
+                                                        and rl_visual.get("pending_draw")),
                                      clarify=(clarification and not answer_try), intro=intro,
                                      visualize=(wants_visual and not answer_try),
                                      animate=(wants_animation and not answer_try),
@@ -3279,9 +3306,15 @@ class TutorLoop:
             except Exception as e:  # noqa: BLE001 — compilation degrades independently
                 print(f"[tutor] response compilation skipped: {e}")
 
-        if answer and rl_visual is not None:
-            from response_layer.board_buddy_author import sync_speech_with_visuals
-            answer = sync_speech_with_visuals(answer, rl_visual.get("board_payload"))
+        # NOTE (2026-08-02): a post-hoc `sync_speech_with_visuals(answer, ...)` used to run
+        # here to strip "look at the figure" when the board came back text-only. It could
+        # not work and has been removed. Speech is streamed to TTS DURING generation
+        # (_stream_answer -> sink(), sentence 0 released mid-stream), so by this line the
+        # child has already HEARD the phrase; editing `answer` here only rewrote the
+        # transcript, making the recorded turn diverge from the audio and breaking the
+        # streamed-prefix invariant that _truncate_to_spoken_budget depends on. The promise
+        # is now prevented at the source instead: qwen_answer(board_pending=True) forbids
+        # deictic references whenever the board is still pending (see §5 screen_cue).
 
         # Emit early turn_meta as soon as the visual directive and display are ready
         # (SYNC_VISUAL). This reaches the client while speech is still streaming,

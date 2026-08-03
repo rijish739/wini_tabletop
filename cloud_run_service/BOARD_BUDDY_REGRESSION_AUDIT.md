@@ -168,6 +168,32 @@ The entire mathematical statement is deleted. This is the same failure class alr
 documented at `tutor_loop.py:681` (a downstream sanitizer that *"silently destroyed
 fractions"*). `[^.!?]*` also terminates early on decimals ("x = 2.5").
 
+### BUG-9a The "headless" test suite makes live billed Gemini calls, and is a coin toss
+
+Found while building the Stage 0 regression net. `test_board_buddy.py` states in its own
+docstring: *"All headless (no Vertex, no pygame)"*. It is not.
+`test_compiler_emits_board_payload_on_bb_device` and `test_runner_emits_board_lifecycle_verbs`
+call `compile_response(... profile=PI)`, which prefers `author_board_from_answer` — a live
+Vertex call. Measured on identical input, three consecutive calls:
+
+```
+call 1:  10.07s -> ['text', 'stickers', 'graph']    # graph present -> test passes
+call 2:   1.87s -> ['text', 'stickers', 'graph']    # passes
+call 3:   1.03s -> ['text']                          # no graph    -> test FAILS
+```
+
+So the reported "All 34 tests passing" was luck, not a result. Every run bills tokens and
+the outcome depends on what the model chose to draw that second.
+
+Two consequences worth separating:
+- **For the test net:** fixed in Stage 0 — a `_deterministic_board()` seam stubs the author
+  so the compiler's deterministic scene→payload path runs. The suite now passes 3/3
+  consecutive runs on both py3.10 and py3.12.
+- **For production (unfixed):** call 3 is the important one. The rich author returns a
+  **text-only payload perfectly often**, which is precisely the state that produced the
+  "look at the figure" mismatch, and it lands entirely on `_default_pos` (BUG-6/BUG-7).
+  The text-only rate deserves direct measurement before Stage 3.
+
 ### BUG-9 Four of five test files are missing from this copy
 
 `cloud_run_service/response_layer/` ships only `test_board_buddy.py`. The suites covering
@@ -204,33 +230,56 @@ handshake.
 Ordered so that each stage is independently verifiable. Stages 1–2 are the ones that change
 what a child actually hears.
 
-### Stage 0 — Freeze the baseline (do first, ~10 min)
+### Stage 0 — Freeze the baseline — **DONE 2026-08-02** (commit `19b3372`)
 
-1. Copy the four missing test files from `cloud_workspace_v8/response_layer/` into
-   `cloud_run_service/response_layer/`.
-2. Record the current pass line (expected 34 + 25/26 + 2 + 3 + 4, with the one `figures/`
-   import failure). Either vendor `figures/scene_render.py` into the image or mark that test
-   `skipUnless(figures importable)` so the suite is green-on-green and a real break is visible.
-3. Get `cloud_run_service/` under version control (it is entirely untracked — there is
-   currently no way to diff or revert this work).
+1. ✅ Restored the four missing suites from `cloud_workspace_v8/response_layer/`.
+2. ✅ `test_scene_author_renders_without_skips` now SKIPs (rather than fails) when the
+   device-only `figures/` package is absent; the bare harness gained skip support.
+3. ✅ `cloud_run_service/` committed as `19b3372` — the revert point now exists. Only that
+   directory was staged; the ~100 other modified paths in the repo were left untouched.
+4. ✅ Added `response_layer/run_tests.py` — one command for all suites, non-zero exit on
+   failure so it works as a pre-deploy gate.
+5. ✅ Fixed BUG-9a (found during this stage): the suite was hitting live Gemini and
+   flip-flopping between pass and fail. Now hermetic.
 
-### Stage 1 — Make the visual promise honest (fixes BUG-1, BUG-2)
+**Baseline: 72 passed, 0 failed, 1 skipped** — identical on py3.10 and py3.12, stable
+across repeated runs.
 
-Delete the post-hoc sanitizer; fix the cause instead.
+```bash
+cd "D:/cloud CLI/cloud_run_service" && py -3.12 -m response_layer.run_tests
+```
 
-1. Remove the `sync_speech_with_visuals` call at `tutor_loop.py:3282-3284`. It cannot affect
-   audio and it corrupts the transcript. Keep the function and its unit test for now, but
-   stop calling it on the streaming path.
-2. Split the prompt cue at `tutor_loop.py:655-664` into two variants:
-   - **crop path** (a real textbook figure is already on screen) — keep today's wording.
-   - **draw-the-answer path** (`pending_draw=True`) — a cue that does *not* promise a
-     specific figure and does not say "from the textbook". Language should work whether or
-     not the board lands, e.g. "work the steps in order, one idea per sentence" — the board
-     then illustrates what was said rather than being referenced deictically.
-3. Only set `figure_on_screen=True` at `:1791` for the crop path. For the drawn path pass a
-   separate flag so the two cues cannot be confused.
-4. Verify: run a turn with the draw forced to decline (stub `author_scene_from_answer` to
-   return `None`) and confirm the spoken text contains no visual deixis.
+### Stage 1 — Make the visual promise honest — **DONE 2026-08-02**
+
+Deleted the post-hoc sanitizer; fixed the cause instead.
+
+1. ✅ Removed the `sync_speech_with_visuals` call from `tutor_loop.turn()`. A comment marks
+   the spot and explains why it can never work there, so it does not get re-added. The
+   function and its unit test remain for the non-streaming path (Stage 4 tightens its
+   regexes — BUG-8 is still open).
+2. ✅ Split the screen cue in `qwen_answer` into two mutually exclusive branches:
+   - `figure_on_screen` (crop genuinely on screen) → unchanged textbook cue, deixis allowed.
+   - `board_pending` (new param) → a cue that asks for step-by-step structure so the board
+     stays extractable, and **explicitly forbids** referring to a figure/board/diagram.
+3. ✅ `_response_layer` now leaves `figure_on_screen = False` on the earned-visual branch;
+   the pending board is signalled through the directive's existing `pending_draw`, passed at
+   the call site as `board_pending=bool(rl_visual and rl_visual.get("pending_draw"))`. No
+   return-signature change was needed.
+4. ✅ Verified by capturing the real generated prompt on all three paths:
+
+   | path | textbook deictic cue | stand-alone-speech cue |
+   |---|---|---|
+   | crop on screen | present | absent |
+   | board pending | **absent** | present |
+   | speech only | absent | absent |
+
+5. ✅ Locked in as `response_layer/test_screen_cue.py` (4 tests), including one that reads
+   `_response_layer`'s source to assert the earned branch never sets `figure_on_screen = True`
+   again. SKIPs on the device venv where numpy is absent.
+
+**Not yet done:** the fix is verified at the prompt level, not on a live mic turn against
+the deployed brain. The generator is now *instructed* not to promise a figure; confirming it
+complies needs a live run (and Cloud Run redeploy), which has not been done.
 
 ### Stage 2 — Restore the gate (fixes BUG-3, BUG-4, BUG-5)
 

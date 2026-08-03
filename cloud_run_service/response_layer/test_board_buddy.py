@@ -9,6 +9,8 @@ Run: ``python -m response_layer.test_board_buddy``
 """
 from __future__ import annotations
 
+import contextlib
+
 from . import board_buddy_caps as caps
 from .board_buddy_author import (
     MAX_ELEMENTS, payload_has_animation, stickers_from_answer, validate_board_call,
@@ -24,6 +26,30 @@ from .device_runner import DeviceScriptRunner
 from .scene_author import parabola_scene
 
 PI = WINIPI5_PROFILE.to_dict()
+
+
+@contextlib.contextmanager
+def _deterministic_board():
+    """Force the compiler's DETERMINISTIC scene->payload path.
+
+    `_compile_board_buddy` prefers `author_board_from_answer`, which is a LIVE Gemini
+    call — billed, ~1-10 s, and nondeterministic. Measured 2026-08-02 on the same input:
+    two calls returned ['text', 'stickers', 'graph'] and the third returned ['text'],
+    which silently flipped `test_compiler_emits_board_payload_on_bb_device` between pass
+    and fail depending on what the model felt like drawing. That broke this module's
+    stated "no Vertex" contract and made the suite's result a coin toss.
+
+    These tests assert the COMPILER/RUNNER branch, not the author's taste, so stub the
+    author out and let the deterministic scene translator run. The live author path has
+    its own dedicated suite (test_board_buddy_author_live.py).
+    """
+    from . import board_buddy_author as author
+    original = author.author_board_from_answer
+    author.author_board_from_answer = lambda *a, **k: None
+    try:
+        yield
+    finally:
+        author.author_board_from_answer = original
 
 
 # ---------------------------------------------------------------------------
@@ -260,9 +286,11 @@ def _board_script(profile: dict) -> TeachingScript:
 
 def test_compiler_emits_board_payload_on_bb_device() -> None:
     scene = parabola_scene("quad", 1, -5, 6, "Roots")
-    bundle = compile_response(_board_script(PI),
-                              answer="the parabola y equals x squared minus five x plus six",
-                              scene=scene, profile=PI)
+    with _deterministic_board():
+        bundle = compile_response(
+            _board_script(PI),
+            answer="the parabola y equals x squared minus five x plus six",
+            scene=scene, profile=PI)
     vis = bundle["beats"][0]["visual"]
     assert vis["kind"] == "board_buddy_payload"
     assert any(e["type"] == "graph" for e in vis["payload"])
@@ -278,9 +306,11 @@ def test_compiler_keeps_scene_spec_on_non_bb_device() -> None:
 
 def test_runner_emits_board_lifecycle_verbs() -> None:
     scene = parabola_scene("quad", 1, -5, 6, "Roots")
-    bundle = compile_response(_board_script(PI),
-                              answer="the parabola y equals x squared minus five x plus six",
-                              scene=scene, profile=PI)
+    with _deterministic_board():
+        bundle = compile_response(
+            _board_script(PI),
+            answer="the parabola y equals x squared minus five x plus six",
+            scene=scene, profile=PI)
     runner = DeviceScriptRunner()
     armed = runner.arm(bundle)
     cmds = [c["cmd"] for c in armed]
