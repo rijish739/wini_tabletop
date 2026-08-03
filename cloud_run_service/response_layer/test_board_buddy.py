@@ -13,7 +13,8 @@ import contextlib
 
 from . import board_buddy_caps as caps
 from .board_buddy_author import (
-    MAX_ELEMENTS, payload_has_animation, stickers_from_answer, validate_board_call,
+    MAX_ELEMENTS, _boxes_overlap, _element_height, _element_width,
+    payload_has_animation, stickers_from_answer, validate_board_call,
 )
 from .board_buddy_compile import compile_scene_to_board, scene_to_payload
 from .board_buddy_orchestrator import BoardSegmentOrchestrator, _tmax_hint
@@ -175,6 +176,94 @@ def test_position_is_clamped_or_laid_out() -> None:
         x, y = el["pos"]
         assert caps.POS_X_MIN <= x <= caps.POS_X_MAX
         assert caps.POS_Y_MIN <= y <= caps.POS_Y_MAX
+
+
+def test_sanitizer_never_deletes_the_mathematics() -> None:
+    """BUG-8: the old patterns allowed a bare "see" and ate to the end of the sentence,
+    so an ordinary tutoring line lost its whole claim."""
+    from .board_buddy_author import sync_speech_with_visuals as sync
+
+    # these must come through untouched — "see" here is not a pointer at a visual
+    for intact in (
+        "You can see the graph is a parabola with its vertex at the origin.",
+        "We see the graph of y = x squared has a minimum at x = 0.",
+        "Let us see the pattern in these numbers.",
+    ):
+        assert sync(intact, None) == intact, f"sanitizer damaged: {intact}"
+
+    # a real pointer is removed, but the claim after it survives
+    out = sync("As you can see in the diagram, the roots are 2 and 3.", None)
+    assert "roots are 2 and 3" in out and "diagram" not in out
+    out2 = sync("Look at the figure on the screen. A parabola opens upward.", None)
+    assert out2 == "A parabola opens upward."
+
+
+def _boxes_of(kept: list[dict]) -> list[tuple[str, tuple[int, int, int, int]]]:
+    out = []
+    for e in kept:
+        if e.get("type") in ("animate_param", "animation"):
+            continue
+        x, y = e["pos"]
+        out.append((e["type"], (x, y, _element_width(e), _element_height(e))))
+    return out
+
+
+def _assert_no_overlap(kept: list[dict]) -> None:
+    boxes = _boxes_of(kept)
+    for i, (ta, a) in enumerate(boxes):
+        for tb, b in boxes[i + 1:]:
+            assert not _boxes_overlap(a, b), f"{ta}{a} overlaps {tb}{b}"
+
+
+def test_layout_positions_the_unpositioned_graph() -> None:
+    """BUG-6b: `graph` is the only tool with no `pos` in its schema, so the brain never
+    laid it out and Board Buddy drew it over the title the brain DID place."""
+    assert "pos" not in caps.TOOL_SCHEMAS["graph"]["required"]     # the root cause
+    kept, _ = validate_board_call(
+        [{"type": "text", "pos": [40, 80], "size": "large", "text": "Parabola: Path"},
+         {"type": "graph", "equation": "x^2 - 5*x + 6"}],
+        "the parabola x squared minus 5x plus 6", profile=PI)
+    graph = next(e for e in kept if e["type"] == "graph")
+    assert isinstance(graph.get("pos"), list) and len(graph["pos"]) == 2, \
+        "the graph must be laid out by the brain, not left for the renderer to place"
+    _assert_no_overlap(kept)
+
+
+def test_layout_no_overlap_across_mixed_tools() -> None:
+    """BUG-6: the old flat 115px pitch was shorter than a 200px graph / 140px rectangle."""
+    kept, _ = validate_board_call(
+        [{"type": "text", "pos": [40, 80], "text": "Area of a rectangle"},
+         {"type": "geometry", "shape": "rectangle", "pos": [40, 195]},
+         {"type": "text", "pos": [40, 310], "text": "Area = length times breadth"},
+         {"type": "graph", "equation": "x^2"},
+         {"type": "text", "pos": [40, 540], "text": "So the area is 6"}],
+        "area of a rectangle is length times breadth so the area is 6 and x squared",
+        profile=PI)
+    assert len(kept) >= 4
+    _assert_no_overlap(kept)
+
+
+def test_layout_drops_overflow_instead_of_piling_them() -> None:
+    """BUG-7: _default_pos saturated at POS_Y_MAX, so elements 7..11 all landed on y=780."""
+    kept, dropped = validate_board_call(
+        [{"type": "graph", "equation": "x^2 - 5*x + 6"} for _ in range(MAX_ELEMENTS)],
+        "the parabola x squared minus 5x plus 6", profile=PI)
+    assert len(kept) < MAX_ELEMENTS, "tall elements must not all be kept"
+    assert any(d.startswith("layout-overflow") for d in dropped), \
+        "trimmed elements must be recorded, not silently clamped"
+    _assert_no_overlap(kept)
+    for e in kept:
+        assert e["pos"][1] + _element_height(e) <= caps.POS_Y_MAX
+
+
+def test_layout_keeps_a_sane_model_layout() -> None:
+    """A well-placed board (title left, badge sticker right) is not force-reflowed."""
+    kept, _ = validate_board_call(
+        [{"type": "text", "pos": [40, 40], "size": "small", "text": "Counting"},
+         {"type": "stickers", "pos": [40, 300], "item": "apple", "count": 3}],
+        "counting three apples", profile=PI)
+    assert [e["pos"] for e in kept] == [[40, 40], [40, 300]], \
+        "positions that already fit and do not collide should be left alone"
 
 
 def test_element_budget_enforced() -> None:

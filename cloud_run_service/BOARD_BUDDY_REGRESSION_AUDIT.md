@@ -361,6 +361,98 @@ decline — currently `author_board_from_answer` swallows the failure with a bar
 *(Method note: an earlier reading of this as "long answers fail deterministically" was my own
 probe rate-limiting itself — 3 back-to-back calls per iteration. Spaced retries disproved it.)*
 
+### Stage 3 — Layout engine — **DONE 2026-08-03, verified live on winipi5**
+
+Replaced the flat 115 px pitch with a height-aware column in `board_buddy_author.py`:
+
+1. ✅ Per-tool nominal heights read off the **frozen renderer's own `size_presets`**
+   (`board_buddy.py`: text 16–36 px/line, graph 200, fraction 160, numberline 120,
+   stickers 32, geometry from `_CANON_VERTS`, tree 28+44+70·levels+20) — measured, not guessed.
+2. ✅ `_layout_payload` lays out with a cursor (`y += height + gutter`) instead of a constant.
+3. ✅ Overflow is **dropped and recorded** (`layout-overflow:<tool>`) rather than clamped
+   into a pile.
+4. ✅ BUG-6b: `graph`/`numberline` carry no `pos` in their schema, so the layout now assigns
+   them one instead of leaving placement to the renderer.
+5. ✅ A model layout that already fits and does not collide is left alone
+   (`_model_layout_is_sane`) — we only re-flow a broken board.
+
+Regression cover: `test_layout_positions_the_unpositioned_graph`,
+`test_layout_no_overlap_across_mixed_tools`,
+`test_layout_drops_overflow_instead_of_piling_them`,
+`test_layout_keeps_a_sane_model_layout`.
+
+Measured: the live turn-4 payload now lays out with **zero overlapping bounding boxes**; a
+12-graph payload keeps 3 and drops 9 with `max bottom = 762 ≤ POS_Y_MAX = 780` (previously
+five elements stacked on `[40, 780]`).
+
+**Live on the panel:** same prompt as the Stage 2 run. Before, the title was drawn across the
+graph's y-axis; after, title → sticker → graph → two text lines stack cleanly, with the graph
+at a brain-assigned `[40, 174]`. Screenshots: `shot_stage2_board_live.png` (before),
+`shot_stage3_board_live.png` (after).
+
+### Stage 4 — Sanitizer, author resilience, consolidation — **DONE 2026-08-03**
+
+1. ✅ **BUG-8 sanitizer rewritten.** The old patterns allowed a bare `see` and then consumed
+   `[^.!?]*` to the end of the sentence, so *"you can see the graph is a parabola with its
+   vertex at the origin."* was deleted whole. Now only imperative/deictic openers match
+   (`look at`, `watch`, `check out`, `as you can see`), the match stops after the visual noun
+   plus a short prepositional tail, and sentence case is restored.
+   `test_sanitizer_never_deletes_the_mathematics` asserts three real tutoring lines survive
+   intact while genuine pointers are still removed.
+2. ✅ **BUG-9a author resilience.** `author_board_from_answer` now retries once with backoff
+   and — critically — **logs why it declined**. The previous bare
+   `except Exception: return None` printed nothing, which is why a board silently degrading
+   to a one-sentence prose card went unnoticed. Budget kept deliberately small (2 attempts,
+   1.5 s) because this runs after generation with audio already streaming.
+3. ✅ **BUG-11 checked, currently benign.** All three `board_buddy.py` copies (repo,
+   device repo, `~/board_buddy_sandbox`) are byte-identical (`d9b68792`, 1956 lines) and all
+   support `tree`. `ALL_TOOLS`, `TOOL_SCHEMAS` and `WINIPI5_PROFILE.board_buddy_tools` agree
+   exactly. The capability-negotiation mechanism (`allowed_tools_for_profile`) is sound; the
+   residual risk is that the profile *claims* rather than *verifies*. Left as a known gap
+   rather than inventing a handshake the device does not implement.
+4. ◻️ **BUG-10 consolidation — deliberately NOT done as a code move.** See below.
+
+#### On BUG-10 (four divergent `response_layer` copies)
+
+`cloud_run_service/` is the authoritative copy — it is the deployed brain and is now the one
+under version control with a green suite. The device copy at
+`/home/winipi5/cloud_tutor/cloud-CLI/` was verified content-identical for every file this
+work touched, and the four changed files were pushed to it.
+
+Physically merging `cloud_workspace_v8/`, the repo-root `response_layer/` and
+`pi_client_package/` is a large structural change that would touch working device paths for
+no behavioural gain, so it is **left for a deliberate, separately-tested change** rather than
+folded into a bug-fix pass. The sync procedure that matters today:
+
+```bash
+# authoritative -> device (the 204 KB tutor_loop.py exceeds the base64-over-exec push;
+# send a patch instead, and normalise CRLF first — the device copy is CRLF)
+MSYS_NO_PATHCONV=1 PI_PASS=... PI_HOST=192.168.29.24 python tools/pi.py push \
+  "D:/cloud CLI/cloud_run_service/response_layer/<file>.py" \
+  /home/winipi5/cloud_tutor/cloud-CLI/response_layer/<file>.py
+```
+
+### Stage 5 — Doc reconciliation — **DONE 2026-08-03**
+
+Correction notices added to the two reports in this folder. Both claimed fixes that the code
+or their own evidence contradicts:
+
+- `board_buddy_resolution_and_learner_state_report.md` — Issue 1 did not work (post-stream
+  mutation cannot change audio), Issue 4's stated root cause is wrong (`.env` never set that
+  flag), and the keyword widening it describes as a fix was the main regression. Issue 3
+  (`tree`) holds.
+- `walkthrough_agent_gemini.md` — §1.1 holds; §1.4/§2.1's "verified" payload demonstrates the
+  collision rather than a fix.
+
+**Remaining (outside this folder):** the 4-doc lockstep in `CLAUDE.md` also wants
+`complete_architecture_build_plan.md` updated with the measured Part status and
+`rag_memory.md` updated with the gotchas. Those live in the repo root, outside the
+`cloud_run_service` scope agreed for this pass.
+
+---
+
+## Original Stage 3 plan (superseded by the DONE section above)
+
 ### Stage 3 — Fix the layout engine (fixes BUG-6, BUG-6b, BUG-7)
 
 Replace `_default_pos(index)` with a height-aware cursor:

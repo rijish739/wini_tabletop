@@ -1,3 +1,25 @@
+> ## ⚠️ CORRECTION NOTICE — 2026-08-03
+>
+> Audited against the code and re-tested live on `winipi5`. See
+> `BOARD_BUDDY_REGRESSION_AUDIT.md` for current behaviour.
+>
+> - **§1.1 (UnboundLocalError) — holds.** `bundle`/`beats`/`visuals`/`bb_visual` are
+>   correctly hoisted out of the `if _dbg:` block, and the remaining `elements`/`raw_payload`
+>   uses are properly paired inside `_dbg` guards.
+> - **§1.4 and §2.1 — the "verified" payload is itself the bug.** `_default_pos` was changed
+>   from x=300 to x=40, but it stayed a flat `y = 80 + index*115` pitch that ignores element
+>   height. In the §2.1 payload presented as verified, `el2` is a rectangle at `[40, 310]`
+>   whose canonical form is 140 px tall (spanning y=310–450) while `el3` sits at `[40, 425]`
+>   — *inside* it. The stack also saturates: with `MAX_ELEMENTS=12` and `POS_Y_MAX=780`,
+>   indices 7–11 all land on `[40, 780]` in one pile.
+>   Fixed in Stage 3 by a height-aware layout measured off the frozen renderer's own
+>   `size_presets`, which drops overflow instead of clamping it.
+> - **Also missed:** `graph` is the only tool with no `pos` in its schema, so the brain never
+>   positioned it and Board Buddy drew it over the title. Confirmed on the panel — see the
+>   before/after screenshots referenced in the audit. Fixed in Stage 3.
+> - The x=300 default was only ever a *fallback*; model-supplied positions were never
+>   validated for collision or overflow. They are now.
+
 # Board Buddy ↔ Wini UI Display & Layout Fixes — Complete Technical Summary
 
 ## Executive Overview

@@ -1,3 +1,20 @@
+> ## ⚠️ CORRECTION NOTICE — 2026-08-03
+>
+> This report was audited against the code and re-tested live on `winipi5`. Three of its
+> four claims did not hold. See `BOARD_BUDDY_REGRESSION_AUDIT.md` for the full findings and
+> the fixes that replaced them. **Read that document, not this one, for current behaviour.**
+>
+> | § | Claim here | Actual |
+> |---|---|---|
+> | Issue 1 | `sync_speech_with_visuals` fixed the phantom "look at the figure" | **Did not work.** It ran *after* the answer had already been streamed to TTS sentence-by-sentence (`_stream_answer` → `sink()`), so the child had already heard the phrase. It only rewrote the transcript, making the recorded turn diverge from the audio. The call has been removed; the promise is now prevented *before* generation via `qwen_answer(board_pending=True)`. |
+> | Issue 2 | Prompt cardinality rules fixed repetition | Plausible but unverified here; the element budget and the belt were already enforcing bounds. Left in place. |
+> | Issue 3 | `tree` tool added | **Holds.** Verified: schema, validation and renderer all agree, and all three `board_buddy.py` copies are byte-identical (`d9b68792`). |
+> | Issue 4 | `.env` loaded too late, so `WINI_RESPONSE_LAYER` defaulted False | **Wrong diagnosis.** This folder's `.env` contains only `GOOGLE_GENAI_USE_VERTEXAI`, `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `VERTEX_REGION` — it has never set that flag. Flipping the default to `"1"` is what turned the layer on. `load_dotenv()` was harmless but irrelevant. |
+> | Issue 4 | Widened `_VISUAL_CONCEPT_KEYWORDS`; set `allowed=True`/`arm_scene=True` whenever a payload exists | **This was the main regression.** `equation`, `expression`, `root`, `zero` are substring matches that fire on nearly every Class-10 algebra concept, so the Visual Benefit Gate degenerated to always-allow — the concept-default behaviour the gate exists to prevent. Reverted. |
+>
+> The §3 table of "resolved" learner-state turns describes intended behaviour, not measured
+> behaviour; it was not reproduced. Treat it as a design note.
+
 # Board Buddy Resolution & Learner State Diagnostic Report
 
 This report documents the architectural root causes identified, code changes implemented, and live verification results across the Board Buddy visual generation layer and the 5 learner state turns on `winipi5`.

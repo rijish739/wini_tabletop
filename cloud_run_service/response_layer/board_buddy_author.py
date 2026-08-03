@@ -160,10 +160,190 @@ def _sanitize_math_text(s: str) -> str:
 # Per-tool validation (the belt)
 # ---------------------------------------------------------------------------
 def _default_pos(index: int) -> list[int]:
-    """Deterministic fallback layout when the model omits/garbles a position — the brain
-    lays out, the model never has to (mirrors scene_author.layout_scene)."""
+    """Provisional slot for an element the model gave no usable position for.
+
+    This is only a PLACEHOLDER: `_layout_payload` runs after the belt and re-flows the whole
+    board with real element heights. Kept flat (and clamped) so an element always carries a
+    valid `pos` even if the layout pass is skipped.
+    """
     y = 80 + index * 115
     return caps.clamp_pos([40, min(y, caps.POS_Y_MAX)]) or [40, 400]
+
+
+# ---------------------------------------------------------------------------
+# Height-aware layout (BOARD_BUDDY_REGRESSION_AUDIT.md BUG-6 / 6b / 7)
+# ---------------------------------------------------------------------------
+# Nominal RENDERED heights, read off the frozen Board Buddy v1.0 renderer
+# (board_buddy.py `size_presets` per elem_type, verified 2026-08-03). The old layout used a
+# flat 115 px pitch for every tool, so a 200 px graph or a 140 px rectangle overlapped the
+# next element, and past index 6 everything clamped onto y=780 in one pile.
+_TEXT_FONT_PX = {"small": 16, "sm": 16, "medium": 22, "md": 22,
+                 "large": 28, "lg": 28, "xlarge": 36, "xl": 36}
+
+# (w, h) box presets for the tools the renderer draws into a fixed viewport.
+_BOX_PRESETS: dict[str, dict[str, tuple[int, int]]] = {
+    "graph":      {"small": (220, 160), "sm": (220, 160), "medium": (280, 200),
+                   "md": (280, 200), "large": (350, 250), "lg": (350, 250),
+                   "xlarge": (450, 320), "xl": (450, 320)},
+    "fraction":   {"small": (220, 120), "sm": (220, 120), "medium": (280, 160),
+                   "md": (280, 160), "large": (350, 200), "lg": (350, 200),
+                   "xlarge": (450, 250), "xl": (450, 250)},
+    "numberline": {"small": (220, 100), "sm": (220, 100), "medium": (280, 120),
+                   "md": (280, 120), "large": (350, 150), "lg": (350, 150),
+                   "xlarge": (450, 180), "xl": (450, 180)},
+}
+_BOX_DEFAULT = {"graph": (280, 200), "fraction": (280, 160), "numberline": (280, 120)}
+_STICKER_PX = {"small": 24, "sm": 24, "medium": 32, "md": 32,
+               "large": 48, "lg": 48, "xlarge": 64, "xl": 64}
+
+# Elements that carry no geometry — control records, never laid out.
+_CONTROL_TYPES = frozenset({"animate_param", "animation"})
+
+# Board-author retry budget (BUG-9a). Deliberately small: this runs after generation with
+# the answer audio already streaming, so a couple of seconds is hidden — but it must never
+# become an open-ended stall on the turn.
+_AUTHOR_ATTEMPTS = 2
+_AUTHOR_BACKOFF_S = 1.5
+
+_LAYOUT_LEFT = 40          # left margin; text is drawn from this x rightwards
+_LAYOUT_TOP = 40           # first element's top edge
+_LAYOUT_GUTTER = 22        # vertical breathing room between elements
+_LABEL_PAD = 26            # room for a tool's own caption/labels
+
+
+def _text_height(el: dict) -> int:
+    """Font size x wrapped line count. The renderer wraps at (width - x - 20)."""
+    raw = el.get("size")
+    if isinstance(raw, (int, float)):
+        font = int(raw)
+    else:
+        font = _TEXT_FONT_PX.get(str(raw).lower(), 22) if raw else 22
+    body = str(el.get("text") or el.get("title") or "")
+    usable_px = max(200, caps.VIEWPORT_W - _LAYOUT_LEFT - 20)
+    # average glyph advance ~0.55 em for this font stack
+    per_line = max(8, int(usable_px / max(1.0, font * 0.55)))
+    lines = max(1, -(-len(body) // per_line))          # ceil division
+    return font * lines + 10
+
+
+def _box_height(el: dict, kind: str) -> int:
+    raw = el.get("size")
+    presets = _BOX_PRESETS[kind]
+    if isinstance(raw, (int, float)):
+        # renderer treats a bare number as the major axis; keep the preset ratio
+        w0, h0 = _BOX_DEFAULT[kind]
+        return max(60, int(float(raw) * h0 / w0))
+    if raw and str(raw).lower() in presets:
+        return presets[str(raw).lower()][1]
+    return _BOX_DEFAULT[kind][1]
+
+
+def _element_height(el: dict) -> int:
+    """Nominal rendered height in px for one validated element."""
+    t = el.get("type")
+    if t in _CONTROL_TYPES:
+        return 0
+    if t == "text":
+        return _text_height(el)
+    if t in _BOX_PRESETS:
+        return _box_height(el, t) + _LABEL_PAD
+    if t == "stickers":
+        raw = el.get("size")
+        icon = int(raw) if isinstance(raw, (int, float)) \
+            else _STICKER_PX.get(str(raw).lower(), 32) if raw else 32
+        return icon + _LABEL_PAD
+    if t == "geometry":
+        verts = el.get("vertices") or _CANON_VERTS.get(str(el.get("shape") or "").lower())
+        if verts:
+            ys = [float(v[1]) for v in verts if isinstance(v, (list, tuple)) and len(v) == 2]
+            if ys:
+                return int(max(ys) - min(ys)) + _LABEL_PAD
+        return 160 + _LABEL_PAD
+    if t == "tree":
+        # title(28) + root circle(44) + one child row per branch level(70) + radius(20)
+        branches = el.get("branches")
+        levels = max(1, len(branches) if isinstance(branches, list) else 1)
+        return 28 + 44 + 70 * levels + 20
+    return 100                                          # unknown but positioned: be generous
+
+
+def _boxes_overlap(a: tuple[int, int, int, int], b: tuple[int, int, int, int]) -> bool:
+    ax, ay, aw, ah = a
+    bx, by, bw, bh = b
+    return not (ax + aw <= bx or bx + bw <= ax or ay + ah <= by or by + bh <= ay)
+
+
+def _element_width(el: dict) -> int:
+    t = el.get("type")
+    if t in _BOX_PRESETS:
+        raw = el.get("size")
+        presets = _BOX_PRESETS[t]
+        if raw and str(raw).lower() in presets:
+            return presets[str(raw).lower()][0]
+        return _BOX_DEFAULT[t][0]
+    if t == "geometry":
+        verts = el.get("vertices") or _CANON_VERTS.get(str(el.get("shape") or "").lower())
+        if verts:
+            xs = [float(v[0]) for v in verts if isinstance(v, (list, tuple)) and len(v) == 2]
+            if xs:
+                return int(max(xs) - min(xs)) + 40
+        return 260
+    return caps.VIEWPORT_W - _LAYOUT_LEFT - 20          # text/stickers wrap to the margin
+
+
+def _model_layout_is_sane(els: list[dict]) -> bool:
+    """True if the MODEL's own positions already fit and do not collide.
+
+    Worth checking: when the model lays the board out well (a title top-left, a badge
+    sticker top-right) that reads better than a forced single column. We only re-flow when
+    its layout is actually broken — which, live, it usually is.
+    """
+    boxes = []
+    for el in els:
+        if el.get("type") in _CONTROL_TYPES:
+            continue
+        pos = el.get("pos")
+        if not (isinstance(pos, (list, tuple)) and len(pos) == 2):
+            return False                                # unpositioned (e.g. graph) -> re-flow
+        x, y = int(pos[0]), int(pos[1])
+        w, h = _element_width(el), _element_height(el)
+        if y + h > caps.VIEWPORT_H or x + w > caps.VIEWPORT_W or x < 0 or y < 0:
+            return False                                # overflows the panel
+        boxes.append((x, y, w, h))
+    return not any(_boxes_overlap(boxes[i], boxes[j])
+                   for i in range(len(boxes)) for j in range(i + 1, len(boxes)))
+
+
+def _layout_payload(els: list[dict]) -> tuple[list[dict], list[str]]:
+    """Re-flow the board into a single non-overlapping column, dropping what will not fit.
+
+    Replaces the flat 115 px pitch. Three defects this closes:
+      * BUG-6  a 200 px graph / 140 px rectangle overlapped the element after it;
+      * BUG-6b `graph` (and `numberline`) have no `pos` in their schema, so the brain never
+               positioned them and the renderer drew them over whatever WAS positioned;
+      * BUG-7  past index 6 every element clamped onto y=780 in a single pile.
+
+    Overflow is DROPPED rather than clamped: an element stacked on another is worse than an
+    absent one, and the drop is recorded so telemetry can see the board was trimmed.
+    """
+    if _model_layout_is_sane(els):
+        return els, []
+
+    out: list[dict] = []
+    dropped: list[str] = []
+    y = _LAYOUT_TOP
+    for el in els:
+        if el.get("type") in _CONTROL_TYPES:
+            out.append(el)                              # no geometry; keep as-is
+            continue
+        h = _element_height(el)
+        if y + h > caps.POS_Y_MAX:
+            dropped.append(f"layout-overflow:{el.get('type')}")
+            continue
+        el["pos"] = [_LAYOUT_LEFT, int(y)]
+        out.append(el)
+        y += h + _LAYOUT_GUTTER
+    return out, dropped
 
 
 # Board Buddy's OWN canonical relative-vertex sets (mirror of board_buddy.py's geometry
@@ -515,6 +695,11 @@ def validate_board_call(payload: Any, answer: str, *,
             dropped.append(reason)
     for _ in payload[MAX_ELEMENTS:]:
         dropped.append("over-element-budget")
+    # Height-aware re-flow (BUG-6/6b/7). Runs AFTER per-element validation so it only ever
+    # lays out elements that survived the belt, and only re-flows when the model's own
+    # positions actually collide or overflow.
+    kept, layout_dropped = _layout_payload(kept)
+    dropped.extend(layout_dropped)
     _brace_animated_vars(kept)
     try:
         import debug_logger as _dbg
@@ -694,9 +879,30 @@ def _author_prompt(answer: str, concept_id: str | None, context: str | None,
     )
 
 
+# Deictic references to an on-screen visual (BUG-8 rewrite, 2026-08-03).
+#
+# The previous pair was destructive. It allowed a bare "see" and then consumed `[^.!?]*` to
+# the end of the sentence, so an ordinary tutoring line —
+#     "you can see the graph is a parabola with its vertex at the origin."
+# — was deleted whole, taking the mathematics with it. That is the same failure class as the
+# sanitizer that silently destroyed fractions (tutor_loop §5 comment).
+#
+# Rules now: only IMPERATIVE/deictic openers ("look at", "watch", "check out", "as you can
+# see"), never a bare "see"; the match stops at the visual noun plus a short trailing
+# prepositional tail, so it removes the POINTER and leaves any claim after it intact.
+_VISUAL_NOUNS = (r"(?:figure|picture|diagram|drawing|chart|graph|curve|parabola|"
+                 r"screen|board|image)")
 _VISUAL_REF_PATTERNS = [
-    re.compile(r"\b(?:look at|see|watch|check out)\s+(?:the\s+)?(?:figure|picture|diagram|curve|parabola|graph|chart|drawing|screen|board)\b[^.!?]*[.!?]?", re.IGNORECASE),
-    re.compile(r"\b(?:in|on)\s+(?:the\s+)?(?:figure|picture|diagram|curve|parabola|graph|chart|drawing|screen|board)\s+(?:you can see|is|shows?)[^.!?]*[.!?]?", re.IGNORECASE),
+    # "look at the figure on the screen", "watch the curve", "check out the diagram below"
+    re.compile(rf"\b(?:look at|have a look at|watch|check out)\s+(?:the\s+|this\s+|that\s+)?"
+               rf"{_VISUAL_NOUNS}(?:\s+(?:on|in|at)\s+(?:the\s+)?"
+               rf"(?:screen|board|right|left|top|bottom))?\s*[,.!?]?", re.IGNORECASE),
+    # "as you can see in the figure,"  /  "as you can see on the screen"
+    re.compile(rf"\bas\s+you\s+can\s+see\s*(?:(?:in|on)\s+(?:the\s+)?{_VISUAL_NOUNS})?"
+               rf"\s*[,.!?]?", re.IGNORECASE),
+    # "in the figure you can see" -> drop only the pointer clause, keep what follows
+    re.compile(rf"\b(?:in|on)\s+(?:the\s+)?{_VISUAL_NOUNS}\s+you\s+can\s+see\s*[,.]?",
+               re.IGNORECASE),
 ]
 
 
@@ -721,6 +927,11 @@ def sync_speech_with_visuals(answer: str, payload: list | None) -> str:
     for pat in _VISUAL_REF_PATTERNS:
         cleaned = pat.sub("", cleaned)
     cleaned = re.sub(r"\s{2,}", " ", cleaned).strip()
+    # Removing a leading pointer ("As you can see in the diagram, ") leaves the sentence
+    # starting lower-case; restore sentence case so TTS prosody stays natural.
+    cleaned = re.sub(r"^[,;:\s]+", "", cleaned)
+    if cleaned:
+        cleaned = cleaned[0].upper() + cleaned[1:]
     return cleaned if cleaned else answer
 
 
@@ -737,17 +948,49 @@ def author_board_from_answer(answer: str, concept_id: str | None = None,
     ``want_real_life`` carry the turn's explicit ask into the authoring directive."""
     if not answer or len(answer.split()) < 6:
         return None
-    try:
-        from llm_vertex import generate_json
-        res = generate_json(_author_prompt(answer, concept_id, context, profile,
-                                            want_animation, want_real_life),
-                            response_schema=_board_element_schema(),
-                            temperature=0.0, max_output_tokens=700)
-    except Exception:  # noqa: BLE001 — a drawing failure must never cost the turn
+
+    # RETRY + BACKOFF (BOARD_BUDDY_REGRESSION_AUDIT.md BUG-9a). Measured live on winipi5
+    # 2026-08-03: this call succeeds 4/4 in isolation but returns ok=False under the Vertex
+    # call volume of a real turn (perception + generation + grader + scene author + this),
+    # and the caller then silently degrades to the conservative scene->payload translation —
+    # a one-sentence prose card instead of the graph. So which board a child sees depended on
+    # transient API pressure. One short retry recovers the common transient case; it runs off
+    # the time-to-first-audio path (answer audio is already streaming), so the cost is hidden.
+    #
+    # Every exit now says WHY. The previous bare `except Exception: return None` with no log
+    # is what made this invisible for so long.
+    import time
+
+    prompt = _author_prompt(answer, concept_id, context, profile,
+                            want_animation, want_real_life)
+    schema = _board_element_schema()
+    res = None
+    for attempt in range(_AUTHOR_ATTEMPTS):
+        try:
+            from llm_vertex import generate_json
+            res = generate_json(prompt, response_schema=schema,
+                                temperature=0.0, max_output_tokens=700)
+        except Exception as e:  # noqa: BLE001 — a drawing failure must never cost the turn
+            print(f"[board_buddy] author call raised (attempt {attempt + 1}"
+                  f"/{_AUTHOR_ATTEMPTS}): {type(e).__name__}: {e}")
+            res = None
+        if res is not None and res.ok and isinstance(res.data, dict):
+            break
+        if attempt < _AUTHOR_ATTEMPTS - 1:
+            delay = _AUTHOR_BACKOFF_S * (attempt + 1)
+            print(f"[board_buddy] author declined (ok="
+                  f"{getattr(res, 'ok', None)}); retrying in {delay:.1f}s")
+            time.sleep(delay)
+
+    if res is None or not res.ok or not isinstance(res.data, dict):
+        print(f"[board_buddy] author gave up after {_AUTHOR_ATTEMPTS} attempt(s) "
+              f"-> degrading to the scene translation / speech-only")
         return None
-    if not res.ok or not isinstance(res.data, dict):
-        return None
+
     kept, dropped = validate_board_call(res.data, answer, profile=profile)
     if dropped:
         print(f"[board_buddy] author dropped {len(dropped)} element(s): {dropped[:4]}")
-    return kept or None
+    if not kept:
+        print("[board_buddy] author produced no groundable element -> degrading")
+        return None
+    return kept
