@@ -439,6 +439,37 @@ MSYS_NO_PATHCONV=1 PI_PASS=... PI_HOST=192.168.29.24 python tools/pi.py push \
   /home/winipi5/cloud_tutor/cloud-CLI/response_layer/<file>.py
 ```
 
+### Cloud Run deployment — **DONE 2026-08-03**
+
+Deployed to `wini-brain` / `asia-south1` as revision **`wini-brain-00022-8j2`**, serving 100%
+of traffic. Service config preserved (min-instances 1, max 3, concurrency 1, 4 CPU / 8 GiB,
+`--no-cpu-throttling`, Firestore state). The service is IAM-protected — an unauthenticated
+`/health` returns 403; verification used `gcloud auth print-identity-token`.
+
+Verified against the live service via `POST /stream_turn`:
+
+| check | result |
+|---|---|
+| brain warms to `ready:true` | ok (background load completes; `--no-cpu-throttling` still required) |
+| Stage 1 — no deictic promise | clean on both turns |
+| Stage 3 — layout | 6-element board, **no overlapping boxes** |
+| Board build-up | **6 segments, `[1,2,3,4,5,6]`** — the fix is live in the cloud brain |
+| BUG-9a — escalating token budget | rich 6-element board returned (was a 1-element prose card) |
+
+**Scope note:** this deploy carries the BRAIN-side fixes only. The two client-side fixes
+(segment driver + the `board_close` that hands the panel back) live in
+`wini_client/client.py`, which is device code — Cloud Run never runs it. A device pointed at
+the cloud brain gets the segments; it needs the client fix to step and close them.
+
+**Not a regression, recorded so it is not re-chased:** a verification case asserting that
+"Why do we call it a quadratic equation?" is speech-only proved unreliable. The gate is
+correct in both observed outcomes — it declined (`no visual earned this turn`) when the
+concept resolved sensibly, and allowed on the baseline `symbolic`/`procedural` keywords when
+it did not. The instability is upstream in **concept resolution**: the same prompt resolved
+to `jemh108__intro_trigonometry` on one run. That is a perception issue, pre-existing and
+outside this audit — but it means gate behaviour must be asserted at unit level (where the
+concept is fixed), not through a live prompt.
+
 ### Stage 5 — Doc reconciliation — **DONE 2026-08-03**
 
 Correction notices added to the two reports in this folder. Both claimed fixes that the code
