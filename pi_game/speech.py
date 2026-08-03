@@ -24,6 +24,7 @@ import re
 import subprocess
 import wave
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeout
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -35,6 +36,27 @@ VOICE_LANG = os.getenv("ALPHABET_TTS_LANG", "en-IN")
 SPEAK_RATE = float(os.getenv("ALPHABET_TTS_RATE", "0.88"))
 TTS_HZ = 24000
 STT_HZ = 16000
+
+
+@dataclass(frozen=True)
+class Voice:
+    """A TTS delivery: which cloud voice, in which language, how fast.
+
+    Passed per call so one process can speak English and Kannada without
+    rebuilding the (memoized, expensive) client. It also keys the WAV cache, so
+    the two languages never collide on disk even for identical-looking text.
+    """
+    name: str
+    lang: str
+    rate: float
+
+
+# The historical default is English; every function below falls back to it, so
+# existing callers that pass only text keep their exact behaviour.
+DEFAULT_VOICE = Voice(VOICE_NAME, VOICE_LANG, SPEAK_RATE)
+
+# The default STT locale. The Kannada lessons pass "kn-IN" explicitly.
+STT_LANG = os.getenv("ALPHABET_STT_LANG", "en-IN")
 
 # The reSpeaker Lite, addressed by card name so a USB re-enumeration that shifts
 # the card number does not silence the robot. Set ALPHABET_ALSA_DEVICE="" to fall
@@ -85,8 +107,8 @@ def _stt():
 # Text to speech
 
 
-def _key(text: str) -> str:
-    raw = f"{VOICE_NAME}|{VOICE_LANG}|{SPEAK_RATE}|{TTS_HZ}|{text}"
+def _key(text: str, voice: Voice) -> str:
+    raw = f"{voice.name}|{voice.lang}|{voice.rate}|{TTS_HZ}|{text}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
 
 
@@ -102,10 +124,10 @@ def _write_wav(path: Path, pcm: bytes, rate: int) -> None:
     tmp.replace(path)
 
 
-def synth(text: str) -> Path:
+def synth(text: str, voice: Voice = DEFAULT_VOICE) -> Path:
     """Return a local WAV of `text`, synthesizing through Cloud TTS on a miss."""
     CACHE.mkdir(parents=True, exist_ok=True)
-    out = CACHE / f"{_key(text)}.wav"
+    out = CACHE / f"{_key(text, voice)}.wav"
     if out.exists():
         return out
 
@@ -114,11 +136,11 @@ def synth(text: str) -> Path:
     def _call() -> bytes:
         resp = _tts().synthesize_speech(
             input=tts.SynthesisInput(text=text),
-            voice=tts.VoiceSelectionParams(language_code=VOICE_LANG, name=VOICE_NAME),
+            voice=tts.VoiceSelectionParams(language_code=voice.lang, name=voice.name),
             audio_config=tts.AudioConfig(
                 audio_encoding=tts.AudioEncoding.LINEAR16,
                 sample_rate_hertz=TTS_HZ,
-                speaking_rate=SPEAK_RATE,
+                speaking_rate=voice.rate,
             ),
         )
         return resp.audio_content
@@ -132,14 +154,14 @@ def synth(text: str) -> Path:
     return out
 
 
-def prewarm(texts: list[str]) -> tuple[int, int]:
+def prewarm(texts: list[str], voice: Voice = DEFAULT_VOICE) -> tuple[int, int]:
     """Synthesize every uncached line. Returns (synthesized, already_cached)."""
     made = cached = 0
     for t in texts:
-        if (CACHE / f"{_key(t)}.wav").exists():
+        if (CACHE / f"{_key(t, voice)}.wav").exists():
             cached += 1
             continue
-        synth(t)
+        synth(t, voice)
         made += 1
     return made, cached
 
@@ -147,36 +169,49 @@ def prewarm(texts: list[str]) -> tuple[int, int]:
 def play(path: Path) -> None:
     """Play a WAV and block until it finishes.
 
-    aplay, not sounddevice: playback here is fire-and-wait with no mixing, and
-    aplay works from a bare SSH launch where a PortAudio/PipeWire session may not
-    exist. The reSpeaker exposes ONE playback substream, so the launcher stops
-    touch_service.py first (PI_ACCESS.md §7) — otherwise this fails.
+    Fire-and-wait, no mixing. The tricky part is WHO owns the reSpeaker's single
+    playback substream:
 
-    The device is named explicitly: ALSA's `default` on this board is the HDMI
-    sink (card 0) and returns "audio open error: Unknown error 524", so an
-    unqualified aplay is silent even with the speaker free. Measured, not
-    guessed — `plughw:CARD=Lite` is the reSpeaker.
+    * On winipi5 the running **PipeWire daemon owns it**, so an exclusive
+      `aplay -D plughw:CARD=Lite` gets "Device or resource busy" and there is no
+      ALSA `pipewire` PCM plugin to route around it. `pw-play` mixes through the
+      daemon and is the route that actually works — so it is tried FIRST whenever
+      it exists.
+    * On a board with no PipeWire, `pw-play` is absent and we fall back to aplay
+      against the named reSpeaker (ALSA's `default` here is HDMI card 0, which
+      returns "Unknown error 524", so the device must be named), then the default.
+
+    First command that exits 0 wins; both routes work from a bare SSH launch.
     """
-    for dev in ([ALSA_DEVICE] if ALSA_DEVICE else []) + [None]:
-        cmd = ["aplay", "-q"] + (["-D", dev] if dev else []) + [str(path)]
+    import shutil
+
+    cmds: list[list[str]] = []
+    player = os.getenv("ALPHABET_PLAYER")            # force one route if set
+    if player == "pwplay" or (player is None and shutil.which("pw-play")):
+        cmds.append(["pw-play", str(path)])
+    if player != "pwplay":
+        for dev in ([ALSA_DEVICE] if ALSA_DEVICE else []) + [None]:
+            cmds.append(["aplay", "-q"] + (["-D", dev] if dev else []) + [str(path)])
+
+    for cmd in cmds:
         if subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL,
                           stderr=subprocess.DEVNULL).returncode == 0:
             return
     print(f"[alpha] playback failed for {path.name} "
-          f"(device {ALSA_DEVICE!r}; is touch_service.py holding the speaker?)",
+          f"(tried {[c[0] for c in cmds]}; is another process holding the speaker?)",
           flush=True)
 
 
-def say(text: str) -> None:
-    synth_and_play = synth(text)
-    play(synth_and_play)
+def say(text: str, voice: Voice = DEFAULT_VOICE) -> None:
+    play(synth(text, voice))
 
 
 # ---------------------------------------------------------------------------
 # Speech to text
 
 
-def listen(out_path: Path, silence_ms: int = 1200, hard_cap_s: float = 8.0) -> str:
+def listen(out_path: Path, silence_ms: int = 1200, hard_cap_s: float = 8.0,
+           stt_lang: str = STT_LANG) -> str:
     """Record one child utterance and transcribe it. "" if nothing was heard.
 
     Children pause mid-word, so the endpoint silence is longer and the RMS gate
@@ -208,7 +243,7 @@ def listen(out_path: Path, silence_ms: int = 1200, hard_cap_s: float = 8.0) -> s
         cfg = speech.RecognitionConfig(
             encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
             sample_rate_hertz=STT_HZ,
-            language_code="en-IN",
+            language_code=stt_lang,
             model="latest_short",
             # A single sound is not a sentence; punctuation would only add noise
             # for the matcher below.
@@ -256,8 +291,13 @@ LETTER_NAMES = {
 _SHORT_UTTERANCE = 4
 
 
-def judge_attempt(heard: str, letter: str, phoneme: str, say_as: str) -> bool:
+def judge_attempt(heard: str, letter: str, phoneme: str, say_as: str,
+                  lang: str = "en") -> bool:
     """True if `heard` is plausibly the child attempting the target sound.
+
+    `lang` selects the script the transcript comes back in — English STT returns
+    Latin, Kannada STT returns the Kannada block — so the two need different
+    normalization and different Gemini prompts.
 
     Cheap local check first, Gemini only when that is inconclusive, so the common
     case costs nothing.
@@ -271,6 +311,9 @@ def judge_attempt(heard: str, letter: str, phoneme: str, say_as: str) -> bool:
     A cloud failure still resolves to True (see _gemini_judge): the lesson has no
     failure state, and an outage must never read to a child as "you were wrong".
     """
+    if lang == "kn":
+        return _judge_attempt_kn(heard, letter, phoneme, say_as)
+
     h = _normalize(heard)
     if not h:
         return False                      # genuinely silent — worth one retry
@@ -333,4 +376,78 @@ def _gemini_judge(heard: str, letter: str, phoneme: str) -> bool:
         return True
     except Exception as exc:
         print(f"[alpha] gemini judge unavailable ({exc}) — passing", flush=True)
+        return True                        # never punish a cloud failure
+
+
+# ---------------------------------------------------------------------------
+# The Kannada path — same shape, different script
+
+_KN_BLOCK = re.compile(r"[ಀ-೿]+")
+
+# A held or repeated vowel of ANY length ("ಆಆಆ") is caught by the pure-repeat test
+# below. This gate is only for the leftover: a short, NON-repeat token worth a
+# Gemini call. It must stay small — ಆನೆ (ಆ+ನ+ೆ = 3 codepoints) is a word that
+# merely begins with the vowel, the Kannada form of the English "word starting
+# with the letter" trap, and must fall on the reject side of this gate.
+_KN_ELONGATION_MAX = 2
+
+
+def _normalize_kn(s: str) -> str:
+    """Keep only Kannada-block characters — drops STT's spaces and punctuation."""
+    return "".join(_KN_BLOCK.findall(s))
+
+
+def _judge_attempt_kn(heard: str, slug: str, phoneme: str, say_as: str) -> bool:
+    """True if `heard` is plausibly the child saying the target vowel.
+
+    For a vowel the target IS the akshara (content_kn sets phoneme == say == the
+    character). The cheap check accepts the bare vowel or the vowel held/repeated,
+    but NOT a longer token that only starts with it — so ಆ passes and ಆನೆ does not.
+    A short unmatched utterance (odd STT spelling of one sound) is worth a Gemini
+    call; a long one is plainly a word and is rejected without spending one.
+    """
+    h = _normalize_kn(heard)
+    if not h:
+        return False                      # genuinely silent — worth one retry
+
+    targets = {t for t in (_normalize_kn(phoneme), _normalize_kn(say_as)) if t}
+    for t in targets:
+        # The whole utterance is nothing but this vowel, once or held: "ಆ", "ಆಆ".
+        if t and len(h) % len(t) == 0 and h == t * (len(h) // len(t)):
+            return True
+
+    if len(h) > _KN_ELONGATION_MAX:       # a syllable or a word, not a bare vowel
+        return False
+
+    return _gemini_judge_kn(heard, phoneme)
+
+
+def _gemini_judge_kn(heard: str, akshara: str) -> bool:
+    """Ask Gemini whether a messy Kannada transcript is a fair attempt at a vowel."""
+    prompt = (
+        "A young child learning the Kannada alphabet was asked to say the "
+        f"ISOLATED SOUND of the vowel (swara) '{akshara}'. Speech-to-text heard: "
+        f"'{heard}'.\n\n"
+        "Answer YES if the child was attempting that bare vowel sound. "
+        "Speech-to-text mangles small children, so allow for odd spellings of a "
+        "short sound, and accept the vowel appearing on its own or as the start "
+        "of a tiny syllable.\n\n"
+        "Answer NO if the child said an ordinary WORD — even one that begins with "
+        f"'{akshara}' — because saying a word is not the same as saying the bare "
+        "vowel sound, and must not count.\n\n"
+        "Reply with exactly one word: YES or NO."
+    )
+    try:
+        from llm_vertex import generate_reply
+        out = generate_reply(prompt, temperature=0.0, max_output_tokens=8,
+                             timeout_s=LLM_TIMEOUT_S)
+        text = (out.text or "").strip().lower()
+        if text.startswith("yes"):
+            return True
+        if text.startswith("no"):
+            return False
+        print(f"[alpha] gemini kn judge gave no verdict ({text!r}) — passing", flush=True)
+        return True
+    except Exception as exc:
+        print(f"[alpha] gemini kn judge unavailable ({exc}) — passing", flush=True)
         return True                        # never punish a cloud failure

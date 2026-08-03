@@ -67,6 +67,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import debug_logger as _dbg
+
 STT_TIMEOUT_S = 20.0
 TTS_TIMEOUT_S = 30.0
 
@@ -81,6 +83,22 @@ def _flag(name: str, default: str = "0") -> bool:
 # env var, not a revert. See PART13_LATENCY_STREAMING_PLAN.md §7.
 STREAM_TTS = _flag("WINI_STREAM_TTS", "1")
 STREAM_GEN = _flag("WINI_STREAM_GEN", "1")
+# Part 15 Phase B: grade the armed pending_check CONCURRENTLY with perception
+# instead of serially after it (the grader needs neither perception nor state).
+# Removes the RC-3 serial-grader block from `brain`. Revertible: WINI_PARALLEL_GRADER=0.
+PARALLEL_GRADER = _flag("WINI_PARALLEL_GRADER", "1")
+# Response Layer (response_layer_architecture_plan.md). Default OFF. When on, the brain
+# rides "rl":true on the early filler line (so the client waits for the authoritative
+# visual directive on turn_meta instead of concept-default-arming a scene) and forwards
+# the turn's `visual` directive. Same env var tutor_loop.RESPONSE_LAYER reads.
+RESPONSE_LAYER = _flag("WINI_RESPONSE_LAYER")
+
+# Part 15: app-level shared-secret gate for a publicly-reachable Cloud Run service.
+# When WINI_API_KEY is set, every POST (the billed /turn and /voice_turn) must carry
+# a matching `X-Wini-Key` header or it is rejected with 401 BEFORE any Gemini/STT/TTS
+# work — so an unauthenticated hit costs nothing. Unset ⇒ no check (a private/local
+# brain behind IAM or on localhost is unchanged). /health stays open for probes.
+API_KEY = os.getenv("WINI_API_KEY", "").strip()
 
 
 def _bounded(fn, timeout_s, *args, **kwargs):
@@ -110,6 +128,7 @@ class Brain:
         llm_vertex.generate_reply("Say OK.", temperature=0.0, max_output_tokens=8)
 
     def _load(self):
+        _dbg.emit(_dbg.LSRV, "brain_load_start")
         try:
             import tutor_loop
             from voice.cloud_stt import CloudStt
@@ -156,23 +175,73 @@ class Brain:
                 except Exception as e:  # noqa: BLE001
                     print(f"[server] fillers unavailable: {e}")
             self._filler_pcm_cache: dict[str, bytes] = {}
-            # Warm every cloud client now (client construction is the 4-9 s
-            # cold-start cost, paid once). Best-effort: a failed warmup must not
-            # block readiness — turns degrade per call, never at startup.
-            # Second wave, also in parallel: the first perception call (which pulls
-            # in the context cache + MiniLM) and the first TTS call. Neither needs
-            # the other.
+            # Warm every cloud call a real turn makes, now, in parallel — client
+            # CONSTRUCTION is the 4-9 s cost (CLAUDE.md) but each distinct RPC
+            # method still pays its own first-call handshake, and readiness is
+            # what releases the UI splash. Anything left cold here is paid by the
+            # child on their first sentence, which is what "warmup" is supposed
+            # to prevent. Best-effort: a failed warmup must not block readiness —
+            # turns degrade per call, never at startup.
+            #
+            # Covered: STT recognize (was NEVER warmed — the client was built and
+            # the first recognize_pcm paid the full handshake), streaming TTS
+            # (a different gRPC method from synth(); every turn uses the streaming
+            # one), one-shot TTS (the fallback), and perception (context cache +
+            # MiniLM).
             t_warm = time.perf_counter()
+
+            def _warm_stt():
+                # Half a second of digital silence: a real recognize round-trip
+                # that transcribes to "" — the handshake is the whole point.
+                self.stt.recognize_pcm(b"\x00\x00" * 8000, 16000)
+
+            def _warm_tts_stream():
+                for _ in self.tts.synth_stream(iter(["Hello."])):
+                    pass
+
             try:
-                with ThreadPoolExecutor(max_workers=2) as warm:
-                    fs = [warm.submit(_bounded, self.tts.synth, TTS_TIMEOUT_S, "Hi")]
+                with ThreadPoolExecutor(max_workers=5) as warm:
+                    fs = [warm.submit(_bounded, self.tts.synth, TTS_TIMEOUT_S, "Hi"),
+                          warm.submit(_bounded, _warm_stt, STT_TIMEOUT_S),
+                          warm.submit(_bounded, _warm_tts_stream, TTS_TIMEOUT_S),
+                          # T9 teaching-visual matrix (~8 s incl. the MiniLM load
+                          # it waits on). Without this leg it finished AFTER
+                          # readiness and the first teaching turn ate the encode.
+                          warm.submit(self.tutor.warm_visuals)]
                     if self.gen_backend == "gemini":
                         fs.append(warm.submit(self.tutor.analyze_only, "hello wini"))
                     for f in fs:
-                        f.result()
+                        try:
+                            f.result()
+                        except Exception as e:  # noqa: BLE001 — one cold path, not all
+                            print(f"[server] one warmup leg failed: {e}")
             except Exception as e:  # noqa: BLE001
                 print(f"[server] warmup failed (turns will retry live): {e}")
             print(f"[server] warmup in {(time.perf_counter() - t_warm) * 1000:.0f} ms")
+            # Part 15 Phase E: durable learner state. With WINI_STATE_BACKEND=firestore
+            # the learner's history lives in a regional Firestore document, not the
+            # (ephemeral on Cloud Run) local JSON file. Read it ONCE here, at startup,
+            # so a cold instance picks up the learner mid-session; the server then
+            # writes it back at each TURN BOUNDARY (never mid-turn — plan §6 E).
+            self._state_store = None
+            try:
+                import state_backend
+                self._state_store = state_backend.get_state_store()
+                if self._state_store is not None:
+                    loaded = self._state_store.load()
+                    if loaded is not None:
+                        # Replace the working copy wholesale — LearnerState reads
+                        # everything through data.setdefault accessors, so swapping
+                        # .data is a complete, side-effect-free state load.
+                        self.tutor.state.data = loaded
+                        print(f"[server] loaded learner state from "
+                              f"{self._state_store.describe()}")
+                    else:
+                        print(f"[server] no durable state yet at "
+                              f"{self._state_store.describe()} — cold start")
+            except Exception as e:  # noqa: BLE001 — never block readiness on the store
+                print(f"[server] state backend unavailable; using local JSON: {e}")
+                self._state_store = None
             # A fresh brain process IS a fresh session (§6.4): drop the
             # session-scoped no-repeat sets so retrieval starts from the full
             # candidate pool again. Without this they persisted in
@@ -181,15 +250,18 @@ class Brain:
             try:
                 cleared = self.tutor.state.begin_session()
                 self.tutor.state.save()
+                self._persist_state()   # ensure a durable doc exists for a fresh learner
                 print(f"[server] new session: cleared {cleared['served_items']} served items, "
                       f"{cleared['bridges_served']} served bridges")
             except Exception as e:  # noqa: BLE001 — never block readiness on this
                 print(f"[server] session reset skipped: {e}")
             self.ready = True
             print(f"[server] brain ready (gen_backend={self.gen_backend})")
+            _dbg.emit(_dbg.L0, "brain_ready", gen_backend=self.gen_backend)
         except Exception as e:  # noqa: BLE001
             self.error = str(e)
             print(f"[server] FAILED to load brain: {e}")
+            _dbg.emit(_dbg.L0, "brain_load_failed", error=str(e))
 
     # ------------------------------------------------------------------
     def _start_speech_stream(self, emit):
@@ -279,6 +351,7 @@ class Brain:
 
     def text_turn(self, text: str, speak: bool, answer_budget: dict | None = None,
                   precomputed_analysis: dict | None = None,
+                  precomputed_grade: str | None = None,
                   mode: str | None = None, emit=None) -> dict:
         from voice.sanitize import sanitize_for_speech
 
@@ -310,7 +383,8 @@ class Brain:
             t0 = time.perf_counter()
             try:
                 result = self.tutor.turn(text, answer_budget=answer_budget,
-                                         precomputed_analysis=precomputed_analysis)
+                                         precomputed_analysis=precomputed_analysis,
+                                         precomputed_grade=precomputed_grade)
             finally:
                 # The sink is thread-local and turn-scoped — clear it before any
                 # other turn can run on this thread.
@@ -321,6 +395,12 @@ class Brain:
             # all land in one turn — the 1.0 s vs 4.0 s `brain` spread).
             try:
                 gen = _tl.gen_stats()
+                # How long the T9 figure pick took. It scores every crop in the
+                # store against the utterance, so it is exactly the kind of stage
+                # that can grow quietly — RC-4 was an uncounted stage hiding 2.2 s.
+                t9 = getattr(self.tutor, "_last_t9_ms", None)
+                if t9 is not None:
+                    gen["t9"] = t9
             except Exception:  # noqa: BLE001 — instrumentation must never cost a turn
                 gen = {}
             # Read the mode AFTER the turn: turn() can move it itself — a spoken
@@ -329,10 +409,40 @@ class Brain:
             # (_drive_test). Reading it before the turn echoed a STALE mode and
             # left the touch UI one turn behind the brain (test_results.md Bug 3).
             resolved_mode = session.get("mode", "EXPLAIN")
+        # Part 15 Phase E: the turn is decided and the lock is released — persist the
+        # learner's durable state at this turn boundary (never mid-turn). No-op unless
+        # WINI_STATE_BACKEND=firestore. Runs while the answer's audio is still
+        # streaming, so it is off the time-to-first-audio path.
+        self._persist_state()
         answer = (result.get("answer") or "").strip()
         # Slim writeback — just the graded outcome the UI needs for its correct/
         # almost feedback cue (the full writeback carries state internals).
         wb = result.get("writeback") or None
+        # Per-turn learner diagnostics: the cognitive state + pedagogy decision behind
+        # this turn, forwarded so the client can print it (its `--diag` readout). Purely
+        # observational — it never moves learner state. Small; rides turn_meta too.
+        _cid = (result.get("concept") or {}).get("concept_id")
+        _cog = result.get("cognitive_update") or {}
+        diagnostics = {
+            "action": result.get("action"),
+            "why": result.get("action_reason"),
+            "need": result.get("need"),
+            "mode": resolved_mode,
+            "mode_reason": result.get("mode_reason"),
+            "concept": _cid,
+            "mastery": (round(self.tutor.state.mastery(_cid), 3) if _cid else None),
+            "signals": result.get("signals") or [],
+            "cognitive": {k: round(float(v), 3) for k, v in _cog.items()
+                          if isinstance(v, (int, float))},
+            "pending_check": result.get("pending_check"),
+            "pending_hope": result.get("pending_hope"),
+            "n_evidence": result.get("n_evidence"),
+            "writeback": (wb or {}).get("outcome") if wb else None,
+            "hope": result.get("hope_update"),
+            "visual": ({"type": (result.get("visual") or {}).get("type"),
+                        "earned": (result.get("visual") or {}).get("allowed")}
+                       if result.get("visual") else None),
+        }
         out = {
             "transcript": text,
             "answer": answer,
@@ -347,6 +457,10 @@ class Brain:
             # bar off `test` and its answer-feedback cue off `writeback.outcome`.
             "test": result.get("test"),
             "writeback": {"outcome": wb.get("outcome")} if wb else None,
+            # Response Layer visual directive (None unless WINI_RESPONSE_LAYER=1). Rides
+            # turn_meta via the meta dict below; the client arms/suppresses the scene off it.
+            "visual": result.get("visual"),
+            "diagnostics": diagnostics,
             "latency_ms": {"brain": brain_ms, **gen},
         }
         pcm = None
@@ -390,6 +504,54 @@ class Brain:
             out["audio_rate"] = self.tts.rate
         return out
 
+    def _persist_state(self) -> None:
+        """Write the working learner state to the durable backend (Part 15 Phase E).
+        Called at TURN BOUNDARIES only — never mid-turn. Best-effort: a store failure
+        must never fail a turn (the local JSON save already ran; the next boundary
+        retries). No-op unless WINI_STATE_BACKEND=firestore."""
+        store = getattr(self, "_state_store", None)
+        if store is None:
+            return
+        try:
+            store.save(self.tutor.state.data)
+        except Exception as e:  # noqa: BLE001
+            print(f"[server] durable state write failed (retried next turn): {e}")
+
+    def _maybe_speculate_grade(self, transcript: str):
+        """Part 15 Phase B: submit the answer grader for the armed pending_check
+        so it runs CONCURRENTLY with the perception call in before_turn().
+
+        Returns a Future[str outcome] or None when there is nothing to grade. The
+        grader is a pure function of (question, expected, transcript) — the values
+        are captured now, so later state mutation can't change the result. A cheap
+        deterministic pre-gate skips the obvious non-attempts (empty / pure ack /
+        bare question) and the turns a pending_* offer will consume before grading,
+        so speculation almost never wastes a call; anything it lets through that
+        turn() later rules a non_attempt is simply discarded (identical outcome)."""
+        try:
+            session = self.tutor.state.data.get("session", {}) or {}
+            if session.get("pending_shift") or session.get("pending_mode_offer") \
+                    or session.get("pending_test_resume"):
+                return None
+            pending = session.get("pending_check") or {}
+            q, exp = pending.get("question"), pending.get("expected_answer")
+            if not q or not exp:
+                return None
+            norm = (transcript or "").strip()
+            if not norm:
+                return None
+            try:
+                from cognitive_classifier.cues import is_pure_ack, is_question
+                if is_pure_ack(norm.lower()) or is_question(transcript):
+                    return None
+            except Exception:  # noqa: BLE001 — pre-gate is optional, never fatal
+                pass
+            import tutor_loop as _tl
+            return _pool.submit(_tl.judge_answer, q, exp, transcript)
+        except Exception as e:  # noqa: BLE001 — speculation must never break a turn
+            print(f"[server] grade speculation skipped: {e}")
+            return None
+
     def voice_turn(self, pcm: bytes, rate: int, emit=None,
                    mode: str | None = None) -> dict:
         """One voice turn. With `emit` (a callable taking one JSON-able dict per
@@ -410,6 +572,12 @@ class Brain:
             if emit:
                 emit(out)
             return out
+
+        # Part 15 Phase B: kick the grader off NOW, before perception, so the two
+        # Gemini calls overlap. Joined just before text_turn below.
+        grade_future = None
+        if PARALLEL_GRADER and getattr(self.tutor, "want_answer", True):
+            grade_future = self._maybe_speculate_grade(transcript)
 
         # Pacing before_turn (analysis + answer budget) -> cognitive filler.
         # Best-effort: a failure here must never cost the turn itself.
@@ -440,6 +608,19 @@ class Brain:
             # the client can react (print / thinking face) before generation.
             # Filler audio rides on it only when WINI_FILLERS=1.
             part = {"part": "filler", "transcript": transcript}
+            if RESPONSE_LAYER:
+                # Tell the client the Response Layer is driving this turn: it should
+                # wait for the authoritative visual directive on turn_meta rather than
+                # concept-default-arming a scene off the early `concept` line.
+                part["rl"] = True
+            # Perception has resolved the concept by now (before generation), so
+            # ride it on this early line. The client uses it to pick a tier-0
+            # teaching scene and suppress the streamed answer BEFORE its first
+            # audio chunk — turn_meta lands too late for that (it can arrive a
+            # second into the answer). Additive; older clients ignore it.
+            early_cid = ((precomputed or {}).get("concept") or {}).get("concept_id")
+            if early_cid:
+                part["concept"] = early_cid
             if self.fillers is not None:
                 try:
                     bank, phrase = self.fillers.pick(precomputed)
@@ -457,11 +638,29 @@ class Brain:
                     print(f"[server] filler skipped: {e}")
             emit(part)
 
+        # Join the speculative grader (ran concurrently with perception above). A
+        # failure or timeout just falls back to turn()'s serial grade — never worse.
+        precomputed_grade = None
+        grade_ms = 0
+        if grade_future is not None:
+            tg = time.perf_counter()
+            try:
+                precomputed_grade = grade_future.result(timeout=STT_TIMEOUT_S)
+            except Exception as e:  # noqa: BLE001
+                print(f"[server] speculative grade failed; serial fallback: {e}")
+            grade_ms = int((time.perf_counter() - tg) * 1000)
+
         out = self.text_turn(transcript, speak=True, answer_budget=budget,
-                             precomputed_analysis=precomputed, mode=mode,
+                             precomputed_analysis=precomputed,
+                             precomputed_grade=precomputed_grade, mode=mode,
                              emit=emit)
         out["latency_ms"]["stt"] = stt_ms
         out["latency_ms"]["perception"] = perception_ms
+        # grade_ms is the JOIN wait after perception — near-0 means the grader
+        # finished inside the perception window (the whole point of Phase B).
+        if grade_future is not None:
+            out["latency_ms"]["grade_join"] = grade_ms
+            out["latency_ms"]["grade_parallel"] = 1 if precomputed_grade is not None else 0
         if hasattr(_gp, "timing"):
             for k, v in (_gp.timing or {}).items():
                 out["latency_ms"][f"p_{k}"] = v
@@ -483,22 +682,96 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quieter default log line
         print(f"[http] {self.address_string()} {fmt % args}")
 
+    def _cors(self):
+        """Emit CORS headers so the debug console HTML works from file:// or any origin.
+        These only cover developer-facing routes; the API key gate still protects /turn."""
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers",
+                         "Content-Type, X-Wini-Key, X-Sample-Rate, X-Wini-Mode")
+
     def _json(self, code: int, payload: dict):
         body = json.dumps(payload).encode("utf-8")
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(body)))
+        self._cors()
         self.end_headers()
         self.wfile.write(body)
+
+    def do_OPTIONS(self):
+        """Handle CORS preflight for POST routes (browser sends OPTIONS before POST
+        from a file:// page or a cross-origin page)."""
+        self.send_response(204)
+        self._cors()
+        self.send_header("Content-Length", "0")
+        self.end_headers()
 
     def do_GET(self):
         if self.path == "/health":
             return self._json(200, {"ok": True, "ready": BRAIN.ready,
                                     "error": BRAIN.error,
                                     "gen_backend": getattr(BRAIN, "gen_backend", None)})
+
+        # ── Debug routes (developer-only, no auth gate — same as /health) ──────
+        if self.path.startswith("/debug/logs"):
+            # ?tail=N — default 200
+            try:
+                n = int(self.path.split("tail=")[-1]) if "tail=" in self.path else 200
+            except ValueError:
+                n = 200
+            return self._json(200, {"entries": _dbg.tail(n)})
+
+        if self.path == "/debug/stream":
+            # Server-Sent Events: streams structured log lines until disconnected.
+            # Each event: "data: <json>\n\n"
+            q = _dbg.subscribe()
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream")
+                self.send_header("Cache-Control", "no-cache")
+                self.send_header("X-Accel-Buffering", "no")  # nginx: disable proxy buf
+                self._cors()   # ← CORS so file:// browser can connect
+                self.end_headers()
+                # Replay the last 100 entries so the console shows recent history
+                for entry in _dbg.tail(100):
+                    line = ("data: " + json.dumps(entry, default=str) + "\n\n").encode()
+                    self.wfile.write(line)
+                self.wfile.flush()
+                # Stream new events until the client disconnects
+                while True:
+                    try:
+                        msg = q.get(timeout=15)
+                    except queue.Empty:
+                        # Keepalive comment so the connection stays alive through proxies
+                        self.wfile.write(b": keepalive\n\n")
+                        self.wfile.flush()
+                        continue
+                    if msg is None:
+                        break
+                    line = ("data: " + msg + "\n\n").encode()
+                    self.wfile.write(line)
+                    self.wfile.flush()
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # client disconnected — normal
+            finally:
+                _dbg.unsubscribe(q)
+            return None
+
         return self._json(404, {"error": "unknown route"})
 
     def do_POST(self):
+        # Debug clear — no auth, before the API key gate
+        if self.path == "/debug/clear":
+            discarded = _dbg.clear()
+            return self._json(200, {"cleared": discarded})
+
+        # App-secret gate (Part 15): reject before touching the brain or any billed
+        # cloud call. Constant-time compare so the check can't be timed.
+        if API_KEY:
+            import hmac
+            if not hmac.compare_digest(self.headers.get("X-Wini-Key", ""), API_KEY):
+                return self._json(401, {"error": "unauthorized"})
         if not BRAIN.ready:
             return self._json(503, {"error": "brain not ready", "detail": BRAIN.error})
         length = int(self.headers.get("Content-Length") or 0)
@@ -552,6 +825,7 @@ def main():
     args = ap.parse_args()
     BRAIN = Brain()
     srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    _dbg.emit(_dbg.L0, "server_start", port=args.port)
     print(f"[server] listening on 0.0.0.0:{args.port} (brain loading in background)")
     try:
         srv.serve_forever()

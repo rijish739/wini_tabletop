@@ -1,0 +1,34 @@
+{
+  "letter": "D",
+  "phoneme": "duh",
+  "say": "duh",
+  "objects": [
+    {
+      "name": "Drum",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "D",
+    "E",
+    "F",
+    "G"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter D.",
+    "listen": "D says duh.",
+    "touch_ask": "Can you touch D?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say duh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. duh.",
+    "repeat_move_on": "Thank you for trying. We will say duh again soon.",
+    "assoc": "Drum begins with D.",
+    "activity_ask": "Can you bring me the drum?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned D today. D for a drum."
+  }
+}

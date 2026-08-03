@@ -8,6 +8,7 @@ attentive child would. Two modes let it also check the calm-failure paths:
     --no-feed       never drag the object, so the activity times out (§Stage 6)
 
     ALPHABET_NO_MIC=1 .venv/bin/python -m pi_game.drive_lesson --letter A
+    ALPHABET_NO_MIC=1 .venv/bin/python -m pi_game.drive_lesson --lang kn --letter a
 """
 
 from __future__ import annotations
@@ -23,12 +24,16 @@ HOST, PORT = "127.0.0.1", 8160
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--letter", default="A")
+    ap.add_argument("--lang", default="en", help="en or kn (default: en)")
+    ap.add_argument("--letter", default=None,
+                    help="lesson id; defaults to the first of the language "
+                         "(A for en, a for kn)")
     ap.add_argument("--lessons", type=int, default=1, help="how many to run")
     ap.add_argument("--wrong-first", action="store_true")
     ap.add_argument("--no-feed", action="store_true")
     ap.add_argument("--timeout", type=float, default=180.0)
     args = ap.parse_args()
+    start_letter = args.letter or ("a" if args.lang == "kn" else "A")
 
     s = socket.create_connection((HOST, PORT), timeout=10)
     s.settimeout(args.timeout)
@@ -64,7 +69,7 @@ def main() -> int:
 
             if cmd == "ready":
                 print(f"[{el:6.1f}s] ready; completed so far: {msg.get('completed')}")
-                send({"event": "begin", "letter": args.letter})
+                send({"event": "begin", "letter": start_letter, "lang": args.lang})
                 continue
 
             if cmd == "feedback":

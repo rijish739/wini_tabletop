@@ -30,7 +30,8 @@
 #endif
 
 #define IPC_Q_SLOTS  64
-#define IPC_LINE_MAX 1024   /* stage lines carry several absolute asset paths */
+#define IPC_LINE_MAX 2048   /* stage lines carry several absolute asset paths;
+                             * Kannada adds text_img + word_img on top */
 
 static char g_host[64] = "127.0.0.1";
 static int  g_port = 8160;
@@ -225,15 +226,18 @@ int ipc_send(const char *json)
     return send_line(line, n);
 }
 
-int ipc_send_begin(const char *letter)
+int ipc_send_begin(const char *letter, const char *lang)
 {
-    char line[128];
+    char line[192];
+    char lbuf[48] = "";
+    if (lang && lang[0])
+        snprintf(lbuf, sizeof(lbuf), ",\"lang\":\"%s\"", lang);
     int n;
     if (letter && letter[0])
         n = snprintf(line, sizeof(line),
-                     "{\"event\":\"begin\",\"letter\":\"%s\"}\n", letter);
+                     "{\"event\":\"begin\",\"letter\":\"%s\"%s}\n", letter, lbuf);
     else
-        n = snprintf(line, sizeof(line), "{\"event\":\"begin\"}\n");
+        n = snprintf(line, sizeof(line), "{\"event\":\"begin\"%s}\n", lbuf);
     if (n <= 0 || (size_t)n >= sizeof(line)) return -1;
     return send_line(line, n);
 }

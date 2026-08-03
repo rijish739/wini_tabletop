@@ -1,0 +1,34 @@
+{
+  "letter": "V",
+  "phoneme": "vuh",
+  "say": "vuh",
+  "objects": [
+    {
+      "name": "Van",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "V",
+    "W",
+    "X",
+    "Y"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter V.",
+    "listen": "V says vuh.",
+    "touch_ask": "Can you touch V?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say vuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. vuh.",
+    "repeat_move_on": "Thank you for trying. We will say vuh again soon.",
+    "assoc": "Van begins with V.",
+    "activity_ask": "Can you bring me the van?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned V today. V for a van."
+  }
+}

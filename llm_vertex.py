@@ -24,6 +24,17 @@ load_dotenv(ROOT / ".env")
 
 DEFAULT_MODEL = os.getenv("VERTEX_GENERATION_MODEL", "gemini-2.5-flash")
 DEFAULT_REGION = os.getenv("VERTEX_REGION", "asia-south1")
+# Part 15 Phase C: a separate model/region tier for the small schema-constrained
+# calls (grader / cohesion / persona; perception has its own VERTEX_PERCEPTION_MODEL).
+# Defaults to the generation model+region so behaviour is byte-identical until
+# deliberately flipped — this is a revertible seam, not a swap.
+#   MEASURED 2026-07-25: gemini-2.5-flash-lite (available only in `global`/`us-central1`,
+#   NOT asia-south1) is SLOWER than gemini-2.5-flash@asia-south1 on these short replies —
+#   the 31 ms regional RTT beats flash-lite's per-token edge, and the plan's gemini-3.x
+#   targets do not exist on this project. So the default stays flash@asia-south1; the seam
+#   is here so a genuinely faster co-located model becomes a one-line env flip.
+SMALL_MODEL = os.getenv("VERTEX_SMALL_MODEL", "").strip() or DEFAULT_MODEL
+SMALL_LOCATION = os.getenv("VERTEX_SMALL_LOCATION", "").strip() or DEFAULT_REGION
 # Generous enough to survive a cold first call + a large manifest-grounded prompt,
 # while still bounding the "stalled for hours" SDK failure mode (CLAUDE.md gotcha).
 DEFAULT_TIMEOUT_S = float(os.getenv("VERTEX_GENERATION_TIMEOUT_S", "20"))

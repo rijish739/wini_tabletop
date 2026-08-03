@@ -23,6 +23,11 @@ from typing import Optional
 
 from .route import RouteResult
 
+try:
+    import debug_logger as _dbg
+except ImportError:
+    _dbg = None  # type: ignore[assignment]
+
 # ---------------------------------------------------------------------------
 # SAFETY — high recall by design. Child-facing device: over-trigger, never miss.
 # Grouped for reviewability; keep phrasing broad (kids paraphrase).
@@ -105,6 +110,8 @@ def gate(text: str) -> Optional[RouteResult]:
     """Run the deterministic gates in priority order. Returns a RouteResult if a
     gate fires (SAFETY wins over NONSENSE), else None to pass through."""
     if is_safety(text):
+        if _dbg:
+            _dbg.emit(_dbg.L2, "gate_fired", gate="SAFETY", text_len=len(text or ""))
         return RouteResult(
             primary="SAFETY",
             safety_alert=True,
@@ -112,9 +119,13 @@ def gate(text: str) -> Optional[RouteResult]:
             reason="deterministic SAFETY lexicon match",
         )
     if is_nonsense(text):
+        if _dbg:
+            _dbg.emit(_dbg.L2, "gate_fired", gate="NONSENSE", text_len=len(text or ""))
         return RouteResult(
             primary="NONSENSE",
             source="gate",
             reason="deterministic NONSENSE gate (empty / symbols / keyboard-mash)",
         )
+    if _dbg:
+        _dbg.emit(_dbg.L2, "gate_pass", text_len=len(text or ""))
     return None

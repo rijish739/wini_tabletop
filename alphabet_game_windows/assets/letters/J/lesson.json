@@ -1,0 +1,34 @@
+{
+  "letter": "J",
+  "phoneme": "juh",
+  "say": "juh",
+  "objects": [
+    {
+      "name": "Jug",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "J",
+    "K",
+    "L",
+    "M"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter J.",
+    "listen": "J says juh.",
+    "touch_ask": "Can you touch J?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say juh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. juh.",
+    "repeat_move_on": "Thank you for trying. We will say juh again soon.",
+    "assoc": "Jug begins with J.",
+    "activity_ask": "Can you bring me the jug?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned J today. J for a jug."
+  }
+}

@@ -43,6 +43,12 @@ static struct { lv_obj_t *result; } s_result;
 /* Brain figure cards, one per screen that can show one (explain/practice). */
 static lv_obj_t *s_figure[WINI_SCREEN_COUNT];
 
+/* Board Buddy parent lifecycle (BOARD_BUDDY_INTEGRATION_PLAN.md §0a/§10.3). While a
+ * Board Buddy pygame surface owns the 0-845 region, LVGL must NOT draw figure cards there
+ * (it must not fight the visual); the pause/close controls live in the footer strip below
+ * 845 and stay usable. Set on board_open, cleared on board_close. */
+static int s_board_active = 0;
+
 /* Global overlays (top layer) used when the current screen has no bound one. */
 static lv_obj_t *s_loading;
 static lv_obj_t *s_celebration;
@@ -227,7 +233,7 @@ void wini_app_dispatch(const char *line)
             wini_footer_set_progress(cur_footer(), stg, done, of);
 
     } else if (!strcmp(cmd, "question")) {
-        char n[64] = "", text[256] = "";
+        char n[64] = "", text[512] = "";
         jstr(line, "n", n, sizeof(n));
         if (jstr(line, "text", text, sizeof(text)) && cur_question()) {
             wini_question_card_set(cur_question(), n[0] ? n : NULL, text);
@@ -238,11 +244,16 @@ void wini_app_dispatch(const char *line)
         }
 
     } else if (!strcmp(cmd, "explain")) {
-        char title[96] = "", body[256] = "";
+        /* Sized for a full explanation (the sink caps the body at 900 chars);
+         * 256 truncated it mid-sentence even after the transport was widened. */
+        char title[96] = "", body[1024] = "";
         jstr(line, "title", title, sizeof(title));
-        if (jstr(line, "body", body, sizeof(body)) && s_explain.explanation)
+        if (jstr(line, "body", body, sizeof(body)) && s_explain.explanation) {
             wini_explanation_card_set(s_explain.explanation,
                                       title[0] ? title : NULL, body);
+            if (s_board_active)
+                lv_obj_add_flag(s_explain.explanation, LV_OBJ_FLAG_HIDDEN);
+        }
 
     } else if (!strcmp(cmd, "feedback")) {
         if (jstr(line, "kind", sv, sizeof(sv)) && s_practice.feedback) {
@@ -298,13 +309,29 @@ void wini_app_dispatch(const char *line)
     } else if (!strcmp(cmd, "brightness")) {
         if (jint(line, "pct", &iv)) wini_brightness_set_percent(iv);
 
+    } else if (!strcmp(cmd, "board_open")) {
+        /* Board Buddy claims the 0-845 region as a separate surface. Clear every figure
+         * card so a stale picture never shows under/around it, and gate future figures. */
+        s_board_active = 1;
+        for (int i = 0; i < WINI_SCREEN_COUNT; i++)
+            if (s_figure[i]) wini_figure_card_clear(s_figure[i]);
+        if (s_explain.explanation)
+            lv_obj_add_flag(s_explain.explanation, LV_OBJ_FLAG_HIDDEN);
+
+    } else if (!strcmp(cmd, "board_close")) {
+        /* Board Buddy torn down: LVGL owns the whole panel again. */
+        s_board_active = 0;
+        if (s_explain.explanation)
+            lv_obj_remove_flag(s_explain.explanation, LV_OBJ_FLAG_HIDDEN);
+
     } else if (!strcmp(cmd, "figure")) {
         if (jint(line, "off", &iv) && iv) {
             /* No figure this turn: hide on EVERY screen — a picture left from
              * a previous turn is stale wherever it is. */
             for (int i = 0; i < WINI_SCREEN_COUNT; i++)
                 if (s_figure[i]) wini_figure_card_clear(s_figure[i]);
-        } else {
+        } else if (!s_board_active) {
+            /* Suppressed while Board Buddy owns the region (never fight the visual). */
             char path[288], cap[160] = "";
             jstr(line, "caption", cap, sizeof(cap));
             lv_obj_t *card = s_figure[wini_screen_current()];
@@ -316,7 +343,9 @@ void wini_app_dispatch(const char *line)
 
 void wini_app_poll(void)
 {
-    char line[512];
+    /* Must match ipc.c's IPC_LINE_MAX — a smaller buffer here re-truncates the
+     * line the ring buffer just carried in full. */
+    char line[2048];
     int guard = 0;
     while (guard++ < 32 && ipc_poll_line(line, sizeof(line)))
         wini_app_dispatch(line);

@@ -1,0 +1,34 @@
+{
+  "letter": "Q",
+  "phoneme": "kwuh",
+  "say": "kwuh",
+  "objects": [
+    {
+      "name": "Quilt",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "Q",
+    "R",
+    "S",
+    "T"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter Q.",
+    "listen": "Q says kwuh.",
+    "touch_ask": "Can you touch Q?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say kwuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. kwuh.",
+    "repeat_move_on": "Thank you for trying. We will say kwuh again soon.",
+    "assoc": "Quilt begins with Q.",
+    "activity_ask": "Can you bring me the quilt?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned Q today. Q for a quilt."
+  }
+}

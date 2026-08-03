@@ -34,6 +34,7 @@ Full `/voice_turn` replay with per-stage timers, run against a *copy* of
 | Stage | Trial 1 | Trial 2 | Counted in `latency_ms`? |
 |---|---|---|---|
 | VAD silence hangover (`silence_ms=1200`) | 1200 ms | 1200 ms | ❌ invisible |
+| ⚠️ VAD *never endpointed* on the device — see RC-5 | +12 000 ms | +12 000 ms | ❌ invisible |
 | 1. Cloud STT (batch `recognize`) | 4079 ms | 1221 ms | ✅ `stt` |
 | 2. Perception Gemini (`pacing.before_turn`) | **2193 ms** | 0 ms (memoized) | ❌ **invisible** |
 | 3. `tutor.turn` — retrieval + generation | 992 ms | **4044 ms** | ✅ `brain` |
@@ -97,6 +98,31 @@ fresh utterance always pays full price.
 ### RC-5 — Fixed 1200 ms VAD hangover before anything starts
 `record_utterance(silence_ms=1200)` in `wini_client/client.py`. Dead time on every
 single turn, invisible to all server metrics.
+
+> **RC-5 was far worse than a 1200 ms hangover — FIXED 2026-07-23.** The hangover
+> was never actually reached on the device. `record_utterance` compared RMS to ONE
+> fixed gate (`0.018`) for both starting and stopping, and the reSpeaker Lite's own
+> noise floor measures **p50 0.024, peaks 0.030** (`tools/mic_floor.py`): **0 %** of
+> idle blocks fall below 0.018, so "quiet again" was unreachable. Every field turn
+> in `logs/client.log` ended `reason="hard_cap", capture_ms=15000, hangover_ms=0`
+> — the child spoke for ~3 s and then waited ~12 s in silence, *and* STT was handed
+> 15 s of mostly-nothing (3.0–3.9 s) instead of ~3 s (0.8–1.5 s).
+>
+> Replaced with a floor-relative endpointer: the floor is **measured** over a 300 ms
+> calibration window at the head of every recording (25th percentile, so the mic's
+> turn-on transient cannot inflate it), and the gates hang off it with hysteresis —
+> stop at `floor x 1.7`, start at `floor x 2.3`, start always above stop. Speech on
+> this mic measures p50 0.076 with 0.16–0.29 onsets (`tools/mic_speech_level.py`),
+> so the separation is comfortable. `silence_ms` is now 700.
+>
+> **No absolute cap on the gates.** An intermediate revision capped the start gate at
+> 0.045 so a loud room could not make Wini deaf; measuring the room at floor 0.050
+> showed the cap put *both* gates under the room and re-created the exact hard_cap
+> bug. A gate below the noise floor is never the safer choice.
+>
+> Guards: `wini_client/test_vad.py` (synthetic mic, 11 cases incl. the measured
+> device profile and the loud-room regression) and, on hardware,
+> `tools/mic_floor.py --idle` + `tools/mic_speech_level.py --endpoint`.
 
 ---
 
@@ -301,6 +327,31 @@ safety lexicon, and the Vertex context cache are **untouched** by every stage ab
 Every stage sits behind an env flag (`WINI_STREAM_TTS`, `WINI_STREAM_GEN`,
 `WINI_STREAM_STT`, `WINI_SPECULATIVE_PERCEPTION`), defaulting **off**. Rollback is
 one flag, not a revert.
+
+## 7b. Field-report fixes, 2026-07-23 (executed, measured on winipi5)
+
+Four defects reported from real use, all verified on the device. None needed the
+unbuilt Stage 3/4 streaming STT — three of them were bugs, not missing features.
+
+| # | Report | Root cause | Fix |
+|---|---|---|---|
+| 1 | Explanation truncated with `...`; `x^2` on screen; mangled `x=2 =-2` | `ModeChannelSink` capped the body at **200 chars** (transport ceiling: `MAX_LINE` 480 / `IPC_LINE_MAX` 512), truncated mid-token, and `_ASCII_MAP` actively downgraded `²`→`^2` even though the panel fonts carry `²³×÷−√≤≥°±πΔθ` | Widened the whole chain (`IPC_LINE_MAX` 2048, `MAX_LINE` 1900, dispatch `body[1024]`, cap 900) and added `mathtext.to_panel_unicode` — real glyphs, one shared parser with the spoken path. Truncation, if it ever fires, now cuts at a sentence end |
+| 2 | Warmup doesn't cover STT/LLM/TTS | `Brain._load` warmed only one-shot TTS + perception. **STT was never called** and the **streaming** TTS method (what every turn uses) was never opened — both handshakes landed on the child's first sentence | Warm all four legs in parallel before `ready` flips; the launcher already gates the UI on `ready`, so it is paid behind the splash. Client now primes mic+speaker right after `wait_ready` instead of inside `run_session` (which does not run until a card is tapped) |
+| 3 | 20 s+ per turn | Mostly a consequence of #4: 15 s of captured silence also cost 3.0–3.9 s of STT instead of 0.8–1.5 s. Compounded by an **expired Vertex context cache** (2026-07-21), so every perception call re-sent the full 6 062-token prompt | VAD fix below; cache recreated (`p_gem_cached: 1` confirms reuse) |
+| 4 | Listening always waits the same long time | **RC-5, above** — one fixed gate below the mic's own noise floor, so no turn ever endpointed | Floor-relative adaptive gates with hysteresis |
+
+**Measured after (first turn following a cold boot, `tools/first_turn_probe.py`):**
+`stt` 0.8–1.8 s, `perception` 1.3 s (cache hit), `brain` 1.7 s,
+`tts_first_chunk` 0.19–0.22 s → **first audio 3.7–4.9 s**, with no cold-start cliff
+on turn 1. Capture is now ~2.9 s + 0.7 s hangover instead of a flat 15 s, so ~12 s
+of dead air per turn is gone.
+
+Boot moved from ~13 s to ~20 s (`warmup in 15431 ms`) — deliberate: that time is
+spent behind the splash so the panel lights up ready.
+
+New instruments, all checked in: `wini_client/test_vad.py`,
+`tools/mic_floor.py`, `tools/mic_speech_level.py`, `tools/first_turn_probe.py`,
+`tools/ui_drive.py` (mic-free panel driver).
 
 ## 8. Doc lockstep
 

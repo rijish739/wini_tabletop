@@ -24,7 +24,7 @@ void ipc_start(void);
 int ipc_send(const char *json);
 
 /* Convenience wrappers for the events the screens actually raise. */
-int ipc_send_begin(const char *letter);   /* letter may be NULL = resume */
+int ipc_send_begin(const char *letter, const char *lang);   /* both may be NULL */
 int ipc_send_touch(const char *letter);
 int ipc_send_fed(void);
 int ipc_send_next(void);

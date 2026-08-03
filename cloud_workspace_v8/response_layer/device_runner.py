@@ -40,6 +40,11 @@ class DeviceScriptRunner:
         self.current_id: str | None = None
         self.acknowledged: set[str] = set()
         self._interrupted_from: str | None = None
+        # Board Buddy lifecycle (§10.3): LVGL (the parent) opens the child once and closes
+        # it once, around the beat(s) that use it. The runner emits board_open/board on
+        # prepare and board_close when leaving Board Buddy (next beat has no board / script
+        # ends / interrupt-end), never letting a later beat reveal before the child closes.
+        self._board_open = False
 
     def _event(self, name: str, beat_id: str | None = None, **payload) -> dict:
         assert self.bundle is not None
@@ -72,11 +77,26 @@ class DeviceScriptRunner:
         self._event("script_validated", entry, bundle_id=bundle.get("bundle_id"))
         return self._prepare_current()
 
+    @staticmethod
+    def _board_visual(beat: dict) -> dict | None:
+        v = beat.get("visual")
+        return v if isinstance(v, dict) and v.get("kind") == "board_buddy_payload" else None
+
     def _prepare_current(self) -> list[dict]:
         assert self.current_id is not None
         beat = self.by_id[self.current_id]
         commands: list[dict] = []
-        if beat.get("visual") is not None:
+        board = self._board_visual(beat)
+        if board is not None:
+            # Parent lifecycle verbs: open the child once, then hand it the payload.
+            if not self._board_open:
+                commands.append({"cmd": "board_open", "beat_id": self.current_id})
+                self._board_open = True
+            commands.append({"cmd": "board", "beat_id": self.current_id,
+                             "payload": board.get("payload") or [],
+                             "tmax": board.get("tmax", 0.0),
+                             "animated": bool(board.get("animated"))})
+        elif beat.get("visual") is not None:
             commands.append({"cmd": "prepare_visual", "beat_id": self.current_id,
                              "visual": beat["visual"]})
         if beat.get("lvgl_text") is not None:
@@ -181,8 +201,20 @@ class DeviceScriptRunner:
         if decision in ("end", "answer_interjection"):
             self.state = "cancelled"
             self._event("script_completed", self.current_id, status="interrupted", decision=decision)
-            return [{"cmd": "end_script", "beat_id": self.current_id}]
+            close = self._close_board(None)     # tear the child down before ending
+            return close + [{"cmd": "end_script", "beat_id": self.current_id}]
         raise ValueError("decision must be resume, answer_interjection, or end")
+
+    def _close_board(self, next_id: str | None) -> list[dict]:
+        """Emit board_close when the child is open and the next beat does not use it (or the
+        script/branch is ending). LVGL then tears Board Buddy down and restores its card."""
+        if not self._board_open:
+            return []
+        next_beat = self.by_id.get(next_id) if next_id else None
+        if next_beat is not None and self._board_visual(next_beat) is not None:
+            return []                       # next beat keeps the board open — don't close
+        self._board_open = False
+        return [{"cmd": "board_close", "beat_id": self.current_id}]
 
     def _advance(self, outcome: str) -> list[dict]:
         assert self.current_id is not None
@@ -194,16 +226,17 @@ class DeviceScriptRunner:
             "nonresponse": beat.get("on_nonresponse"),
         }.get(outcome) or beat.get("on_complete")
         self._event("beat_completed", self.current_id, outcome=outcome, next_beat_id=target)
+        close = self._close_board(target)
         if target is None:
             self.state = "completed"
             self._event("script_completed", self.current_id, status="completed")
-            return [{"cmd": "complete_script", "beat_id": self.current_id}]
+            return close + [{"cmd": "complete_script", "beat_id": self.current_id}]
         if target not in self.by_id:
             self.state = "failed"
             self._event("fallback_triggered", self.current_id, modality="navigation",
                         detail="branch target missing")
-            return [{"cmd": "safe_pause", "beat_id": self.current_id}]
+            return close + [{"cmd": "safe_pause", "beat_id": self.current_id}]
         self.current_id = target
         self.state = "armed"
-        return self._prepare_current()
+        return close + self._prepare_current()
 

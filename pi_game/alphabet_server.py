@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import queue
 import socket
 import sys
@@ -38,8 +39,8 @@ from dotenv import load_dotenv                                   # noqa: E402
 
 load_dotenv(REPO / ".env")
 
-from pi_game import content, progress, speech                    # noqa: E402
-from pi_game.content import ORDER                                # noqa: E402
+from pi_game import languages, progress, speech                  # noqa: E402
+from pi_game.languages import Language                            # noqa: E402
 
 ASSETS = ROOT / "assets"
 
@@ -62,8 +63,8 @@ _state = {"ready": False, "error": None, "letter": None}
 # Assets
 
 
-def lesson_paths(letter: str) -> dict:
-    d = ASSETS / "letters" / letter
+def lesson_paths(letter: str, lang: Language) -> dict:
+    d = ASSETS / lang.asset_root / "letters" / letter
     return {
         "letter_img": str(d / "letter_big.png"),
         "tile_img": str(d / "letter_tile.png"),
@@ -71,18 +72,19 @@ def lesson_paths(letter: str) -> dict:
     }
 
 
-def load_lesson(letter: str) -> dict:
-    p = ASSETS / "letters" / letter / "lesson.json"
+def load_lesson(letter: str, lang: Language) -> dict:
+    p = ASSETS / lang.asset_root / "letters" / letter / "lesson.json"
     if not p.exists():
         raise FileNotFoundError(
-            f"no lesson for {letter} — run: .venv/bin/python -m pi_game.gen_assets")
+            f"no lesson for {lang.code}:{letter} — run: "
+            f".venv/bin/python -m pi_game.gen_assets --lang {lang.code}")
     return json.loads(p.read_text(encoding="utf-8"))
 
 
-def all_lines() -> list[str]:
+def all_lines(lang: Language) -> list[str]:
     out: list[str] = []
-    for ch in ORDER:
-        out.extend(content.lesson_lines(ch).values())
+    for ch in lang.module.ORDER:
+        out.extend(lang.module.lesson_lines(ch).values())
     return out
 
 
@@ -98,6 +100,9 @@ class Session:
         self.events: queue.Queue[dict] = queue.Queue()
         self.alive = True
         self.run: progress.Run | None = None
+        # The child's chosen alphabet, fixed for the session by the begin event.
+        # English until then, so a bare CLI begin (no lang) behaves as it always did.
+        self.lang: Language = languages.get(None)
         threading.Thread(target=self._reader, daemon=True).start()
 
     # -- transport ---------------------------------------------------------
@@ -132,10 +137,34 @@ class Session:
         if obj.get("cmd") == "stage":
             print(f"[alpha] STAGEMARK {obj['stage']} {obj.get('letter','')}",
                   flush=True)
+            # LVGL can't shape Kannada, so for a non-Latin lesson the instruction
+            # sentence and the object word travel as pre-rendered images the UI
+            # blits; English keeps its native text labels. Rendering is cached on
+            # disk (textimg), so this is a path lookup after the first time.
+            if self.lang.code != "en":
+                self._attach_text_images(obj)
         try:
             self.sock.sendall((json.dumps(obj) + "\n").encode("utf-8"))
         except OSError:
             self.alive = False
+
+    def _attach_text_images(self, obj: dict) -> None:
+        """Add text_img (instruction) and word_img (object word) for a non-Latin
+        stage. Failures are swallowed: a missing image just falls back to the raw
+        text field, which is never worse than the pre-image behaviour."""
+        try:
+            from pi_game import textimg
+        except Exception as exc:                       # Pillow absent, etc.
+            print(f"[alpha] textimg unavailable ({exc}) — sending raw text", flush=True)
+            return
+        fp = self.lang.font_path
+        try:
+            if obj.get("text"):
+                obj["text_img"] = str(textimg.render(obj["text"], fp, px=38, max_w=540))
+            if obj.get("word"):
+                obj["word_img"] = str(textimg.render(obj["word"], fp, px=64, max_w=520))
+        except Exception as exc:
+            print(f"[alpha] text image render failed ({exc}) — raw text", flush=True)
 
     def drain(self) -> None:
         """Discard events queued before this moment.
@@ -183,7 +212,7 @@ class Session:
     def speak(self, text: str, pause: float = PAUSE_AFTER_SPEECH) -> None:
         self.send({"cmd": "status", "value": "speaking", "text": text})
         try:
-            speech.say(text)
+            speech.say(text, self.lang.voice)
         except Exception as exc:                       # cloud hiccup, keep going
             print(f"[alpha] TTS failed ({exc}) — continuing silently", flush=True)
         self.send({"cmd": "status", "value": "waiting"})
@@ -193,10 +222,11 @@ class Session:
     # -- the §12 state machine --------------------------------------------
     def lesson(self, letter: str) -> str | None:
         """Run one full lesson. Returns the next letter, or None to stop."""
-        lesson = load_lesson(letter)
+        order = self.lang.module.ORDER
+        lesson = load_lesson(letter, self.lang)
         lines = lesson["lines"]
-        paths = lesson_paths(letter)
-        self.run = progress.Run(letter)
+        paths = lesson_paths(letter, self.lang)
+        self.run = progress.Run(letter, self.lang.code)
         _state["letter"] = letter
 
         # This letter's audio must be local before the intro, or the first line
@@ -204,13 +234,16 @@ class Session:
         # background while the child is busy here.
         self.send({"cmd": "status", "value": "loading"})
         try:
-            speech.prewarm(list(lines.values()))
+            speech.prewarm(list(lines.values()), self.lang.voice)
         except Exception as exc:
             print(f"[alpha] prewarm failed ({exc}) — lines will synth on demand", flush=True)
-        _prewarm_ahead(letter)
+        _prewarm_ahead(letter, self.lang)
 
-        idx = ORDER.index(letter)
-        base = {"letter": letter, "index": idx + 1, "total": len(ORDER)}
+        idx = order.index(letter)
+        # `letter` is the ASCII id on the wire; `char` is what the child sees/hears
+        # (the akshara for Kannada, the same letter for English).
+        base = {"letter": letter, "char": lesson.get("char", letter),
+                "index": idx + 1, "total": len(order)}
 
         # Stage 1 — Introduction
         self.send({"cmd": "stage", "stage": "intro", "text": lines["intro"],
@@ -258,10 +291,10 @@ class Session:
         ev = self.wait("next", "again")
         if ev is None:
             return None
-        return letter if ev["event"] == "again" else ORDER[(idx + 1) % len(ORDER)]
+        return letter if ev["event"] == "again" else order[(idx + 1) % len(order)]
 
     def _stage_touch(self, lesson: dict, lines: dict, base: dict) -> bool:
-        choices = [{"letter": c, "img": lesson_paths(c)["tile_img"]}
+        choices = [{"letter": c, "img": lesson_paths(c, self.lang)["tile_img"]}
                    for c in lesson["choices"]]
         self.drain()
         self.send({"cmd": "stage", "stage": "touch", "text": lines["touch_ask"],
@@ -289,7 +322,7 @@ class Session:
         # Keep the letter on screen while the child speaks: this stage asks for
         # its sound, and an empty content area gives them nothing to say it to.
         self.send({"cmd": "stage", "stage": "repeat", "text": lines["repeat_ask"],
-                   "letter_img": lesson_paths(base["letter"])["letter_img"],
+                   "letter_img": lesson_paths(base["letter"], self.lang)["letter_img"],
                    **base})
         self.speak(lines["repeat_ask"], pause=0.3)
 
@@ -298,12 +331,12 @@ class Session:
             if not self.alive:
                 return False
             self.send({"cmd": "status", "value": "listening"})
-            heard = speech.listen(tmp)
+            heard = speech.listen(tmp, stt_lang=self.lang.stt_lang)
             self.send({"cmd": "status", "value": "waiting"})
             self.run.speech_attempts += 1
 
             ok = speech.judge_attempt(heard, base["letter"], lesson["phoneme"],
-                                      lesson["say"])
+                                      lesson["say"], lang=self.lang.code)
             print(f"[alpha] repeat {base['letter']} attempt {attempt + 1}: "
                   f"heard={heard!r} ok={ok}", flush=True)
             if ok:
@@ -354,12 +387,34 @@ class Session:
 
     # -- driver ------------------------------------------------------------
     def serve(self) -> None:
-        self.send({"cmd": "ready", "letters": ORDER,
-                   "completed": progress.completed_letters()})
+        # `langs` drives the start-screen toggle; `letters`/`completed` stay for a
+        # pre-toggle UI, and default to English exactly as before. `kn_label_img`
+        # is the pre-rendered "ಕನ್ನಡ" toggle label (a static gen_assets artifact
+        # named label_<code>.png, so no Pillow is touched until a Kannada lesson
+        # actually starts).
+        kn_label = ASSETS / "common" / "label_kn.png"
+        self.send({
+            "cmd": "ready",
+            "letters": list(languages.get("en").module.ORDER),
+            "completed": progress.completed_letters("en"),
+            "kn_label_img": str(kn_label) if kn_label.exists() else "",
+            "langs": [
+                {"code": l.code, "label": l.label,
+                 "letters": list(l.module.ORDER),
+                 "completed": progress.completed_letters(l.code)}
+                for l in languages.LANGS.values()
+            ],
+        })
         ev = self.wait("begin")
         if ev is None:
             return
-        letter = ev.get("letter") or progress.next_letter(ORDER)
+        # ALPHABET_LANG pins the whole process to one alphabet regardless of what
+        # the UI asks for — the way to ship a Kannada launcher/desktop icon before
+        # the start-screen toggle lands. When unset, the UI's begin.lang wins.
+        forced = os.getenv("ALPHABET_LANG")
+        self.lang = languages.get(forced) if forced else languages.get(ev.get("lang"))
+        letter = ev.get("letter") or progress.next_letter(
+            self.lang.module.ORDER, self.lang.code)
         while self.alive and letter:
             try:
                 letter = self.lesson(letter)
@@ -378,22 +433,24 @@ _prewarm_lock = threading.Lock()
 _prewarmed: set[str] = set()
 
 
-def _prewarm_ahead(letter: str, depth: int = 1) -> None:
+def _prewarm_ahead(letter: str, lang: Language, depth: int = 1) -> None:
     """Cache the next `depth` letters' lines while the child works on this one."""
-    i = ORDER.index(letter)
-    targets = [ORDER[(i + k) % len(ORDER)] for k in range(1, depth + 1)]
+    order = lang.module.ORDER
+    i = order.index(letter)
+    targets = [order[(i + k) % len(order)] for k in range(1, depth + 1)]
 
     def _work() -> None:
         for ch in targets:
+            key = f"{lang.code}:{ch}"          # the two alphabets share this set
             with _prewarm_lock:
-                if ch in _prewarmed:
+                if key in _prewarmed:
                     continue
-                _prewarmed.add(ch)
+                _prewarmed.add(key)
             try:
-                speech.prewarm(list(content.lesson_lines(ch).values()))
+                speech.prewarm(list(lang.module.lesson_lines(ch).values()), lang.voice)
             except Exception as exc:
                 with _prewarm_lock:
-                    _prewarmed.discard(ch)     # let a later lesson retry
+                    _prewarmed.discard(key)     # let a later lesson retry
                 print(f"[alpha] prewarm {ch} failed: {exc}", flush=True)
 
     threading.Thread(target=_work, daemon=True).start()
@@ -445,16 +502,26 @@ def main() -> int:
     ap.add_argument("--port", type=int, default=UI_PORT)
     ap.add_argument("--http-port", type=int, default=HTTP_PORT)
     ap.add_argument("--prewarm-all", action="store_true",
-                    help="synthesize every line of all 26 lessons, then exit")
+                    help="synthesize every line of every lesson, all languages, then exit")
+    ap.add_argument("--prewarm-lang", choices=sorted(languages.LANGS),
+                    help="restrict --prewarm-all to one language")
     args = ap.parse_args()
 
     progress.init()
 
     if args.prewarm_all:
-        lines = all_lines()
-        print(f"[alpha] prewarming {len(lines)} lines...", flush=True)
-        made, cached = speech.prewarm(lines)
-        print(f"[alpha] done: {made} synthesized, {cached} already cached")
+        langs = ([languages.get(args.prewarm_lang)] if args.prewarm_lang
+                 else list(languages.LANGS.values()))
+        total_made = total_cached = 0
+        for lang in langs:
+            lines = all_lines(lang)
+            print(f"[alpha] prewarming {len(lines)} lines for {lang.code} "
+                  f"({lang.voice.name})...", flush=True)
+            made, cached = speech.prewarm(lines, lang.voice)
+            print(f"[alpha]   {lang.code}: {made} synthesized, {cached} already cached")
+            total_made += made
+            total_cached += cached
+        print(f"[alpha] done: {total_made} synthesized, {total_cached} already cached")
         return 0
 
     threading.Thread(target=_http_thread, args=(args.http_port,), daemon=True).start()

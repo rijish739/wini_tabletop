@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "concept_id": "jemh104__quadratic_formula",
+  "title": "The Quadratic Formula",
+  "canvas": {
+    "w": 500,
+    "h": 380,
+    "pad_top": 30,
+    "pad_bottom": 20,
+    "pad_left": 20,
+    "pad_right": 20,
+    "equal_aspect": false
+  },
+  "view": {
+    "x0": 0,
+    "y0": 0,
+    "x1": 1,
+    "y1": 1
+  },
+  "base": [],
+  "beats": [
+    {
+      "narration": "Let's solve x squared plus two x minus three equals zero using the quadratic formula.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "x² + 2x − 3 = 0",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.24
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "accent",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_1"
+      ]
+    },
+    {
+      "narration": "The quadratic formula gives x in terms of a, b and c.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "x = (−b ± √(b² − 4ac)) / 2a",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.372
+          ],
+          "anchor": "center",
+          "size": 17,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_2"
+      ]
+    },
+    {
+      "narration": "Here a is one, b is two, and c is minus three.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "a = 1,  b = 2,  c = −3",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.504
+          ],
+          "anchor": "center",
+          "size": 20,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_3"
+      ]
+    },
+    {
+      "narration": "Substitute those values into the formula.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "x = (−2 ± √(2² − 4·1·(−3))) / 2",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.636
+          ],
+          "anchor": "center",
+          "size": 17,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_4"
+      ]
+    },
+    {
+      "narration": "Under the root, four plus twelve is sixteen, whose square root is four.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "x = (−2 ± 4) / 2",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.768
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_5"
+      ]
+    },
+    {
+      "narration": "So the two roots are x equals one and x equals minus three.",
+      "anim_ms": 600,
+      "hold_ms": 1800,
+      "in": [
+        {
+          "t": "label",
+          "text": "x = 1   or   x = −3",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.9
+          ],
+          "anchor": "center",
+          "size": 20,
+          "color": "accent",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_6"
+      ]
+    }
+  ],
+  "adaptation_contract": {
+    "schema_version": 1,
+    "allowed_narration_modes": [
+      "as_authored",
+      "script_override",
+      "visual_only"
+    ],
+    "default_live_narration_mode": "script_override",
+    "claims": [
+      {
+        "claim_id": "visual_step_1",
+        "claim": "Visual step: x² + 2x − 3 = 0",
+        "tags": [
+          "visual",
+          "beat:0",
+          "concept:jemh104__quadratic_formula"
+        ]
+      },
+      {
+        "claim_id": "visual_step_2",
+        "claim": "Visual step: x = (−b ± √(b² − 4ac)) / 2a",
+        "tags": [
+          "visual",
+          "beat:1",
+          "concept:jemh104__quadratic_formula"
+        ]
+      },
+      {
+        "claim_id": "visual_step_3",
+        "claim": "Visual step: a = 1,  b = 2,  c = −3",
+        "tags": [
+          "visual",
+          "beat:2",
+          "concept:jemh104__quadratic_formula"
+        ]
+      },
+      {
+        "claim_id": "visual_step_4",
+        "claim": "Visual step: x = (−2 ± √(2² − 4·1·(−3))) / 2",
+        "tags": [
+          "visual",
+          "beat:3",
+          "concept:jemh104__quadratic_formula"
+        ]
+      },
+      {
+        "claim_id": "visual_step_5",
+        "claim": "Visual step: x = (−2 ± 4) / 2",
+        "tags": [
+          "visual",
+          "beat:4",
+          "concept:jemh104__quadratic_formula"
+        ]
+      },
+      {
+        "claim_id": "visual_step_6",
+        "claim": "Visual step: x = 1   or   x = −3",
+        "tags": [
+          "visual",
+          "beat:5",
+          "concept:jemh104__quadratic_formula"
+        ]
+      }
+    ],
+    "beat_to_claims": {
+      "0": [
+        "visual_step_1"
+      ],
+      "1": [
+        "visual_step_2"
+      ],
+      "2": [
+        "visual_step_3"
+      ],
+      "3": [
+        "visual_step_4"
+      ],
+      "4": [
+        "visual_step_5"
+      ],
+      "5": [
+        "visual_step_6"
+      ]
+    },
+    "review": {
+      "status": "approved",
+      "reviewed_by": "response_layer_phase_2_5",
+      "note": "Live speech is owned by the Teaching Script; authored narration is demo-only."
+    }
+  }
+}

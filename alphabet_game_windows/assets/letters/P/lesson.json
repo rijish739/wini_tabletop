@@ -1,0 +1,34 @@
+{
+  "letter": "P",
+  "phoneme": "puh",
+  "say": "puh",
+  "objects": [
+    {
+      "name": "Pencil",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "P",
+    "Q",
+    "R",
+    "S"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter P.",
+    "listen": "P says puh.",
+    "touch_ask": "Can you touch P?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say puh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. puh.",
+    "repeat_move_on": "Thank you for trying. We will say puh again soon.",
+    "assoc": "Pencil begins with P.",
+    "activity_ask": "Can you bring me the pencil?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned P today. P for a pencil."
+  }
+}

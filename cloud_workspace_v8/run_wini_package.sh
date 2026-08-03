@@ -106,6 +106,14 @@ echo "[wini] starting voice client (server=$WINI_SERVER)..."
 # told a figure is on screen). That fixes the concept-default mismatch --no-scenes
 # was guarding against. Absent the directive (brain flag off) the client falls back
 # to today's behavior, so this is safe either way.
+#
+# Board Buddy ENABLED (2026-07-29): when the brain emits a board_buddy_payload on
+# turn_meta (requires WINI_RESPONSE_LAYER=1 on the brain side — already set on
+# Cloud Run), the client spawns the pygame Board Buddy child (board_buddy_player.py)
+# under labwc as a second Wayland surface at (0,0)/600×845. WINI_BOARD_BUDDY=1 is
+# the client-side gate; WINI_BB_PATH points to the frozen v1.0 renderer.
+export WINI_BOARD_BUDDY=1
+export WINI_BB_PATH="$HOME/board_buddy_sandbox"
 setsid .venv/bin/python -u -m wini_client.client \
     --server "$WINI_SERVER" --display lvgl --ui-port 8140 \
     --wait-for-mode --on-session-end exit >> logs/client.log 2>&1 9>&- &

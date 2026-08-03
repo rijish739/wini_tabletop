@@ -1,0 +1,34 @@
+{
+  "letter": "Y",
+  "phoneme": "yuh",
+  "say": "yuh",
+  "objects": [
+    {
+      "name": "Yarn",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "A",
+    "B",
+    "Y",
+    "Z"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter Y.",
+    "listen": "Y says yuh.",
+    "touch_ask": "Can you touch Y?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say yuh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. yuh.",
+    "repeat_move_on": "Thank you for trying. We will say yuh again soon.",
+    "assoc": "Yarn begins with Y.",
+    "activity_ask": "Can you bring me the yarn?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned Y today. Y for a yarn."
+  }
+}

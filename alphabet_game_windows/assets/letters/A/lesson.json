@@ -1,0 +1,34 @@
+{
+  "letter": "A",
+  "phoneme": "ah",
+  "say": "aah",
+  "objects": [
+    {
+      "name": "Apple",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "A",
+    "B",
+    "C",
+    "D"
+  ],
+  "mini_game": "feed",
+  "edible": true,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter A.",
+    "listen": "A says aah.",
+    "touch_ask": "Can you touch A?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say aah?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. aah.",
+    "repeat_move_on": "Thank you for trying. We will say aah again soon.",
+    "assoc": "Apple begins with A.",
+    "activity_ask": "I am hungry. Can you give me the apple?",
+    "activity_ok": "Yummy! Thank you.",
+    "complete": "We learned A today. A for an apple."
+  }
+}

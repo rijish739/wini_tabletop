@@ -1,0 +1,34 @@
+{
+  "letter": "G",
+  "phoneme": "guh",
+  "say": "guh",
+  "objects": [
+    {
+      "name": "Grapes",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "G",
+    "H",
+    "I",
+    "J"
+  ],
+  "mini_game": "feed",
+  "edible": true,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter G.",
+    "listen": "G says guh.",
+    "touch_ask": "Can you touch G?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say guh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. guh.",
+    "repeat_move_on": "Thank you for trying. We will say guh again soon.",
+    "assoc": "Grapes begins with G.",
+    "activity_ask": "I am hungry. Can you give me the grapes?",
+    "activity_ok": "Yummy! Thank you.",
+    "complete": "We learned G today. G for a grapes."
+  }
+}

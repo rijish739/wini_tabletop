@@ -45,6 +45,17 @@
 static lv_obj_t *s_root, *s_status, *s_status_lbl, *s_content, *s_instr, *s_action;
 static int s_quit = 0;
 
+/* The instruction can arrive as native text (English) OR as a pre-rendered image
+ * (Kannada, which LVGL cannot shape). Both live in the instruction slot; exactly
+ * one is visible at a time. */
+static lv_obj_t *s_instr_img;
+
+/* The language chosen on the splash toggle, sent with the begin event and then
+ * fixed for the session. English until the child picks otherwise. */
+static char s_lang[8] = "en";
+static char s_kn_label_img[320] = "";     /* pre-rendered "ಕನ್ನಡ", from ready */
+static lv_obj_t *s_lang_card_en, *s_lang_card_kn;
+
 /* The letter the touch board is currently asking for — the tap handler needs it,
  * and it is the only piece of lesson state the UI keeps. */
 static char s_target[8] = "";
@@ -128,10 +139,22 @@ static void set_status(const char *text)
     lv_label_set_text(s_status_lbl, text ? text : "");
 }
 
-static void set_instruction(const char *text)
+/* Show the instruction as text (English) or as an image (Kannada), never both. */
+static void set_instruction(const char *text, const char *text_img)
 {
-    lv_label_set_text(s_instr, text ? text : "");
-    alpha_fade_in(s_instr, 260);
+    if (text_img && text_img[0]) {
+        char src[PATH_MAX_S + 4];
+        snprintf(src, sizeof(src), "A:%s", text_img);
+        lv_image_set_src(s_instr_img, src);
+        lv_obj_add_flag(s_instr, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_remove_flag(s_instr_img, LV_OBJ_FLAG_HIDDEN);
+        alpha_fade_in(s_instr_img, 260);
+    } else {
+        lv_obj_add_flag(s_instr_img, LV_OBJ_FLAG_HIDDEN);
+        lv_label_set_text(s_instr, text ? text : "");
+        lv_obj_remove_flag(s_instr, LV_OBJ_FLAG_HIDDEN);
+        alpha_fade_in(s_instr, 260);
+    }
 }
 
 static void clear_action(void)
@@ -197,7 +220,54 @@ static void begin_cb(lv_event_t *e)
 {
     (void)e;
     set_status("Starting");
-    ipc_send_begin(NULL);          /* NULL = resume where the child left off */
+    /* letter NULL = resume where this language left off; s_lang is the toggle. */
+    ipc_send_begin(NULL, s_lang);
+}
+
+/* The two language cards, highlighted to show which is selected. Green fill +
+ * a slightly heavier border marks the choice — no checkmark, no color-coded
+ * "right" (§2.1); it is just where the finger last landed. */
+static void refresh_lang_selection(void)
+{
+    int kn = !strcmp(s_lang, "kn");
+    lv_obj_set_style_bg_color(s_lang_card_en,
+        alpha_color(kn ? ALPHA_CARD : ALPHA_ACCENT), 0);
+    lv_obj_set_style_border_width(s_lang_card_en, kn ? 2 : 3, 0);
+    lv_obj_set_style_bg_color(s_lang_card_kn,
+        alpha_color(kn ? ALPHA_ACCENT : ALPHA_CARD), 0);
+    lv_obj_set_style_border_width(s_lang_card_kn, kn ? 3 : 2, 0);
+}
+
+static void lang_en_cb(lv_event_t *e)
+{ (void)e; snprintf(s_lang, sizeof(s_lang), "en"); refresh_lang_selection(); }
+
+static void lang_kn_cb(lv_event_t *e)
+{ (void)e; snprintf(s_lang, sizeof(s_lang), "kn"); refresh_lang_selection(); }
+
+/* A language card carries a Latin label (English) or a pre-rendered script image
+ * (ಕನ್ನಡ), since LVGL can't draw the akshara. */
+static lv_obj_t *make_lang_card(lv_obj_t *parent, const char *text,
+                                const char *img_path, lv_event_cb_t cb)
+{
+    lv_obj_t *card = lv_button_create(parent);
+    lv_obj_set_size(card, 210, 100);
+    lv_obj_set_style_radius(card, ALPHA_RADIUS, 0);
+    lv_obj_set_style_bg_opa(card, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_color(card, alpha_color(ALPHA_DIVIDER), 0);
+    lv_obj_set_style_shadow_width(card, 0, 0);
+
+    if (img_path && img_path[0]) {
+        lv_obj_t *g = make_img(card, img_path);
+        lv_obj_center(g);
+    } else {
+        lv_obj_t *l = lv_label_create(card);
+        lv_label_set_text(l, text);
+        lv_obj_set_style_text_font(l, &alpha_font_32, 0);
+        lv_obj_set_style_text_color(l, alpha_color(ALPHA_TEXT), 0);
+        lv_obj_center(l);
+    }
+    if (cb) lv_obj_add_event_cb(card, cb, LV_EVENT_CLICKED, NULL);
+    return card;
 }
 
 static void show_splash(void)
@@ -208,15 +278,27 @@ static void show_splash(void)
     lv_label_set_text(title, "Wini");
     lv_obj_set_style_text_font(title, &alpha_font_34, 0);
     lv_obj_set_style_text_color(title, alpha_color(ALPHA_TEXT_MUTED), 0);
-    lv_obj_align(title, LV_ALIGN_CENTER, 0, -60);
+    lv_obj_align(title, LV_ALIGN_CENTER, 0, -150);
 
     lv_obj_t *sub = lv_label_create(c);
     lv_label_set_text(sub, "Let's meet some letters");
     lv_obj_set_style_text_font(sub, &alpha_font_34, 0);
-    lv_obj_align(sub, LV_ALIGN_CENTER, 0, 10);
+    lv_obj_align(sub, LV_ALIGN_CENTER, 0, -90);
+
+    lv_obj_t *row = lv_obj_create(c);
+    lv_obj_remove_style_all(row);
+    lv_obj_set_size(row, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_flex_flow(row, LV_FLEX_FLOW_ROW);
+    lv_obj_set_style_pad_column(row, ALPHA_GAP, 0);
+    lv_obj_remove_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_align(row, LV_ALIGN_CENTER, 0, 30);
+
+    s_lang_card_en = make_lang_card(row, "English", NULL, lang_en_cb);
+    s_lang_card_kn = make_lang_card(row, "Kannada", s_kn_label_img, lang_kn_cb);
+    refresh_lang_selection();
 
     alpha_fade_in(c, ALPHA_ANIM_MS);
-    set_instruction("");
+    set_instruction("", NULL);
     make_button(s_action, "Start", begin_cb, true);
 }
 
@@ -304,7 +386,8 @@ static void show_touch(const char *line)
 
 /* ---- stage: object association -------------------------------------------- */
 
-static void show_assoc(const char *img_path, const char *word)
+static void show_assoc(const char *img_path, const char *word,
+                       const char *word_img)
 {
     lv_obj_t *c = reset_content();
 
@@ -319,7 +402,11 @@ static void show_assoc(const char *img_path, const char *word)
 
     if (img_path && img_path[0]) make_img_sized(box, img_path, ALPHA_OBJECT_PX);
 
-    if (word && word[0]) {
+    /* The word is an image for Kannada (shaped by the brain) and native text for
+     * English. */
+    if (word_img && word_img[0]) {
+        make_img(box, word_img);
+    } else if (word && word[0]) {
         lv_obj_t *l = lv_label_create(box);
         lv_label_set_text(l, word);
         lv_obj_set_style_text_font(l, &alpha_font_34, 0);
@@ -525,6 +612,7 @@ static void apply_stage(const char *line)
     char stage[24] = "", text[400] = "", letter[8] = "";
     char letter_img[PATH_MAX_S] = "", object_img[PATH_MAX_S] = "";
     char word[64] = "", robot_open[PATH_MAX_S] = "", robot_happy[PATH_MAX_S] = "";
+    char text_img[PATH_MAX_S] = "", word_img[PATH_MAX_S] = "";
 
     jstr(line, "stage", stage, sizeof(stage));
     jstr(line, "text", text, sizeof(text));
@@ -534,6 +622,9 @@ static void apply_stage(const char *line)
     jstr(line, "word", word, sizeof(word));
     jstr(line, "robot_open", robot_open, sizeof(robot_open));
     jstr(line, "robot_happy", robot_happy, sizeof(robot_happy));
+    /* Present only for non-Latin lessons: the shaped instruction / word images. */
+    jstr(line, "text_img", text_img, sizeof(text_img));
+    jstr(line, "word_img", word_img, sizeof(word_img));
 
     snprintf(s_target, sizeof(s_target), "%s", letter);
 
@@ -543,14 +634,14 @@ static void apply_stage(const char *line)
     } else if (!strcmp(stage, "touch")) {
         show_touch(line);
     } else if (!strcmp(stage, "assoc")) {
-        show_assoc(object_img, word);
+        show_assoc(object_img, word, word_img);
     } else if (!strcmp(stage, "activity")) {
         show_activity(object_img, robot_open, robot_happy);
     } else if (!strcmp(stage, "complete")) {
         show_complete(letter_img, object_img);
     }
 
-    set_instruction(text);
+    set_instruction(text, text_img);
 }
 
 static void apply_status(const char *line)
@@ -587,7 +678,12 @@ static void apply_line(const char *line)
     if (!strcmp(cmd, "stage"))         apply_stage(line);
     else if (!strcmp(cmd, "status"))   apply_status(line);
     else if (!strcmp(cmd, "feedback")) apply_feedback(line);
-    else if (!strcmp(cmd, "ready"))    show_splash();
+    else if (!strcmp(cmd, "ready")) {
+        /* The pre-rendered "ಕನ್ನಡ" toggle label; captured before the splash is
+         * built so the Kannada card can show it. */
+        jstr(line, "kn_label_img", s_kn_label_img, sizeof(s_kn_label_img));
+        show_splash();
+    }
 }
 
 void alpha_ui_poll(void)
@@ -652,6 +748,12 @@ void alpha_ui_init(lv_obj_t *parent)
     lv_obj_set_style_text_font(s_instr, &alpha_font_34, 0);
     lv_obj_set_style_text_color(s_instr, alpha_color(ALPHA_TEXT), 0);
     lv_obj_set_style_text_align(s_instr, LV_TEXT_ALIGN_CENTER, 0);
+
+    /* The image twin of the instruction, for scripts LVGL can't shape. It shares
+     * the slot with s_instr; set_instruction() shows exactly one. Hidden = not
+     * laid out, so the visible one always sits in the same place. */
+    s_instr_img = lv_image_create(s_root);
+    lv_obj_add_flag(s_instr_img, LV_OBJ_FLAG_HIDDEN);
 
     /* Action row. */
     s_action = lv_obj_create(s_root);

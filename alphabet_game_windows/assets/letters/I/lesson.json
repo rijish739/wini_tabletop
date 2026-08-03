@@ -1,0 +1,34 @@
+{
+  "letter": "I",
+  "phoneme": "ih",
+  "say": "ih",
+  "objects": [
+    {
+      "name": "Ice cream",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "I",
+    "J",
+    "K",
+    "L"
+  ],
+  "mini_game": "feed",
+  "edible": true,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter I.",
+    "listen": "I says ih.",
+    "touch_ask": "Can you touch I?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say ih?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. ih.",
+    "repeat_move_on": "Thank you for trying. We will say ih again soon.",
+    "assoc": "Ice cream begins with I.",
+    "activity_ask": "I am hungry. Can you give me the ice cream?",
+    "activity_ok": "Yummy! Thank you.",
+    "complete": "We learned I today. I for an ice cream."
+  }
+}

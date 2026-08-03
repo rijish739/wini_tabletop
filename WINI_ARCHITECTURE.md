@@ -214,6 +214,17 @@ scheduling, not pedagogy.** The final line still carries the complete audio, so 
 non-streaming reader is unaffected. Contract detail: `wini_client/README.md`; measured
 results: build plan §15; design of record: `PART13_LATENCY_STREAMING_PLAN.md`.
 
+**The brain also runs on Cloud Run now (Part 15, 2026-07-25).** The same `wini_server.py`
+monolith is deployed as the warm service `wini-brain` (asia-south1, `min-instances=1`,
+`concurrency=1`, `--no-cpu-throttling`) with per-learner state in **Firestore**
+(`WINI_STATE_BACKEND=firestore`, read at startup / written at each turn boundary). Verified:
+10 live turns, no cold-start cliff on turn 1, durable state survives instance restart. The
+device stays a thin client; the three remote calls (Vertex Gemini, Cloud STT, Cloud TTS) and
+Firestore are all pinned to asia-south1. A within-process model-tier seam
+(`llm_vertex.SMALL_MODEL`) exists but stays on `gemini-2.5-flash@asia-south1` — the faster
+Flash-Lite is measured slower here (not co-located). Measured results: build plan §17; design
+of record: `PART15_CLOUD_EXECUTION_PLAN.md`.
+
 ---
 
 ## 7. Repository map

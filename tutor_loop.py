@@ -52,6 +52,11 @@ from query import (
     snapshot_rerank,
 )
 
+try:
+    import debug_logger as _dbg
+except ImportError:
+    _dbg = None  # type: ignore[assignment]
+
 ROOT = Path(__file__).resolve().parent
 STORE = ROOT / "rag_store"
 CHUNK_INDEX_DIR = ROOT / "models" / "local_chunk_index"
@@ -62,6 +67,14 @@ QWEN = "http://127.0.0.1:8080"
 # The manifest-grounded prompt is IDENTICAL for both — only the transport changes,
 # so every qwen_chat call site (answer, cohesion judge, grader) switches at once.
 GEN_BACKEND = os.getenv("GEN_BACKEND", "qwen").strip().lower()
+
+# Response Layer (response_layer_architecture_plan.md, Phase 1+2). Default OFF: when
+# unset the turn is byte-identical to the answer-first path. When WINI_RESPONSE_LAYER=1
+# the Teaching Script Planner + Visual Benefit Gate + validator decide WHETHER a visual
+# is earned and WHICH one BEFORE generation (script-first), replacing concept-default
+# scene selection. See TutorLoop._response_layer + the wini_server/wini_client seam.
+RESPONSE_LAYER = os.getenv("WINI_RESPONSE_LAYER", "0").strip().lower() \
+    not in ("0", "false", "no", "")
 
 # Perception (Part 11, PART11_GEMINI_PERCEPTION_LAYER.md): ONE structured Gemini
 # call (intent + signals + concept). Promoted Stage 4 (2026-07-02); the local
@@ -250,15 +263,21 @@ def _gen_stats_add(ms: int) -> None:
     _gen_stats.ms = getattr(_gen_stats, "ms", 0) + ms
 
 
-def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400) -> str:
+def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400,
+              *, small: bool = False) -> str:
     """Single generation seam. Despite the name, dispatches to Gemini Flash when
     GEN_BACKEND=gemini (the CLAUDE.md cloud pivot); the local Qwen server path is
     unchanged when GEN_BACKEND=qwen. Callers pass the same manifest-grounded prompt
-    either way."""
+    either way.
+
+    ``small=True`` (Part 15 Phase C) routes to llm_vertex's SMALL model/region tier
+    for the schema-constrained calls (grader / cohesion / persona). Defaults to the
+    generation model, so it is a no-op until VERTEX_SMALL_MODEL is set."""
     _t0 = time.perf_counter()
     try:
         if GEN_BACKEND == "gemini":
-            return _gemini_chat(prompt, temperature=temperature, max_tokens=max_tokens)
+            return _gemini_chat(prompt, temperature=temperature, max_tokens=max_tokens,
+                                small=small)
         return _qwen_server_chat(prompt, temperature=temperature, max_tokens=max_tokens)
     finally:
         _gen_stats_add(int((time.perf_counter() - _t0) * 1000))
@@ -380,17 +399,26 @@ def _stream_answer(prompt: str, max_tokens: int, answer_budget: dict | None,
     return final
 
 
-def _gemini_chat(prompt: str, temperature: float, max_tokens: int) -> str:
+def _gemini_chat(prompt: str, temperature: float, max_tokens: int,
+                 small: bool = False) -> str:
     """Gemini Flash generation via the shared Vertex client (hard wall-clock
     timeout inside llm_vertex). Imported lazily so the default Qwen path pulls in
     no cloud deps. The token floor keeps tiny-cap JSON callers (grader max_tokens=40)
-    from being starved once Flash's own overhead is counted."""
+    from being starved once Flash's own overhead is counted.
+
+    ``small`` selects llm_vertex's SMALL model/region tier (Part 15 Phase C); with
+    the shipped defaults it is the same model+region as generation, so no behaviour
+    change until VERTEX_SMALL_MODEL/LOCATION are set."""
     import llm_vertex
 
+    model = llm_vertex.SMALL_MODEL if small else llm_vertex.DEFAULT_MODEL
+    location = llm_vertex.SMALL_LOCATION if small else llm_vertex.DEFAULT_REGION
     return llm_vertex.generate_reply(
         prompt,
         temperature=temperature,
         max_output_tokens=max(64, max_tokens),
+        model=model,
+        location=location,
     ).text
 
 
@@ -744,7 +772,7 @@ def qwen_cohesion_check(evidence: list[dict], blocks_text: dict) -> list[str]:
     )
     try:
         import re as _re
-        text = qwen_chat(prompt, temperature=0.0, max_tokens=120)
+        text = qwen_chat(prompt, temperature=0.0, max_tokens=120, small=True)  # cohesion (Part 15 C)
         m = _re.search(r"\[.*?\]", text, _re.DOTALL)
         if not m:
             return []
@@ -788,7 +816,7 @@ def judge_answer(question: str, expected: str, student_answer: str,
         "(the reply does not attempt the question — e.g. a new question, topic change, or 'i dont know')."
     )
     try:
-        text = qwen_chat(prompt, temperature=0.0, max_tokens=40)
+        text = qwen_chat(prompt, temperature=0.0, max_tokens=40, small=True)  # grader (Part 15 C)
         import re as _re
         m = _re.search(r'"outcome"\s*:\s*"(correct|partial|wrong|not_an_answer)"', text)
         if m:
@@ -933,6 +961,34 @@ class TutorLoop:
                 if _row["chunk_id"] not in seen:
                     seen.add(_row["chunk_id"])
                     pool.append(_row)
+        # CHAPTER index of image-bearing crops (2026-07-23). The concept tags on
+        # caption rows are not uniform: `fig::jemh108::fig_8_1` — the Qutub Minar
+        # diagram, the single most illustrative figure in the trigonometry chapter
+        # — carries the legacy tags ['trigonometry', 'grade9::right_triangles'] and
+        # NO `jemh108__*` id, so a hard concept-tag filter dropped it and left only
+        # the abstract lettered triangles. Chapter is the tagging-independent
+        # signal: same `doc_id` as the resolved concept's `chapter_doc`.
+        self.visuals_by_chapter: dict[str, list[dict]] = {}
+        for r in self.chunks:
+            if r.get("kind") == "figure_caption" and r.get("image_path") \
+                    and r.get("doc_id"):
+                self.visuals_by_chapter.setdefault(r["doc_id"], []).append(r)
+        # The CHAPTER-WIDE crops, embedded ONCE (see _visual_index): scoring a
+        # whole chapter per turn is 30-134 MiniLM encodes, a per-turn latency cost
+        # Part 13 already fought hard to remove.
+        #
+        # Caption crops only (244), deliberately NOT the ~630 formula pseudo-rows:
+        # those are reachable solely through the resolved concept's own pool, a
+        # handful per turn, so the per-row fallback covers them for free. Including
+        # them made this an 868-row encode that finished ~5 s AFTER the brain
+        # reported ready — i.e. it moved a first-turn stall back in, which is the
+        # bug the warmup work had just removed.
+        self._visual_rows: list[dict] = list(
+            {r["chunk_id"]: r
+             for lst in self.visuals_by_chapter.values() for r in lst}.values())
+        self._visual_emb = None
+        self._visual_pos: dict[str, int] = {}
+        self._visual_lock = threading.Lock()
         # Perception (Part 11 §7.1): inject ONE GeminiPerception as both the
         # classifier and resolver stubs so CognitiveAnalyzer.analyze() runs unchanged.
         # Its .embedder is a lazily-loaded MiniLM, so the HOPE + chunk-index wiring
@@ -999,6 +1055,46 @@ class TutorLoop:
         except Exception as e:  # noqa: BLE001 — a failed prewarm just means the
             # first turn pays the load; never let it kill the process.
             print(f"[tutor] MiniLM prewarm failed ({e}); first turn will load it")
+            return
+        # Same thread, same reason: build the crop matrix here so the first
+        # teaching turn does a matrix multiply instead of a batch encode.
+        try:
+            t1 = time.perf_counter()
+            n = len(self._visual_index()[0])
+            print(f"[tutor] {n} teaching-visual crops embedded "
+                  f"({(time.perf_counter()-t1)*1000:.0f} ms)")
+        except Exception as e:  # noqa: BLE001 — falls back to per-row scoring
+            print(f"[tutor] visual index prewarm failed ({e})")
+
+    #: What a crop is scored ON. The caption is the only text describing what the
+    #: picture SHOWS, so it is what the utterance is compared against — the same
+    #: key `_crop_relevance` used, kept here so the cached matrix and any live
+    #: fallback score identically.
+    @staticmethod
+    def _visual_key(row: dict) -> str:
+        return ((row.get("alt_text") or row.get("text") or "")[:400]).strip()
+
+    def warm_visuals(self) -> int:
+        """Build the teaching-visual embedding matrix, blocking until it exists.
+
+        The server calls this in its warm wave so `ready` (which releases the UI
+        splash) means the first teaching turn does a matrix multiply, not an
+        8 s batch encode. Idempotent and lock-guarded — it either builds the
+        index or waits for the prewarm thread that is already building it."""
+        return len(self._visual_index()[0])
+
+    def _visual_index(self):
+        """(rows, embedding matrix) for every crop tier 3 can reach, built once.
+
+        Lazy + lock-guarded: the prewarm thread normally builds it during warmup,
+        but a turn that arrives first must block on it rather than race it."""
+        with self._visual_lock:
+            if self._visual_emb is None:
+                keys = [self._visual_key(r) for r in self._visual_rows]
+                self._visual_emb = self.analyzer.classifier.embed(keys)
+                self._visual_pos = {r["chunk_id"]: i
+                                    for i, r in enumerate(self._visual_rows)}
+            return self._visual_rows, self._visual_emb
 
     # which need mode serves which HOPE signal probe
     NEED_TO_HOPE = {"challenge": "CT", "transfer": "KT", "integrate": "KI"}
@@ -1012,6 +1108,52 @@ class TutorLoop:
     @property
     def current_concept(self):
         return self.state.data.setdefault("session", {}).get("current_concept")
+
+    _ANAPHORA_RE = re.compile(r"\b(this|that|it|these|those|the same|here)\b", re.I)
+
+    def _is_anaphoric_followup(self, text: str) -> bool:
+        """A short utterance that back-references the current topic ("solve this with
+        graph", "why is it a parabola"). A longer utterance likely names its own topic,
+        so it is not treated as a follow-up (the context-drift guard stays conservative)."""
+        t = (text or "").strip()
+        if not t or len(t.split()) > 12:
+            return False
+        return bool(self._ANAPHORA_RE.search(t))
+
+    def _concept_chapters(self, cid: str) -> set:
+        """Chapters the concept is edge-connected to (cached). Used to tell a related
+        cross-chapter concept (jemh102 zero-geometry ↔ quadratics) from an unrelated one
+        (jemh103 linear graphical-method)."""
+        cache = getattr(self, "_concept_chapter_cache", None)
+        if cache is None:
+            cache = {}
+            self._concept_chapter_cache = cache
+        if cid in cache:
+            return cache[cid]
+        chaps = set()
+        if cid in self.graph:
+            nbrs = set()
+            try:  # DiGraph: look both directions so relatedness is symmetric
+                nbrs |= set(self.graph.successors(cid))
+                nbrs |= set(self.graph.predecessors(cid))
+            except Exception:  # noqa: BLE001 — undirected graph
+                nbrs |= set(self.graph.neighbors(cid))
+            for nb in nbrs:
+                c = self.graph.nodes.get(nb, {}).get("chapter_doc")
+                if c:
+                    chaps.add(c)
+        cache[cid] = chaps
+        return chaps
+
+    def _concept_relates_to_topic(self, new_cid: str, old_cid: str) -> bool:
+        """True if the newly-resolved concept is in the same chapter as the current
+        topic, or shares a graph edge with the current topic's chapter. False only for a
+        genuinely unrelated cross-chapter jump (the case the drift guard suppresses)."""
+        old_chap = self.graph.nodes.get(old_cid, {}).get("chapter_doc")
+        new_chap = self.graph.nodes.get(new_cid, {}).get("chapter_doc")
+        if not old_chap or not new_chap or new_chap == old_chap:
+            return True
+        return old_chap in self._concept_chapters(new_cid)
 
     def analyze_only(self, text: str) -> dict:
         """Analyze a student utterance without mutating learner state.
@@ -1184,7 +1326,89 @@ class TutorLoop:
     #: (dice table), and the train/car problem's whole image pool tops out at
     #: 0.242. 0.30 sits in the empty band between them. A visual that contradicts
     #: the speech is worse than no visual, so failing the floor means showing none.
-    T9_VISUAL_MIN_RELEVANCE = float(os.getenv("T9_VISUAL_MIN_RELEVANCE", "0.30"))
+    #: Re-measured 2026-07-23 over 16 utterances spanning every chapter, after
+    #: chapter scoping made the genuinely-illustrative crops reachable. Correct
+    #: picks now score **0.477-0.761** (Qutub Minar 0.749, elevation tower 0.761,
+    #: similar triangles 0.735, polynomial-zero graphs 0.692, coordinate plane
+    #: 0.477); the only sub-0.45 pick in the whole sweep was a spinner offered for
+    #: a coin-toss question at 0.310 — topical but not the thing being discussed.
+    #: 0.42 sits in the empty band between them, with margin on both sides.
+    #:
+    #: The old 0.30 was calibrated when a hard concept-tag filter starved the pool,
+    #: so it had to tolerate weak matches to show anything at all. Raising it is
+    #: only safe *because* of the scoping change — the two go together.
+    T9_VISUAL_MIN_RELEVANCE = float(os.getenv("T9_VISUAL_MIN_RELEVANCE", "0.42"))
+
+    #: Portraits of mathematicians (Gauss, Laplace, Thales — 3 crops) are chapter
+    #: decoration, not teaching visuals, but they caption well enough to score
+    #: 0.541 on "what is the fundamental theorem of arithmetic" and win. No
+    #: similarity floor fixes that: the picture genuinely is *about* the topic and
+    #: still teaches nothing. Excluded by kind, not by score.
+    _NOT_TEACHING = re.compile(r"\bportrait\b|\bphotograph of\b", re.I)
+
+    @classmethod
+    def _is_teaching_visual(cls, row: dict) -> bool:
+        return not cls._NOT_TEACHING.search(row.get("text") or "")
+
+    #: How much carrying the resolved concept's own tag is worth when ordering
+    #: crops that have ALREADY cleared the relevance floor. Deliberately a
+    #: tie-breaker, not a veto: the tag says "this crop belongs to the topic",
+    #: the similarity says "this crop illustrates what was just said", and only
+    #: the second is evidence about THIS turn. Sized from the measured spread on
+    #: the Qutub Minar turn — the right figure scores 0.749 against 0.438 for the
+    #: best tagged one, so 0.12 lets a clearly-better untagged crop win while a
+    #: merely-comparable one still loses to the on-concept crop.
+    T9_CONCEPT_BONUS = float(os.getenv("T9_CONCEPT_BONUS", "0.12"))
+
+    #: Bar a crop from OUTSIDE the resolved concept's chapter must clear. Measured
+    #: on the reported utterance: the Qutub Minar diagram scores 0.749 while the
+    #: best out-of-chapter distractors — a similar-triangles figure and a circle
+    #: with tangents — sit at 0.522 and 0.513. 0.57 is the empty band between
+    #: them, so a genuinely better cross-chapter figure gets through and a merely
+    #: word-similar one does not.
+    T9_CROSS_CHAPTER_MIN = float(os.getenv("T9_CROSS_CHAPTER_MIN", "0.57"))
+
+    def _visual_relevance(self, rows: list[dict], relevance=None) -> list:
+        """Similarity of each row to this turn's utterance, batched.
+
+        Prefers the precomputed crop matrix (`_visual_index`) and the query
+        vector the turn already embedded — a whole chapter is 30-134 crops, and
+        scoring those one MiniLM encode at a time would hand Part 13's latency
+        work straight back. Falls back to the per-row `relevance` callback for
+        anything not in the matrix (and for callers that pass no query vector).
+        """
+        out: list = [r.get("score") for r in rows]
+        missing = [i for i, v in enumerate(out) if v is None]
+        if not missing:
+            return [float(v) for v in out]
+        q = getattr(self, "_t9_q_vec", None)
+        if q is not None:
+            try:
+                _rows, emb = self._visual_index()
+                cached = [(i, self._visual_pos[rows[i]["chunk_id"]]) for i in missing
+                          if rows[i]["chunk_id"] in self._visual_pos]
+                if cached:
+                    sims = (q @ emb[[p for _i, p in cached]].T)[0]
+                    for (i, _p), s in zip(cached, sims):
+                        out[i] = float(s)
+                # Anything the matrix doesn't hold — the formula pseudo-rows a
+                # concept's own pool contributes — is embedded in ONE batch, not
+                # one call each. Some concepts carry 51 of them
+                # (jemh108__fundamental_trig_ratios), and per-row encoding those
+                # inside the turn cost ~10 s of `brain` on the first EXPLAIN.
+                rest = [i for i in missing if out[i] is None]
+                if rest:
+                    vecs = self.analyzer.classifier.embed(
+                        [self._visual_key(rows[i]) for i in rest])
+                    for i, s in zip(rest, (q @ vecs.T)[0]):
+                        out[i] = float(s)
+            except Exception as e:  # noqa: BLE001 — never cost a turn a figure
+                print(f"[t9] batched crop scoring failed ({e}); falling back")
+        if relevance is not None:
+            for i in missing:
+                if out[i] is None:
+                    out[i] = relevance(rows[i])
+        return [None if v is None else float(v) for v in out]
 
     def _build_display(self, evidence: list[dict], action: str, teaching: bool = False,
                        ranked: list[dict] | None = None,
@@ -1233,37 +1457,64 @@ class TutorLoop:
                 fallback = e
         chosen = gated or fallback
         if not chosen and teaching:
-            # tier 3: retrieval order = relevance to this utterance — but when
-            # the primary concept is known, a crop TAGGED with that concept
-            # (ranked row or the concept's stored pool, captions before formula
-            # links) beats a merely semantically-similar crop of some other
-            # concept; the ranked list is only concept-filtered when resolution
-            # didn't abstain, so an off-concept caption can otherwise win over
-            # e.g. the concept's own formula crop.
-            pool = [r for r in (ranked or []) if r.get("image_path")]
-            if primary_concept:
-                tagged = [r for r in pool
-                          if primary_concept in (r.get("concept_ids") or [])]
-                pool = tagged or (self.visuals_by_concept.get(primary_concept)
-                                  or []) or pool
+            # tier 3 — candidate pool, then relevance, then the concept as a
+            # tie-breaker. The pool is scoped by CHAPTER, not by concept tag:
+            # tags on caption rows are uneven (the Qutub Minar figure carries only
+            # legacy 'trigonometry'/'grade9::right_triangles'), and a hard tag
+            # filter therefore discarded the best crop in the chapter and showed
+            # a generic lettered triangle instead. Chapter scoping still keeps the
+            # circle and similar-triangle crops that a bare similarity search
+            # surfaces from OTHER chapters out of the running.
+            # Every crop is scored (one matrix multiply against the cached matrix),
+            # then ADMITTED by where it comes from. Scoring first and filtering
+            # second is what lets the admission rule depend on relevance.
+            pool = list(self._visual_rows)
+            seen_ids = {r["chunk_id"] for r in pool}
+            for r in ((ranked or [])
+                      + (self.visuals_by_concept.get(primary_concept) or []
+                         if primary_concept else [])):
+                if r.get("image_path") and r["chunk_id"] not in seen_ids:
+                    seen_ids.add(r["chunk_id"])
+                    pool.append(r)
+            pool = [r for r in pool if self._is_teaching_visual(r)]
+            chapter = (self.graph.nodes.get(primary_concept, {}).get("chapter_doc")
+                       if primary_concept else None)
+            on_concept = {r["chunk_id"] for r in pool
+                          if primary_concept
+                          and primary_concept in (r.get("concept_ids") or [])}
             # RELEVANCE FLOOR (B-3): being tagged with the resolved concept is not
             # evidence that a crop illustrates THIS utterance — every quadratics
             # figure carries the quadratics concept, including the prayer-hall area
-            # diagram. Score each candidate against the utterance itself and drop
-            # everything under the floor; `score` is the retrieval cosine already
-            # computed for ranked rows, and `relevance` fills it in for rows that
-            # came from the concept's stored pool and were never ranked.
+            # diagram. The floor is applied to the RAW similarity so the concept
+            # bonus below can never lift an irrelevant crop over it; the bonus only
+            # orders crops that already qualify.
+            rels = self._visual_relevance(pool, relevance)
             scored = []
-            for r in pool:
-                rel = r.get("score")
-                if rel is None and relevance is not None:
-                    rel = relevance(r)
-                if rel is not None and float(rel) >= self.T9_VISUAL_MIN_RELEVANCE:
-                    scored.append((float(rel), r))
+            for rel, r in zip(rels, pool):
+                if rel is None or rel < self.T9_VISUAL_MIN_RELEVANCE:
+                    continue
+                # Admission: in the resolved concept's chapter, carrying the
+                # concept's own tag, or — for anything further afield — clearing
+                # a distinctly higher bar. That last clause is not a loophole, it
+                # is the reported case: the Qutub Minar diagram lives in the
+                # trigonometry chapter (jemh108) while the minar APPLICATION
+                # concept lives in the next one (jemh109), so a pure chapter rule
+                # hides the one right picture whenever resolution lands on Ch 9.
+                if not (chapter is None or r.get("doc_id") == chapter
+                        or r["chunk_id"] in on_concept
+                        or rel >= self.T9_CROSS_CHAPTER_MIN):
+                    continue
+                scored.append((rel, r))
             if scored:
-                rel, r = max(scored, key=lambda t: t[0])
+                rel, r = max(scored, key=lambda t: (
+                    t[0] + (self.T9_CONCEPT_BONUS
+                            if t[1]["chunk_id"] in on_concept else 0.0),
+                    t[1]["chunk_id"]))
+                tag = ("on-concept" if r["chunk_id"] in on_concept
+                       else "in-chapter" if chapter and r.get("doc_id") == chapter
+                       else "cross-chapter")
                 chosen = ev(r["chunk_id"], "chunk",
-                            f"teaching visual: crop relevant to this turn "
+                            f"teaching visual: {tag} crop relevant to this turn "
                             f"(similarity {rel:.2f} >= {self.T9_VISUAL_MIN_RELEVANCE:.2f})",
                             image_path=r["image_path"])
         if not chosen:
@@ -1283,6 +1534,138 @@ class TutorLoop:
             "supports_representation": supports,
             "figure_id": row.get("figure_id") or chosen["id"],
         }]
+
+    # ------------------------------------------------------------------
+    # Response Layer seam (response_layer_architecture_plan.md, Phase 1+2)
+    # ------------------------------------------------------------------
+    def _scene_for(self, primary):
+        """(scene_concept_id, shape) if a tier-0 authored scene exists for this concept,
+        else (None, None). Reads rag_store/concept_figures.json once (cheap JSON, cached).
+        The brain only needs to know a scene EXISTS + its shape (the concept_type signal
+        the Visual Benefit Gate keys off); the CLIENT renders the scene."""
+        if primary is None:
+            return None, None
+        idx = getattr(self, "_scene_index_cache", None)
+        if idx is None:
+            try:
+                idx = json.loads((STORE / "concept_figures.json").read_text(encoding="utf-8"))
+            except Exception:  # noqa: BLE001 — no index just means no authored scenes
+                idx = {}
+            self._scene_index_cache = idx
+        entry = idx.get(primary) or {}
+        if entry.get("scene"):
+            # Phase 2.5: authored narration is demo metadata, never a second live
+            # speech source. Fail closed when a legacy/invalid spec lacks the
+            # adaptation contract instead of allowing a concept-default scene.
+            review_cache = getattr(self, "_scene_adaptation_cache", {})
+            review = review_cache.get(primary)
+            if review is None:
+                try:
+                    from response_layer.scene_adaptation import review_scene
+                    scene_path = STORE.parent / entry["scene"]
+                    scene = json.loads(scene_path.read_text(encoding="utf-8"))
+                    review = review_scene(scene)
+                except Exception as e:  # noqa: BLE001
+                    print(f"[tutor] scene adaptation review failed for {primary}: {e}")
+                    review = None
+                review_cache[primary] = review
+                self._scene_adaptation_cache = review_cache
+            if review is not None and review.ok:
+                return primary, (entry.get("shape") or "")
+            print(f"[tutor] scene suppressed for {primary}: missing/invalid adaptation contract")
+        return None, None
+
+    def _response_layer(self, text, action, need, primary, concept, evidence, analysis,
+                        snapshot, mode, wants_visual, clarification, intro, grounding,
+                        mode_cards, crop_items):
+        """Script-first visual decision. Builds a ResponseContext from this turn's
+        already-computed state, plans a Teaching Script (template-first), validates it,
+        and turns the validator's EARNED-visual decision into
+        (display, figure_on_screen, visual_directive).
+
+        No generation happens here — the streamed generator fills the words knowing
+        ``figure_on_screen`` (so speech references the on-screen visual only because the
+        script decided it first). The caller wraps this so any failure degrades to the
+        answer-first path. Preserves Part-13 streaming: one generation call, unchanged.
+        """
+        import response_layer as _rl
+
+        scene_cid, scene_shape = self._scene_for(primary)
+        node = self.graph.nodes.get(primary, {}) if primary else {}
+        concept_type = scene_shape or node.get("concept_type") or node.get("kind") or ""
+        available_crop = crop_items[0] if crop_items else None
+
+        cog = analysis.get("cognitive_update", {}) or {}
+        misconception_targets = [e["id"] for e in evidence if e.get("type") == "misconception"]
+        representation_targets = sorted({
+            rep for e in evidence for rep in (e.get("supports_representation") or [])})
+        active_mis = bool(getattr(snapshot, "active_misconceptions", None))
+
+        ctx = _rl.build_response_context(
+            pedagogical_action=action, need=need, teaching_goal=need,
+            concept_id=primary, concept_type=concept_type, evidence=evidence,
+            response_kind="instructional", mode=mode, wants_visual=wants_visual,
+            clarification=clarification, is_intro=intro, grounding=grounding,
+            misconception_targets=misconception_targets,
+            representation_targets=representation_targets,
+            active_misconception=active_mis, misconception_confirmed=active_mis,
+            cognitive_load=float(cog.get("cognitive_load", 0.0)),
+            frustration_risk=float(cog.get("frustration_risk", 0.0)),
+            mastery=(self.state.mastery(primary) if primary else None),
+            available_scene_concept_id=scene_cid, available_crop=available_crop,
+        )
+        script = _rl.TeachingScriptPlanner().plan(ctx)
+        ev_text = {}
+        for e in evidence:
+            row = self.chunks_by_id.get(e["id"])
+            ev_text[e["id"]] = (row or {}).get("text") or e.get("text") \
+                or e.get("question") or e.get("why_wrong") or ""
+        _rl.ScriptValidator().validate(script, evidence_text=ev_text,
+                                       profile=ctx.device_profile)
+        # The compiler consumes this exact validated object after answer generation;
+        # it is never reconstructed from parallel modality assumptions.
+        self._response_script = script
+
+        v = script.validation.get("visual", {}) or {}
+        allowed = bool(v.get("allowed"))
+        reason = v.get("reason")
+        if allowed:
+            # DRAW THE ANSWER: a visual is earned. Defer the actual figure until the
+            # answer exists — turn() calls scene_author AFTER generation and fills
+            # `scene` + flips arm_scene. figure_on_screen=True so the answer is
+            # presented step-by-step (cleaner board extraction). No crop shown; the
+            # drawn board IS the figure (crop stays as a fallback if drawing declines).
+            directive = {
+                "type": "generated_declarative_scene_spec", "allowed": True,
+                "arm_scene": False, "pending_draw": True, "scene": None,
+                "asset": None, "narration_mode": "script_override",
+                "reason": reason, "script_id": script.script_id,
+            }
+            display = list(mode_cards)
+            figure_on_screen = True
+        else:
+            directive = {"type": "none", "allowed": False, "arm_scene": False,
+                         "asset": None, "narration_mode": "script_override",
+                         "reason": reason, "script_id": script.script_id}
+            display = list(mode_cards)
+            figure_on_screen = False
+        print(f"[tutor] response-layer [{action}] earned={allowed} — {reason}")
+        return display, figure_on_screen, directive
+
+    def apply_response_outcomes(self, events):
+        """Apply device assessment outcomes once, at a learner-state turn boundary."""
+        from response_layer.contracts import OutcomeEvent
+        from response_layer.outcomes import apply_at_turn_close
+
+        session = self.state.data.setdefault("session", {})
+        applied = set(session.get("response_outcome_keys") or [])
+        parsed = [event if isinstance(event, OutcomeEvent) else OutcomeEvent.from_dict(event)
+                  for event in (events or [])]
+        results, applied = apply_at_turn_close(self.state, parsed, applied)
+        session["response_outcome_keys"] = sorted(applied)[-512:]
+        if results and self.state.path:
+            self.state.save()
+        return results
 
     # ------------------------------------------------------------------
     # Front door: non-learning intents (Part 11 §4.3 / §7.3)
@@ -1377,7 +1760,7 @@ class TutorLoop:
             return canned, "canned"
         try:
             prompt = self._persona_prompt(route, text, session, spec)
-            reply = qwen_chat(prompt, temperature=0.5, max_tokens=90)
+            reply = qwen_chat(prompt, temperature=0.5, max_tokens=90, small=True)  # persona (Part 15 C)
             reply = _truncate_to_spoken_budget(reply, 45, 2)
             return (reply, GEN_BACKEND) if reply else (canned, "canned")
         except Exception:  # noqa: BLE001 — generation down -> canned persona line
@@ -1393,6 +1776,21 @@ class TutorLoop:
         if route.primary == "SESSION_CONTROL":
             steer = ("Do NOT ask any question and do NOT mention a sum or problem to try. "
                      "Accept the pause warmly in one sentence.")
+        elif route.primary in ("SOCIAL", "EMOTIONAL"):
+            # Fix C — steer-back cooldown (2026-07-26). Dragging every social/emotional
+            # turn straight back to the same concept reads as obsessive ("why are you so
+            # stubborn on quadratic equation?"). After STEER_COOLDOWN_AFTER consecutive
+            # social/emotional steers, give ONE turn of breathing room: respond warmly
+            # with no maths redirect, then reset the streak. The counter resets to 0 on
+            # any real learning turn (see turn()).
+            streak = int(session.get("steer_streak", 0))
+            if streak >= self.STEER_COOLDOWN_AFTER:
+                steer = ("Do NOT mention maths, a topic, a sum, or a problem to try. Just "
+                         "respond warmly to what the child said, in one short sentence.")
+                session["steer_streak"] = 0
+            else:
+                session["steer_streak"] = streak + 1
+                steer = f"If you steer back to maths, the current topic is: {concept}."
         else:
             steer = f"If you steer back to maths, the current topic is: {concept}."
         # Recent conversation so the reply can refer to what just happened ("I was
@@ -1430,6 +1828,39 @@ class TutorLoop:
         name = card.get("name") or card.get("display_name") or node.get("name")
         return str(name) if name else cid.split("__")[-1].replace("_", " ")
 
+    # Canonical NCERT Class-10 chapter titles keyed by the store's chapter_doc id.
+    # Used only to name alternatives in the "let's do something else" menu, so the
+    # child hears a real, groundable topic they can then ask for. The two appendix
+    # docs (jemh1a1/jemh1a2 — Proofs, Mathematical Modelling) are deliberately left
+    # out of the menu; they are not core lesson chapters.
+    CHAPTER_TITLES = {
+        "jemh101": "Real Numbers", "jemh102": "Polynomials",
+        "jemh103": "Linear Equations", "jemh104": "Quadratic Equations",
+        "jemh105": "Arithmetic Progressions", "jemh106": "Triangles",
+        "jemh107": "Coordinate Geometry", "jemh108": "Trigonometry",
+        "jemh109": "Applications of Trigonometry", "jemh110": "Circles",
+        "jemh111": "Areas Related to Circles", "jemh112": "Surface Areas and Volumes",
+        "jemh113": "Statistics", "jemh114": "Probability",
+    }
+
+    def _current_chapter_doc(self, session: dict) -> str | None:
+        cid = session.get("current_concept")
+        card = self.concepts_by_id.get(cid) or {}
+        return card.get("chapter_doc")
+
+    def _other_topics_menu(self, session: dict, k: int = 4) -> list[str]:
+        """A short spread of OTHER chapter titles to offer when the child wants to
+        leave the current topic. Excludes the current chapter; spreads across the
+        book (not four adjacent chapters) so the menu feels like real variety."""
+        cur = self._current_chapter_doc(session)
+        titles = [(doc, t) for doc, t in self.CHAPTER_TITLES.items() if doc != cur]
+        if not titles:
+            return []
+        k = max(1, min(k, len(titles)))
+        step = max(1, len(titles) // k)
+        picked = [titles[i][1] for i in range(0, len(titles), step)][:k]
+        return picked
+
     # ------------------------------------------------------------------
     # Topic shift (deterministic; 2026-07-03 transcript fixes)
     # ------------------------------------------------------------------
@@ -1443,6 +1874,12 @@ class TutorLoop:
     # you", "cricket score") <= .14.
     SHIFT_TAU_HI = 0.45
     SHIFT_TAU_LO = 0.25
+
+    # Fix C (2026-07-26): after this many consecutive SOCIAL/EMOTIONAL turns that
+    # were steered back to maths, the next such turn drops the redirect for one turn
+    # of breathing room. Counter lives in session["steer_streak"], reset on any
+    # learning turn.
+    STEER_COOLDOWN_AFTER = 2
 
     def _maybe_topic_shift(self, text: str, analysis: dict, session: dict,
                            answer_budget: dict | None) -> dict | None:
@@ -1519,6 +1956,61 @@ class TutorLoop:
         session["pending_shift"] = {"concept_id": cid, "name": name}
         return self._shift_reply(text, reply, "TOPIC_SHIFT_CONFIRM",
                                  f"shift request; top match {cid} (sim {sim:.2f})",
+                                 session, answer_budget)
+
+    def _maybe_decline_topic(self, text: str, session: dict,
+                             answer_budget: dict | None) -> dict | None:
+        """Handle 'leave this topic, but I'm not naming a new one' (2026-07-26 fix).
+
+        The child says "explain something different" / "I don't want to learn this" /
+        "I'm bored of this". Previously this fell through to the normal pipeline,
+        which routed it to EXPLAIN and — because the refused concept was often named
+        in the very sentence ("I don't want to learn quadratic equation") — the
+        concept layer re-locked onto it and served MORE of the same. Here we instead
+        offer a menu of OTHER chapters and, crucially, do NOT re-ground on the
+        current concept. Returns a completed menu turn, or None to fall through.
+
+        Never fires when: it's a mode/test-control cue (those own their own exit), a
+        test is active (the set owns the topic), or the child DID name a concrete,
+        groundable, different catalog topic (the normal shift path switches cleanly)."""
+        from cognitive_classifier.cues import wants_different_topic, extract_topic_request
+        from session_modes import mode_cues
+
+        if not wants_different_topic(text):
+            return None
+        # Defer only to genuine mode CONTROL (leave/start a test or practice). A bare
+        # "EXPLAIN" cue does NOT block us: "I don't want to learn X" matches the
+        # explain-request lexicon yet is exactly the decline we must handle here.
+        if mode_cues(text) in ("STOP", "TEST", "PRACTICE"):
+            return None
+        ts = session.get("test_state")
+        if ts is not None and ts.get("phase") not in (None, "done"):
+            return None
+        # If they named a specific different topic, let _maybe_topic_shift / the
+        # normal concept resolution do the switch — don't intercept with a menu.
+        span = extract_topic_request(text)
+        if span:
+            cands = getattr(self.analyzer.classifier, "topic_candidates", None)
+            cands = cands(span, 3) if callable(cands) else []
+            if cands:
+                cid, _name, sim = cands[0]
+                if cid != session.get("current_concept") and sim >= self.SHIFT_TAU_HI:
+                    return None
+        menu = self._other_topics_menu(session, 4)
+        if not menu:
+            return None
+        listed = (", ".join(menu[:-1]) + ", or " + menu[-1]) if len(menu) > 1 else menu[0]
+        cur_name = self._friendly_concept(session)
+        reply = (f"Sure — we don't have to stay on {cur_name}. "
+                 f"We could do {listed}. Which one would you like?")
+        # Do NOT touch current_concept here: we asked the child to choose, and their
+        # next turn ("Triangles") takes the normal shift path. Clearing pending_check
+        # so the refused topic's open question isn't graded against a stale answer.
+        session.pop("pending_check", None)
+        session.pop("pending_hope", None)
+        session["steer_streak"] = 0
+        return self._shift_reply(text, reply, "TOPIC_MENU",
+                                 "decline-of-topic, no alternative named; offered chapter menu",
                                  session, answer_budget)
 
     def _maybe_stop_mode(self, text: str, session: dict,
@@ -1649,7 +2141,14 @@ class TutorLoop:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
     def turn(self, text: str, answer_budget: dict | None = None,
-             precomputed_analysis: dict | None = None, _allow_shift: bool = True) -> dict:
+             precomputed_analysis: dict | None = None,
+             precomputed_grade: str | None = None, _allow_shift: bool = True) -> dict:
+        # Part 15 Phase B: `precomputed_grade` is a grader outcome the server
+        # computed CONCURRENTLY with perception (the grader needs only the armed
+        # pending_check + transcript, never perception). It is consumed ONLY on the
+        # same branch that would otherwise call judge_answer — a non-attempt still
+        # scores not_an_answer, so the outcome is byte-identical to the serial path;
+        # only the scheduling differs. None ⇒ today's serial grade.
         # Part 13 Stage 0: start this turn's generation-call ledger. Re-entrant
         # turn() calls (a shift reply re-enters) keep accumulating into the same
         # ledger — only the outermost caller reads it.
@@ -1724,8 +2223,20 @@ class TutorLoop:
                 stop_exit = self._maybe_stop_mode(text, session, answer_budget)
                 if stop_exit is not None:
                     return stop_exit
+            # "Leave this topic, but I'm not naming a new one" (2026-07-26 fix). Runs
+            # on EITHER route (a decline can classify LEARNING *or* SESSION_CONTROL/
+            # SOCIAL) and BEFORE the concept re-locks, so a refusal that names the
+            # refused topic ("I don't want to learn quadratic equation") can no longer
+            # be re-grounded onto it. Offers a chapter menu instead.
+            if _allow_shift:
+                declined = self._maybe_decline_topic(text, session, answer_budget)
+                if declined is not None:
+                    return declined
             if route.primary != "LEARNING":
                 return self._handle_nonlearning(route, text, answer_budget)
+            # Real learning turn: the child re-engaged with maths, so reset the
+            # social/emotional steer-back streak (Fix C cooldown counter).
+            session["steer_streak"] = 0
 
         # 1-2. cognitive analysis + state update (Parts 1+2+3)
         if precomputed_analysis is None:
@@ -1748,6 +2259,23 @@ class TutorLoop:
             shifted = self._maybe_topic_shift(text, analysis, session, answer_budget)
             if shifted is not None:
                 return shifted
+        # Context-drift guard: a short anaphoric follow-up ("solve THIS with graph")
+        # means "the thing we're discussing" — a literal cross-topic match (e.g. the
+        # linear-equations "graphical method" concept for "...with graph") must not
+        # hijack the concept under discussion. Suppress the drift ONLY when the new
+        # concept is graph-UNRELATED to the current topic (shares no edge with its
+        # chapter): jemh102 zero-geometry (5 edges into quadratics) is kept; jemh103
+        # graphical-method (0 edges) is not. Never fires without an open current topic.
+        _old_cc = self.current_concept
+        if (_old_cc and primary and primary != _old_cc
+                and self._is_anaphoric_followup(text)
+                and not self._concept_relates_to_topic(primary, _old_cc)):
+            print(f"[tutor] context-drift guard: '{text[:40]}' resolved to {primary}, "
+                  f"unrelated to current topic {_old_cc}; staying on it")
+            primary = _old_cc
+            concept = dict(concept)
+            concept["concept_id"] = _old_cc
+            analysis["concept"] = concept
         # During an ACTIVE test the concept is LOCKED to the set (_drive_test uses
         # ts["concept_id"]). A short test answer ("48", "two zeroes") often re-
         # classifies to a different concept; letting that drift current_concept
@@ -1862,11 +2390,17 @@ class TutorLoop:
             # (ack, "I don't understand", a fresh request, a counter-question) must
             # never move mastery or force a misconception active — the weak local
             # judge otherwise returns "wrong" for plain confusion (see 1a).
-            if non_attempt:
+            if non_attempt or not self.want_answer:
+                # A non-attempt never grades (§13) — and if the server speculatively
+                # graded this turn, its result is discarded here, exactly as the
+                # serial path would never have called judge_answer.
                 outcome = "not_an_answer"
+            elif precomputed_grade is not None:
+                # Part 15 Phase B: the grader already ran in parallel with perception
+                # on the identical (question, expected, text) — reuse it, no re-call.
+                outcome = precomputed_grade
             else:
-                outcome = judge_answer(pending["question"], pending["expected_answer"], text) \
-                    if self.want_answer else "not_an_answer"
+                outcome = judge_answer(pending["question"], pending["expected_answer"], text)
             if outcome in ("correct", "partial", "wrong"):
                 hints_used = (self.state.concept_states.get(pending["concept_id"]) or {}) \
                     .get("hints_used_current", 0)
@@ -2006,6 +2540,34 @@ class TutorLoop:
                 purpose=(wants_why and not answer_try),
                 student_problem=student_problem,
             )
+        # L3: learner state snapshot
+        try:
+            if _dbg:
+                _dbg.emit(_dbg.L3, "state_read",
+                          concept=primary,
+                          mastery=round(self.state.mastery(primary), 3) if primary else None,
+                          mode=mode,
+                          pending_check=bool(session.get("pending_check")),
+                          pending_hope=bool(session.get("pending_hope")))
+        except Exception:  # noqa: BLE001
+            pass
+        # L4: pedagogy decision
+        try:
+            if _dbg:
+                _cues = []
+                if wants_visual and not answer_try: _cues.append("visual")
+                if wants_why and not answer_try: _cues.append("why")
+                if clarification and not answer_try: _cues.append("clarification")
+                if learning_start: _cues.append("learning_start")
+                if student_problem: _cues.append("student_problem")
+                if acknowledged: _cues.append("acknowledged")
+                _dbg.emit(_dbg.L4, "rules_decide",
+                          action=action, need=need, reason=why,
+                          mode=mode, via_mode_item=bool(mode_item),
+                          signals=analysis.get("signals") or [],
+                          cues=_cues)
+        except Exception:  # noqa: BLE001
+            pass
         intro = (learning_start and action == "EXPLAIN"
                  and bool(primary) and self.state.mastery(primary) <= COLD_START_MASTERY)
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
@@ -2050,6 +2612,7 @@ class TutorLoop:
                                     relevance=_bridge_relevance)
         evidence += misconception_evidence(self.graph, snapshot)
         evidence += need_evidence(self.graph, self.concepts_by_id, snapshot, need, None)
+
 
         # candidate probe: the analyzer suspects a misconception but none is
         # active in state yet — serve the concept's first untracked
@@ -2154,6 +2717,18 @@ class TutorLoop:
             "grounding": grounding,
         }
 
+        # L5: retrieval done (with cohesion log & evidence details)
+        try:
+            if _dbg:
+                _dbg.emit(_dbg.L5, "retrieval_done",
+                          n_evidence=len(evidence),
+                          has_bridge=any(e.get("type") == "bridge_diagnostic" for e in evidence),
+                          has_misconception=any(e.get("type") == "misconception" for e in evidence),
+                          need=need,
+                          cohesion=cohesion_log or ["passed"])
+        except Exception:  # noqa: BLE001
+            pass
+
         # 4b. T9 display channel: a TEST question/score card (§5.6) takes precedence
         # on a test turn (which carries no figure), otherwise the one figure crop (if
         # any) to SHOW this turn. Computed before generation so the prompt can
@@ -2165,11 +2740,45 @@ class TutorLoop:
         # query embedding already computed above — no extra model call for the
         # common case, one short encode only when such a candidate is reached.
         def _crop_relevance(row: dict) -> float:
-            return _text_sim(row.get("alt_text") or row.get("text") or "")
+            return _text_sim(self._visual_key(row))
 
-        display = self._mode_display(mode_item) + self._build_display(
-            evidence, action, teaching=(mode != "TEST" and mode_item is None),
-            ranked=ranked, primary_concept=primary, relevance=_crop_relevance)
+        # Hand tier 3 the turn's query vector so a whole chapter of crops is one
+        # matrix multiply against the cached crop matrix rather than N encodes.
+        # Turn-scoped and cleared in the finally below: a stale vector would score
+        # the NEXT turn's figure against the PREVIOUS turn's utterance.
+        try:
+            self._t9_q_vec = _q_vec()
+        except Exception:  # noqa: BLE001 — no embedder yet: per-row path still works
+            self._t9_q_vec = None
+        _t9_t0 = time.perf_counter()
+        try:
+            mode_cards = self._mode_display(mode_item)
+            crop_items = self._build_display(
+                evidence, action, teaching=(mode != "TEST" and mode_item is None),
+                ranked=ranked, primary_concept=primary, relevance=_crop_relevance)
+        finally:
+            self._t9_q_vec = None
+            # Counted so a slow figure pick can never again be diagnosed by
+            # guessing at a `brain` total (Part 13 RC-4's lesson).
+            self._last_t9_ms = int((time.perf_counter() - _t9_t0) * 1000)
+
+        # T9 answer-first default: the crop (if any) is shown and generation is told a
+        # figure is on screen. The Response Layer (flag on) overrides this with a
+        # script-first, EARNED visual decision below.
+        display = mode_cards + crop_items
+        figure_on_screen = bool(display)
+        rl_visual = None
+        if RESPONSE_LAYER and self.want_answer \
+                and not (mode_item and mode_item.get("speak")):
+            try:
+                display, figure_on_screen, rl_visual = self._response_layer(
+                    text, action, need, primary, concept, evidence, analysis, snapshot,
+                    mode, wants_visual, clarification, intro, grounding, mode_cards,
+                    crop_items)
+            except Exception as e:  # noqa: BLE001 — never let the layer cost a turn
+                print(f"[tutor] response layer skipped; answer-first fallback: {e}")
+                display, figure_on_screen, rl_visual = mode_cards + crop_items, \
+                    bool(mode_cards or crop_items), None
 
         # 5. response from manifest only (Qwen, local)
         answer = None
@@ -2202,9 +2811,16 @@ class TutorLoop:
             # the action-appropriate word/sentence room — e.g. a WORKED_EXAMPLE
             # needs space to actually work the example, not just announce it.
             gen_budget = _budget_for_generation(answer_budget, action)
+            _gen_t0 = time.perf_counter()
+            if _dbg:
+                try:
+                    _dbg.emit(_dbg.L6, "gen_start", backend=GEN_BACKEND,
+                              action=action, n_blocks=len(blocks))
+                except Exception:  # noqa: BLE001
+                    pass
             answer = qwen_answer(text, action, blocks, chapter_hint, writeback_note=note,
                                  history=session.get("context", [])[-6:],
-                                 answer_budget=gen_budget, figure_on_screen=bool(display),
+                                 answer_budget=gen_budget, figure_on_screen=figure_on_screen,
                                  clarify=(clarification and not answer_try), intro=intro,
                                  visualize=(wants_visual and not answer_try),
                                  grounding=grounding)
@@ -2218,6 +2834,62 @@ class TutorLoop:
                 has_active_misconception=bool(getattr(snapshot, "active_misconceptions", None)))
             if offer:
                 answer = f"{answer} {offer}"
+
+        # 5c. Draw-the-answer (response_layer.scene_author): a visual was EARNED this
+        # turn, so author the figure FROM the generated answer — the board mirrors what
+        # Wini actually says (the "visuals must be text-aware" fix). Runs after
+        # generation; the streamed audio is already playing on another thread, so this
+        # ~1s call sits OFF the time-to-first-audio path. Declines gracefully to a
+        # retrieved crop (if one exists) or speech-only.
+        if rl_visual and rl_visual.get("pending_draw"):
+            rl_visual["pending_draw"] = False
+            scene = None
+            if answer and self.want_answer:
+                try:
+                    from response_layer.scene_author import author_scene_from_answer
+                    _sd0 = time.perf_counter()
+                    # Recent conversation (PRIOR turns — this turn is appended below)
+                    # lets a follow-up like "why is it a parabola" plot the SPECIFIC
+                    # quadratic on the table instead of a generic y=x².
+                    _draw_ctx = "\n".join(
+                        f"{c.get('role')}: {c.get('text')}"
+                        for c in (session.get("context", [])[-4:])) or None
+                    scene = author_scene_from_answer(answer, primary, evidence,
+                                                     context=_draw_ctx)
+                    self._last_draw_ms = int((time.perf_counter() - _sd0) * 1000)
+                except Exception as e:  # noqa: BLE001 — drawing never costs a turn
+                    print(f"[tutor] scene authoring failed: {e}")
+            if scene is not None:
+                rl_visual.update({"type": "generated_declarative_scene_spec",
+                                  "allowed": True, "arm_scene": True, "scene": scene})
+                print(f"[tutor] drew answer scene ({len(scene['beats'])} lines) "
+                      f"in {getattr(self, '_last_draw_ms', 0)} ms")
+            elif crop_items:
+                rl_visual.update({"type": "retrieved_crop", "allowed": True,
+                                  "arm_scene": False,
+                                  "asset": crop_items[0].get("image_path"),
+                                  "reason": (rl_visual.get("reason") or "")
+                                  + " | draw declined -> crop"})
+                display = mode_cards + crop_items
+            else:
+                rl_visual.update({"type": "none", "allowed": False, "arm_scene": False,
+                                  "reason": (rl_visual.get("reason") or "")
+                                  + " | draw declined -> speech only"})
+
+        # 5d. Phase 3 modality compilation. The package carries only artifacts
+        # compiled from the validated script and the already-generated answer; it
+        # does not alter the established streamed-audio path. Phase 4 consumes it
+        # as a beat-synchronized device package.
+        if rl_visual is not None:
+            try:
+                from response_layer.compilers import compile_response
+                script = getattr(self, "_response_script", None)
+                if script is not None:
+                    rl_visual["response_bundle"] = compile_response(
+                        script, answer=answer, scene=rl_visual.get("scene"),
+                        profile=script.device_profile)
+            except Exception as e:  # noqa: BLE001 — compilation degrades independently
+                print(f"[tutor] response compilation skipped: {e}")
 
         # 6. session memory (section 12.3 transient context) + bookkeeping for
         # the next turn's acknowledgment handling
@@ -2255,6 +2927,16 @@ class TutorLoop:
         self.state.mark_served([e["id"] for e in evidence])
         if self.state.path:
             self.state.save()
+        # L8: write-back summary
+        try:
+            if _dbg:
+                _dbg.emit(_dbg.L8, "writeback",
+                          probe_result=(writeback or {}).get("outcome"),
+                          hope_update=bool(hope_update),
+                          action=action,
+                          answer_len=len(answer or ""))
+        except Exception:  # noqa: BLE001
+            pass
 
         return {"action": action, "action_reason": why, "need": need, "shadow": shadow,
                 "concept": concept, "signals": analysis["signals"],
@@ -2266,6 +2948,9 @@ class TutorLoop:
                 "answer_budget": answer_budget,
                 "pace": session.get("pace", {}),
                 "display": display,
+                # Response Layer visual directive (None unless WINI_RESPONSE_LAYER=1):
+                # the client uses it to arm/suppress a scene instead of concept-default.
+                "visual": rl_visual,
                 "mode": mode, "mode_reason": mode_reason,
                 "test": self._test_echo(session, mode_item),
                 "session_ended": False,

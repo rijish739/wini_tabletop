@@ -1150,6 +1150,39 @@ chunk index:
 | area of a segment | 0.63 | shown |
 | what is probability | 0.46 | shown |
 
+**v5.3 (2026-07-23): the tag filter was hiding the right figure — relevance-first
+selection.** Field report: a Qutub Minar explanation displayed a generic lettered
+triangle. Root cause was not the floor but the *pool* — tier 3 hard-filtered
+candidates to those tagged with the resolved concept, and `fig::jemh108::fig_8_1`
+(the Qutub Minar diagram) carries only the legacy tags `trigonometry` /
+`grade9::right_triangles`. It scores **0.749** on that utterance; the best tagged
+crop scored **0.438** and won by default.
+
+Now: score every crop, then admit by origin (in-chapter, concept-tagged, or
+≥ `T9_CROSS_CHAPTER_MIN` 0.57 from elsewhere — the minar *figure* is in Ch 8 while
+the minar *application* concept is in Ch 9); concept tag became a 0.12 tie-break
+bonus; portraits (Gauss, Laplace, Thales) excluded by kind; floor re-measured
+0.30 → **0.42**. Cost is one matrix multiply against a crop matrix built during
+warmup — measured **`t9` = 113–136 ms** per turn.
+
+Swept over 17 utterances spanning every chapter (`tools/t9_probe.py --cases`):
+
+| utterance | before | after |
+|---|---|---|
+| qutub minar example (concept → Ch 8) | 0.438 generic triangle | **0.749 Qutub Minar** |
+| qutub minar example (concept → Ch 9) | 0.438 generic triangle | **0.749 Qutub Minar** (cross-chapter) |
+| when are two triangles similar | none | **0.735 two similar triangles** |
+| solve two linear equations by graph | none | **0.590 the two lines plotted** |
+| what is the fundamental theorem of arithmetic | 0.541 **portrait of Gauss** | none |
+| what is the probability of getting a head | 0.310 spinner (coin question) | none |
+| `solve x^2 - 5x + 6 = 0` | none | none (B-3 case preserved) |
+| elevation / tangent / segment / polynomial zeroes / shadow | correct | unchanged |
+
+11 of 17 now show a figure that matches the speech; the other 6 correctly show
+none. Live on the device the answer and the picture agree — *"In the Qutub Minar
+example, imagine a person standing some distance away from the base… look at the
+figure"* alongside the diagram of exactly that.
+
 ### Stage 5 — the contract-level defects
 
 | ID | Fix | Verified |
@@ -1177,3 +1210,102 @@ chunk index:
 - Verification used `tutor_loop --once` and `/turn`. The pacing governor only runs on
   `/voice_turn`, so B-4 was verified by driving `after_turn` directly against a real loop
   rather than through a spoken turn.
+
+## 17. PART 15 — Cloud execution: the whole brain warm on Cloud Run + Firestore — **Phases A/B/C/E BUILT + verified, D partial, F deferred (2026-07-25)**
+
+Design of record: `PART15_CLOUD_EXECUTION_PLAN.md`. Executes the brain as a warm,
+streaming Cloud Run service without losing a point of pedagogical accuracy. The plan's
+central finding held: the brain is already a cloud-native monolith with server-side Vertex
+calls — the work is deployment, persistence, and scheduling, **not** the pipeline.
+
+**Baseline first (frozen splits, current `gemini-2.5-flash`):** perception concept top-1
+**0.930** / top-3 **0.990**, intent **1.0**, safety gate **1.0**; behavioral eval **PASS**;
+`test_perception --integration` PASS. The before-picture every phase is held against (§7).
+
+### Phase C — model tier (the plan's headline latency lever) → measured a REGRESSION, shipped as the seam only
+The plan targeted **Gemini 3.x Flash / 3.5-Flash-Lite**. Probed directly against Vertex:
+those IDs **do not exist** (404 in asia-south1 / us-central1 / global). The only real faster
+model, **`gemini-2.5-flash-lite`**, is absent from `asia-south1` and served only on `global`
+/ `us-central1`. Measured (warm, n=4):
+
+| config | TTFT median | small-call median |
+|---|---|---|
+| **flash@asia-south1 (current)** | **602 ms** | **582 ms** |
+| flash-lite@global | 617 ms | 683 ms |
+| flash-lite@us-central1 | 770 ms (jittery) | 934 ms |
+
+Flash-lite is **slower** here — the 31 ms asia-south1 RTT beats its per-token edge on these
+short replies, and it is not co-located. So the swap is all cost (threshold re-calibration,
+lost context cache on `global`), no benefit. **Decision: stay on `gemini-2.5-flash@asia-south1`.**
+Phase C delivered as the **revertible seam**: `llm_vertex.SMALL_MODEL`/`SMALL_LOCATION`
+(default = generation flash@asia) + a `small=` flag on `qwen_chat`/`_gemini_chat`, with
+grader/cohesion/persona tagged `small=True`. No-op at the shipped default; a genuinely faster
+co-located model becomes a one-line env flip. No accuracy re-run needed — the model is unchanged.
+
+### Phase B — parallel grader · removes the RC-3 serial-grader block
+`WINI_PARALLEL_GRADER` (default on). The grader needs only the armed `pending_check` +
+transcript — never perception — so `voice_turn` submits `judge_answer` on the server pool
+**concurrently with the perception call**, joins it, and threads the result as
+`precomputed_grade` (turn→text_turn→voice_turn). It is consumed only on the exact branch that
+would otherwise call `judge_answer`; a non-attempt still scores `not_an_answer`. **Equivalence
+test PASS**: serial vs parallel produce identical outcomes with **0 grader re-calls**, and a
+different precomputed value genuinely changes the outcome (proving it is used, not ignored).
+Speculative *perception* (the plan's other Phase-B half) needs streaming-STT interims and is
+folded into Phase D.
+
+### Phase E — learner state → Firestore · the one real persistence change
+`state_backend.py`, `WINI_STATE_BACKEND=json|firestore`. The whole state is stored as **one
+JSON string field** (`state_json`) — deliberately, to sidestep every native-Firestore type
+limit (nested arrays-of-arrays round-trip fine) and keep the write a single atomic
+last-writer-wins `set`. The server **reads once at startup** and **writes at the turn boundary**
+(`_persist_state`, after the lock, off the TTFA path) — **never mid-turn** (the plan's §6-E
+contract). Firestore **native DB created in `asia-south1`**. Round-trip exact incl. nested
+arrays; **restart-durability sentinel test PASS** — a fresh instance logs `loaded learner
+state from firestore://…`, and an injected sentinel survives the next turn's persist (proving
+load, not cold-start-and-overwrite). No turn-time regression.
+
+### Phase A — deploy the monolith to Cloud Run · the biggest unlock
+`Dockerfile` (python:3.12-slim, **CPU-only torch** from the pytorch index so no multi-GB CUDA,
+**MiniLM baked** so cold start never waits on HuggingFace) + `.dockerignore`/`.gcloudignore`.
+Cloud Build ~4.5 min → `asia-south1-docker.pkg.dev/<proj>/wini/brain:v1`. Deployed service
+**`wini-brain`** (asia-south1): **`min-instances=1`, `concurrency=1`**, cpu 4 / 8 GiB,
+**`--no-cpu-throttling`** (non-negotiable — the brain loads in a background thread; throttled
+CPU outside requests would stall it), runtime SA `wini-brain`
+(aiplatform.user + datastore.user + serviceusage.serviceUsageConsumer),
+`WINI_STATE_BACKEND=firestore`. **Exit met:** `/health` `ready:true`; **10 live authenticated
+turns** all coherent; **turn 1 = 4.7 s wall / 4.2 s brain — no cold-start cliff** (comparable
+to later turns); per-turn latency 2.6–4.2 s brain, within Part 13's on-device envelope; the
+deployed instance verifiably writes durable state to Firestore (`learner_state/cloudrun_default`,
+8 concepts after the run).
+
+| turn | wall | brain | gemini calls |
+|---|---|---|---|
+| 1 (cold-start check) | 4686 ms | 4165 ms | 2 |
+| 4 | 3319 ms | 3036 ms | 2 |
+| 7 | 2919 ms | 2651 ms | 2 |
+| 10 | 3582 ms | 3364 ms | 2 |
+
+### Phase D — streaming STT · core built + parity-verified, client integration remaining
+`voice/cloud_stt.recognize_stream` (v1 `StreamingRecognize`, **the same `RecognitionConfig` +
+`MATHS_PHRASES` boost as the batch path** — parity by construction, not hope), with an interim
+hook (the seam speculative perception waits on) and a tail-guard (keeps a last un-finalized
+interim so streaming never drops the final word). **Hard gate PASS: 20/20 streaming transcript
+== batch transcript** on a 20-utterance TTS-generated fixture, real-time paced. Kept on v1
+(not v2/Chirp3) precisely to hold the accuracy gate — a Chirp3 swap would need its own
+before/after. **Remaining:** the *client* must stream PCM live during speech (the `/voice_turn`
+contract change) for the latency benefit; that is device-only and not headless-testable, so it
+is the open integration step.
+
+### What is NOT done (Part 15)
+- **Phase F (Provisioned Throughput)** — needs sustained real daily traffic to clear break-even
+  and a billing commitment; a judgment call on measured p95/p99, not a code change.
+- **Phase D client streaming** — the device must feed real-time PCM blocks and drop `silence_ms`;
+  needs the Pi client + real audio.
+- The Cloud Run service is deployed **authenticated** (`--no-allow-unauthenticated`); the thin
+  client will need an identity token / auth path before it can call the cloud brain directly.
+
+**Accuracy posture (§7, non-negotiable):** the perception prompt, schema, enums,
+`PERCEPTION_SIGNAL_THRESHOLD`, safety lexicon, context cache, and every `derive_*`/`apply_deltas`
+write-back are **untouched**. Phases changed deployment, persistence, and scheduling — not
+pedagogy. The grader change is outcome-identical by test; the model is unchanged, so the
+baseline gates above still hold.

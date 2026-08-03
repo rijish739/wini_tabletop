@@ -155,13 +155,35 @@ def is_clarification_request(text: str) -> bool:
 # the tutor must respond with a concrete scene / figure, never another textual
 # definition (gemini_tutor_issues.md #3/#4: "I cannot imagine this" was answered
 # with a re-definition of triangle sides).
+#
+# It ALSO catches the DIRECT imperative visual request — "show me the animation",
+# "draw a circle", "give me images", "show me a right triangle". These are not the
+# "I can't picture it" plea; they are the child ASKING to be shown something, and
+# they were the dominant Board-Buddy no-launch cause: wants_visual stayed false, so
+# the Visual Benefit Gate only earned a figure when the concept slug happened to be
+# visual — never on the ask itself (see the field trace, 2026-07-30). Wiring these
+# into wants_visual makes the gate's `remedy` path fire on the explicit request.
 VISUALIZE_RE = re.compile(
     r"(can'?t|can ?not|could ?n'?t|do ?n'?t|not able to|unable to|hard to|difficult to) "
     r"(really |quite |even )?(imagine|picture|visuali[sz]e|see (it|this|that))"
     r"|(imagine|picture|visuali[sz]e) (it|this|that)\b.{0,20}(can'?t|not|hard)"
     r"|in my (head|mind)"
     r"|(how|what) (does|do|will|would) (it|this|that|they) look"
-    r"|show me (how|what) (it|this|that) looks",
+    r"|show me (how|what) (it|this|that) looks"
+    # a request verb (show/draw/see/give/want/…) shortly followed by a VISUAL-ARTIFACT
+    # noun — these words *are* pictures, so the ask is unambiguous ("show me the
+    # animation", "give me images", "see a animation", "a good circle animation").
+    r"|\b(show|draw|see|give|display|paint|sketch|want|need|like)\b[^.?!]{0,30}"
+    r"\b(picture|image|animation|animate|diagram|drawing|figure|graph|chart|"
+    r"video|visual|illustration|sketch|painting)s?\b"
+    # show/draw/give/want me <a drawable maths shape> ("show me circles", "show me a
+    # right triangle", "show me different types of circles", "I want many triangles").
+    r"|\b(show|draw|display|paint|sketch|give|want|need)\b( me| us)?[^.?!]{0,40}"
+    r"\b(circle|triangle|rectangle|parabola|polygon|quadrilateral|"
+    r"cone|cylinder|sphere|cube|hemisphere|frustum)s?\b"
+    # "in pictures" / "with images / a diagram / animation" ("explain with images").
+    r"|\b(in|with|using|through) (a |an )?(picture|image|diagram|animation|"
+    r"visual|drawing|figure|graph|chart)s?\b",
     re.IGNORECASE,
 )
 

@@ -10,7 +10,11 @@ Produces, under pi_game/assets/:
 
 Run on the Pi (Pillow is in the venv there):
 
-    .venv/bin/python -m pi_game.gen_assets [--letters ABC] [--force]
+    .venv/bin/python -m pi_game.gen_assets [--lang en|kn] [--letters ABC] [--force]
+
+`--lang` picks which content set to render. English writes the flat
+`assets/letters/<A>/`; Kannada writes `assets/kn/letters/<slug>/`, its glyphs
+rasterized from a Kannada face and its lesson.json carrying the akshara.
 
 Everything is RGBA with a transparent background: the object art is dragged
 across the robot's face in the feed activity, so it can never carry an opaque
@@ -26,14 +30,13 @@ from pathlib import Path
 
 from PIL import Image, ImageChops, ImageDraw, ImageFont
 
-from pi_game import content
-from pi_game.content import ERASE, INK, LETTERS, ORDER
+from pi_game import content, languages
+from pi_game.content import ERASE, INK
 
 ROOT = Path(__file__).resolve().parent
 ASSETS = ROOT / "assets"
 
 CANVAS = 420                     # art recipes are authored on 420x420
-FONT_PATH = "/usr/share/fonts/truetype/nunito-sans/NunitoSans-VariableFont_YTLC,opsz,wdth,wght.ttf"
 
 BIG_GLYPH_H = 180                # §9 Typography — "Letter Size 180 px"
 BIG_GLYPH_W = 260                # the panel is only 600 px wide
@@ -114,29 +117,29 @@ def draw_art(recipe: list[dict], size: int = CANVAS) -> Image.Image:
 # Letters
 
 
-def _font(px: int) -> ImageFont.FreeTypeFont:
-    f = ImageFont.truetype(FONT_PATH, px)
+def _font(px: int, font_path: str) -> ImageFont.FreeTypeFont:
+    f = ImageFont.truetype(font_path, px)
     try:
         # Nunito Sans ships as a variable font whose DEFAULT instance is
         # ExtraLight — a 180 px hairline that reads as broken on the panel.
-        # Pin the Bold instance; if this build of FreeType has no variation
-        # support we still get something legible, just lighter.
+        # Pin the Bold instance. A static face (the Kannada Regular) has no named
+        # instances and raises here — that is fine, we just use its one weight.
         f.set_variation_by_name("Bold")
     except (AttributeError, OSError) as exc:  # pragma: no cover - platform dep
         print(f"  ! variable-font Bold unavailable ({exc}); using default weight")
     return f
 
 
-def render_letter(ch: str, glyph_h: int, max_w: int | None = None,
+def render_letter(ch: str, glyph_h: int, font_path: str, max_w: int | None = None,
                   color: str = INK) -> Image.Image:
-    """Render one capital tight-cropped to `glyph_h` pixels tall, plus padding.
+    """Render one glyph tight-cropped to `glyph_h` pixels tall, plus padding.
 
     The font size that yields a given glyph height is font-specific, so measure
     the real ink box once at a reference size and scale from that rather than
     guessing a ratio.
     """
     ref = 200
-    f = _font(ref)
+    f = _font(ref, font_path)
     probe = Image.new("L", (ref * 2, ref * 2), 0)
     ImageDraw.Draw(probe).text((ref // 2, ref // 2), ch, font=f, fill=255)
     box = probe.getbbox()
@@ -145,7 +148,7 @@ def render_letter(ch: str, glyph_h: int, max_w: int | None = None,
     ink_h = box[3] - box[1]
     size = max(8, round(ref * glyph_h / ink_h))
 
-    f = _font(size)
+    f = _font(size, font_path)
     big = Image.new("RGBA", (size * 3, size * 3), (0, 0, 0, 0))
     ImageDraw.Draw(big).text((size, size), ch, font=f, fill=color)
     crop = big.crop(big.getbbox())
@@ -191,48 +194,82 @@ def robot_face(mouth: str) -> Image.Image:
 # ---------------------------------------------------------------------------
 
 
-def build(letters: list[str], force: bool) -> None:
-    (ASSETS / "common").mkdir(parents=True, exist_ok=True)
+def build(lang: languages.Language, ids: list[str], force: bool) -> None:
+    mod = lang.module
+    letters_root = ASSETS / lang.asset_root / "letters"
 
+    # The robot faces are language-neutral and shared from assets/common — the
+    # feed activity looks identical whichever alphabet is being taught.
+    (ASSETS / "common").mkdir(parents=True, exist_ok=True)
     for name in ("open", "happy", "idle"):
         out = ASSETS / "common" / f"robot_{name}.png"
         if force or not out.exists():
             robot_face(name).save(out)
     print(f"common: 3 robot faces -> {ASSETS / 'common'}")
 
-    for ch in letters:
-        d = ASSETS / "letters" / ch
+    # The start-screen language toggle shows each non-Latin language's name in
+    # its own script; LVGL can't shape that, so pre-render it to a static image
+    # (matches how textimg renders the runtime lines). English stays a text label.
+    if lang.code != "en":
+        from pi_game import textimg
+        import shutil
+        label_png = textimg.render(lang.label, lang.font_path, px=46,
+                                   color=(122, 116, 102, 255))   # ALPHA_TEXT_MUTED
+        dest = ASSETS / "common" / f"label_{lang.code}.png"
+        if force or not dest.exists():
+            shutil.copyfile(label_png, dest)
+        print(f"common: toggle label {lang.label} -> {dest.name}")
+
+    for lid in ids:
+        entry = mod.LETTERS[lid]
+        glyph = entry.get("char", lid)          # akshara for kn, the letter for en
+        d = letters_root / lid
         d.mkdir(parents=True, exist_ok=True)
 
         if force or not (d / "object.png").exists():
-            draw_art(LETTERS[ch]["art"]).save(d / "object.png")
+            draw_art(entry["art"]).save(d / "object.png")
         if force or not (d / "letter_big.png").exists():
-            render_letter(ch, BIG_GLYPH_H, BIG_GLYPH_W).save(d / "letter_big.png")
+            render_letter(glyph, BIG_GLYPH_H, lang.font_path, BIG_GLYPH_W).save(
+                d / "letter_big.png")
         if force or not (d / "letter_tile.png").exists():
-            render_letter(ch, TILE_GLYPH_H, TILE_GLYPH_W).save(d / "letter_tile.png")
+            render_letter(glyph, TILE_GLYPH_H, lang.font_path, TILE_GLYPH_W).save(
+                d / "letter_tile.png")
 
         (d / "lesson.json").write_text(
-            json.dumps(content.lesson_dict(ch), indent=2, ensure_ascii=False),
+            json.dumps(mod.lesson_dict(lid), indent=2, ensure_ascii=False),
             encoding="utf-8",
         )
-        print(f"  {ch}  {LETTERS[ch]['word']}")
+        print(f"  {lid}  {glyph}  {entry['word']}")
 
-    print(f"\n{len(letters)} lessons written under {ASSETS / 'letters'}")
+    print(f"\n{len(ids)} lessons written under {letters_root}")
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--letters", help="subset, e.g. ABC (default: all 26)")
+    ap.add_argument("--lang", default="en", choices=sorted(languages.LANGS),
+                    help="which alphabet to render (default: en)")
+    ap.add_argument("--letters", help="subset of ids, e.g. ABC or 'a aa i' "
+                    "(default: the whole set)")
     ap.add_argument("--force", action="store_true", help="redraw existing PNGs")
     args = ap.parse_args()
 
-    letters = list(args.letters.upper()) if args.letters else list(ORDER)
-    unknown = [c for c in letters if c not in LETTERS]
+    lang = languages.get(args.lang)
+    mod = lang.module
+
+    if args.letters:
+        # English ids are single capitals ("ABC"); Kannada ids are multi-char
+        # slugs, so accept a whitespace/comma list there ("a aa i").
+        raw = args.letters.replace(",", " ")
+        ids = raw.split() if " " in raw or lang.code != "en" else list(raw.upper())
+    else:
+        ids = list(mod.ORDER)
+
+    unknown = [c for c in ids if c not in mod.LETTERS]
     if unknown:
-        print(f"unknown letters: {''.join(unknown)}", file=sys.stderr)
+        print(f"unknown ids for {lang.code}: {' '.join(unknown)}", file=sys.stderr)
         return 2
 
-    build(letters, args.force)
+    build(lang, ids, args.force)
     return 0
 
 

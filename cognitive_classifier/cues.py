@@ -155,13 +155,35 @@ def is_clarification_request(text: str) -> bool:
 # the tutor must respond with a concrete scene / figure, never another textual
 # definition (gemini_tutor_issues.md #3/#4: "I cannot imagine this" was answered
 # with a re-definition of triangle sides).
+#
+# It ALSO catches the DIRECT imperative visual request — "show me the animation",
+# "draw a circle", "give me images", "show me a right triangle". These are not the
+# "I can't picture it" plea; they are the child ASKING to be shown something, and
+# they were the dominant Board-Buddy no-launch cause: wants_visual stayed false, so
+# the Visual Benefit Gate only earned a figure when the concept slug happened to be
+# visual — never on the ask itself (see the field trace, 2026-07-30). Wiring these
+# into wants_visual makes the gate's `remedy` path fire on the explicit request.
 VISUALIZE_RE = re.compile(
     r"(can'?t|can ?not|could ?n'?t|do ?n'?t|not able to|unable to|hard to|difficult to) "
     r"(really |quite |even )?(imagine|picture|visuali[sz]e|see (it|this|that))"
     r"|(imagine|picture|visuali[sz]e) (it|this|that)\b.{0,20}(can'?t|not|hard)"
     r"|in my (head|mind)"
     r"|(how|what) (does|do|will|would) (it|this|that|they) look"
-    r"|show me (how|what) (it|this|that) looks",
+    r"|show me (how|what) (it|this|that) looks"
+    # a request verb (show/draw/see/give/want/…) shortly followed by a VISUAL-ARTIFACT
+    # noun — these words *are* pictures, so the ask is unambiguous ("show me the
+    # animation", "give me images", "see a animation", "a good circle animation").
+    r"|\b(show|draw|see|give|display|paint|sketch|want|need|like)\b[^.?!]{0,30}"
+    r"\b(picture|image|animation|animate|diagram|drawing|figure|graph|chart|"
+    r"video|visual|illustration|sketch|painting)s?\b"
+    # show/draw/give/want me <a drawable maths shape> ("show me circles", "show me a
+    # right triangle", "show me different types of circles", "I want many triangles").
+    r"|\b(show|draw|display|paint|sketch|give|want|need)\b( me| us)?[^.?!]{0,40}"
+    r"\b(circle|triangle|rectangle|parabola|polygon|quadrilateral|"
+    r"cone|cylinder|sphere|cube|hemisphere|frustum)s?\b"
+    # "in pictures" / "with images / a diagram / animation" ("explain with images").
+    r"|\b(in|with|using|through) (a |an )?(picture|image|diagram|animation|"
+    r"visual|drawing|figure|graph|chart)s?\b",
     re.IGNORECASE,
 )
 
@@ -205,7 +227,12 @@ def is_purpose_question(text: str) -> bool:
 # perception signals were empty and the deterministic side had no cue).
 LEARN_REQUEST_RE = re.compile(
     r"\bi (want|wanted|would like|wish) to (learn|study|know|understand)\b"
-    r"|\bteach me\b|\bcan you (teach|explain)\b|\blet'?s (learn|study)\b",
+    r"|\bteach me\b|\bcan you (teach|explain)\b|\blet'?s (learn|study)\b"
+    # imperative teach requests: "explain X", "show me how X", "walk me through X",
+    # "how do i solve/find X". Without these a bare "explain the quadratic formula"
+    # missed every learning cue and fell to rule 10b QUIZ (2026-07-27 live test).
+    r"|\bexplain\b|\bshow me (how|what|why)\b|\bwalk me through\b"
+    r"|\bhow do (i|you|we) (solve|find|do|get|work)\b",
     re.IGNORECASE,
 )
 
@@ -242,19 +269,68 @@ TOPIC_REQUEST_RE = re.compile(
 _TOPIC_STOP = {"it", "this", "that", "them", "these", "those", "more", "again",
                "something", "anything", "maths", "math", "everything", "about"}
 
+# A negation/complaint immediately BEFORE a request span means the child is naming
+# the topic they DON'T want, not the one they do ("only want to teach me quadratic
+# equation. I want to learn PARABOLA" → the desire is parabola; "don't teach me X,
+# teach me Y" → Y). We scan the short window just before a match and drop the span
+# when it trails a negation cue. Anchored at the window end so only a *nearby*
+# negation counts (a negation two clauses back is unrelated).
+_NEG_BEFORE = re.compile(
+    r"(?:\bnot\b|\bnever\b|n'?t\b|\bno\b|\bdont\b|\bbored\b|\btired\b|\bhate\b|"
+    r"\bstop\b|\binstead\b|\bonly\b)[\sa-z']*$",
+    re.IGNORECASE,
+)
+
 
 def extract_topic_request(text: str):
     """Return the requested-topic span for an explicit topic request / correction
     ("i asked about NATURAL NUMBERS", "teach me TRIANGLES"), else None. The span is
-    capped at 6 words; pronouns and empty fillers return None."""
-    m = TOPIC_REQUEST_RE.search(text or "")
-    if not m:
-        return None
-    span = next((g for g in m.groups() if g), "").strip()
-    words = span.split()[:6]
-    if not words or " ".join(words).lower() in _TOPIC_STOP or words[0].lower() in _TOPIC_STOP:
-        return None
-    return " ".join(words)
+    capped at 6 words; pronouns and empty fillers return None.
+
+    When a turn carries MORE than one request span, return the LAST one that is not
+    negated — the most-recent stated desire. This fixes the complaint shape "only
+    want to teach me quadratic equation. I want to learn parabola", which previously
+    returned the disliked topic ("quadratic equation") from the first clause and so
+    re-locked the child onto it (the exact 2026-07-26 topic-lock bug)."""
+    t = text or ""
+    best = None
+    for m in TOPIC_REQUEST_RE.finditer(t):
+        span = next((g for g in m.groups() if g), "").strip()
+        words = span.split()[:6]
+        if not words:
+            continue
+        joined = " ".join(words)
+        if joined.lower() in _TOPIC_STOP or words[0].lower() in _TOPIC_STOP:
+            continue
+        pre = t[max(0, m.start() - 24):m.start()]
+        if _NEG_BEFORE.search(pre):
+            continue                      # span names the un-wanted topic — skip it
+        best = joined                     # keep the last surviving desire
+    return best
+
+
+# The child wants to LEAVE the current topic without naming a specific new one
+# ("explain something different", "I don't want to learn this", "I'm bored of this",
+# "change the topic", "anything else"). Distinct from a topic REQUEST (which names a
+# target) and from SESSION_CONTROL (which wants to stop/pause). When this fires and
+# no concrete catalog topic is groundable, the tutor must offer a menu of OTHER
+# chapters rather than silently re-grounding on the concept the child just refused.
+DIFFERENT_TOPIC_RE = re.compile(
+    r"\bsomething (?:else|different|new|other)\b"
+    r"|\banything else\b"
+    r"|\b(?:a )?(?:different|another|new|other) (?:topic|chapter|subject|thing|concept)\b"
+    r"|\bchange (?:the )?(?:topic|subject|chapter)\b"
+    r"|\b(?:i'?m|i am|im) bored (?:of|with)\b"
+    r"|\b(?:i )?(?:do\s*n'?t|do not|dont) want to (?:learn|study|do|continue)\b",
+    re.IGNORECASE,
+)
+
+
+def wants_different_topic(text: str) -> bool:
+    """True when the child asks to move off the current topic without naming a new
+    one. Standalone runtime cue (no classifier/policy rebuild — same contract as the
+    other *_RE cues)."""
+    return bool(DIFFERENT_TOPIC_RE.search(text or ""))
 
 
 # A bare topic is a NOUN-PHRASE label ("Natural numbers", "Trigonometry"), never

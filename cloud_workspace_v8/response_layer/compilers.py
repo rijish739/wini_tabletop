@@ -43,7 +43,37 @@ def _text_pages(text: str, limit: int) -> list[str]:
     return pages
 
 
-def _compile_visual(beat, scene: dict | None, profile: dict) -> dict | None:
+def _compile_board_buddy(scene: dict, answer: str | None, profile: dict) -> dict | None:
+    """A scene-bearing beat on a Board-Buddy device compiles to a Board Buddy payload
+    instead of a scene_spec (§5).
+
+    Prefer a DIRECT Board Buddy author from the answer (the rich path: stickers, fraction,
+    numberline hops, geometry, graph + animate_param — the full v1.0 tool set), grounded by
+    the belt. It runs off the time-to-first-audio path (after generation, with the answer
+    audio already streaming), so its ~1s cost is hidden. Fall back to the conservative
+    scene->payload translation (text/graph only) when the author declines or errs, so a
+    Board-Buddy device always degrades to something drawable — and finally to the scene PNG
+    (caller) if even that is empty."""
+    from .board_buddy_author import (payload_has_animation, tmax_hint,
+                                     author_board_from_answer)
+    from .board_buddy_compile import compile_scene_to_board
+    payload = None
+    if answer:
+        try:
+            payload = author_board_from_answer(answer, profile=profile)
+        except Exception:  # noqa: BLE001 — a drawing failure never costs a turn
+            payload = None
+    if not payload:
+        payload = compile_scene_to_board(scene, answer=answer, profile=profile)
+    if not payload:
+        return None
+    return {"kind": "board_buddy_payload", "payload": payload,
+            "tmax": tmax_hint(payload), "animated": payload_has_animation(payload),
+            "narration_mode": NARRATION_SCRIPT_OVERRIDE}
+
+
+def _compile_visual(beat, scene: dict | None, profile: dict,
+                    answer: str | None = None) -> dict | None:
     intent = beat.visual_intent
     if intent is None or not intent.allowed or intent.visual_type == VisualType.NONE:
         return None
@@ -54,13 +84,32 @@ def _compile_visual(beat, scene: dict | None, profile: dict) -> dict | None:
                 "representation_target": intent.representation_target}
     if intent.visual_type in (VisualType.AUTHORED_SCENE,
                                VisualType.GENERATED_DECLARATIVE_SCENE_SPEC):
+        board_capable = bool(profile.get("renderer") == "board_buddy"
+                             or profile.get("supports_board_buddy"))
         if scene is not None:
             review = review_scene(scene)
             if not review.ok:
                 return None
+            # Board-Buddy device: emit the richer payload when the scene translates;
+            # otherwise fall through to the scene_spec PNG path (still valid on the Pi).
+            if board_capable:
+                board = _compile_board_buddy(scene, answer, profile)
+                if board is not None:
+                    return board
             return {"kind": "scene_spec",
                     "scene": scene_for_narration_mode(scene, NARRATION_SCRIPT_OVERRIDE),
                     "narration_mode": NARRATION_SCRIPT_OVERRIDE}
+        # No scene (scene_author declined — e.g. a qualitative GEOMETRY answer like "a right
+        # triangle" from which text-extraction found no groundable lines). A Board-Buddy
+        # device can STILL author the board schema DIRECTLY from the answer: the LLM emits
+        # Board Buddy elements (a `geometry` shape, stickers, ...) whose grounding needs no
+        # numeric lines, so the shape draws even when the scene path produced nothing. This
+        # is the "LLM output follows Board Buddy's schema exactly" path (user directive
+        # 2026-07-30); the belt still drops any ungrounded quantity.
+        if board_capable and answer:
+            board = _compile_board_buddy(None, answer, profile)
+            if board is not None:
+                return board
         if intent.visual_type == VisualType.AUTHORED_SCENE and intent.asset_ref:
             return {"kind": "authored_scene_ref", "asset_ref": intent.asset_ref,
                     "narration_mode": NARRATION_SCRIPT_OVERRIDE}
@@ -118,7 +167,8 @@ def compile_response(script: TeachingScript, *, answer: str | None = None,
             "claim": beat.atomic_learning_claim,
             "evidence_refs": list(beat.evidence_refs),
             "speech": {"text": spoken} if spoken else None,
-            "visual": _compile_visual(beat, scene if beat.shows_visual() else None, profile),
+            "visual": _compile_visual(beat, scene if beat.shows_visual() else None,
+                                      profile, answer=answer),
             "lvgl_text": {"pages": _text_pages(caption, max_text)} if caption else None,
             "interaction": _compile_interaction(beat, profile),
             "robot": robot,

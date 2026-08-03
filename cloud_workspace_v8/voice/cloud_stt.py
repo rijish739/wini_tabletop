@@ -1,9 +1,17 @@
 """Google Cloud Speech-to-Text adapter — English-only transcription.
 
-The Gemini Live model kept transcribing Indian-accented English into Telugu/Hindi
-script. Cloud STT lets us FORCE a single language (en-US), so output is always
-English. A maths phrase-hint set boosts domain words ("discriminant", "real
-roots", ...) that a generic model otherwise mangles ("railroads").
+GROUND TRUTH: this adapter transcribes to ENGLISH ONLY. The language is forced to
+``en-US`` (see ``__init__`` default below) and is never overridden by any call site,
+so the output is always Latin-script English text. It does NOT, and cannot, produce
+Hindi or Telugu output.
+
+Design note (why the language is pinned): the earlier Gemini Live STT path
+(``voice/gemini_live_stt.py``, now retired) auto-detected language and would render
+Indian-accented English into Telugu/Hindi script. Cloud STT lets us pin a single
+``language_code``, which is why this class exists and hard-codes English.
+
+A maths phrase-hint set boosts domain words ("discriminant", "real roots", ...) that
+a generic model otherwise mangles ("railroads").
 """
 
 from __future__ import annotations
@@ -23,6 +31,7 @@ MATHS_PHRASES = [
 class CloudStt:
     def __init__(self, language: str = "en-US", phrases: list[str] | None = None,
                  boost: float = 18.0, model: str = "latest_short") -> None:
+        # language defaults to en-US and every caller uses this default → English only.
         self.client = speech.SpeechClient()
         self.language = language
         self.model = model

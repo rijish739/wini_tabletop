@@ -32,6 +32,11 @@ from . import config
 from .route import INHERIT, INTENT_SET, RouteResult
 from .build_perception import build as _build_artifacts
 
+try:
+    import debug_logger as _dbg
+except ImportError:
+    _dbg = None  # type: ignore[assignment]
+
 
 def _clamp01(x) -> float:
     try:
@@ -158,11 +163,30 @@ class GeminiPerception:
         cached = self._cache.get(norm)
         if cached is not None:
             self.timing["memo_hits"] = self.timing.get("memo_hits", 0) + 1
+            if _dbg:
+                _dbg.emit(_dbg.L2, "perception_cache_hit", text_len=len(norm))
             return cached
+        if _dbg:
+            _dbg.emit(_dbg.L2, "perception_start", text=norm[:120])
         t0 = time.perf_counter()
         raw = self._invoke(norm, session or {})
         self._bump("invoke_ms", t0)
         perception = self._validate(raw)
+        # Emit a rich done event with the key decisions from this call
+        if _dbg:
+            try:
+                _intent = perception.get("intent") or (perception.get("route") or {}).get("primary") or "?"
+                _concept = perception.get("concept_id") or (perception.get("concept") or {}).get("concept_id") or "?"
+                _scores = perception.get("signal_scores") or {}
+                _sigs = [k for k, v in _scores.items() if v >= 0.2]
+                _gemini_ms = self.timing.get("gemini_ms", 0)
+                _dbg.emit(_dbg.L2, "perception_done",
+                          intent=_intent, concept=_concept,
+                          signals=_sigs,
+                          gemini_ms=_gemini_ms,
+                          invoke_ms=int((time.perf_counter() - t0) * 1000))
+            except Exception:  # noqa: BLE001 — debug must never break perception
+                pass
         self._cache[norm] = perception
         self._cache_order.append(norm)
         if len(self._cache_order) > self._cache_size:

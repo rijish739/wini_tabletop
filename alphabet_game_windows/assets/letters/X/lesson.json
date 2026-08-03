@@ -1,0 +1,34 @@
+{
+  "letter": "X",
+  "phoneme": "ks",
+  "say": "ksss",
+  "objects": [
+    {
+      "name": "Xylophone",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "A",
+    "X",
+    "Y",
+    "Z"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter X.",
+    "listen": "X says ksss.",
+    "touch_ask": "Can you touch X?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say ksss?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. ksss.",
+    "repeat_move_on": "Thank you for trying. We will say ksss again soon.",
+    "assoc": "Xylophone begins with X.",
+    "activity_ask": "Can you bring me the xylophone?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned X today. X for a xylophone."
+  }
+}

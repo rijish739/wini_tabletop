@@ -3,6 +3,8 @@
 # service never imports, and every backup/scratch artifact.
 .git
 .gitignore
+.claude
+.claude/
 google-cloud-sdk
 **/__pycache__
 *.pyc

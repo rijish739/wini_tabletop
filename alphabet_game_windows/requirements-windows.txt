@@ -1,0 +1,14 @@
+# Windows port of the Wini alphabet game.
+#
+# Minimum to RUN the game with the bundled voice cache (no cloud account needed):
+pygame>=2.5
+
+# Optional — only needed to (a) synthesize NEW/uncached spoken lines, (b) use the
+# Stage-4 microphone, or (c) run the Gemini attempt-judge. These require Google
+# Cloud credentials (ADC) configured on the machine; without them the game still
+# runs and speaks every cached line.
+python-dotenv
+google-cloud-texttospeech
+google-cloud-speech
+sounddevice            # microphone capture for Stage 4 (needs PortAudio)
+Pillow                 # only for gen_assets.py, to regenerate artwork

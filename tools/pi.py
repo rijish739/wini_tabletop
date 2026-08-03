@@ -33,7 +33,7 @@ for _s in (sys.stdout, sys.stderr):
 
 # winipi5.local resolves only over IPv6 here and mDNS is flaky, so the IPv4 is pinned.
 # If the board moves, find it with `arp -a` (Raspberry Pi OUI 2c:cf:67) and set PI_HOST.
-HOST = os.getenv("PI_HOST", "192.168.29.24")
+HOST = os.getenv("PI_HOST", "winipi5.local")  # mDNS works on this LAN; fallback IP: 192.168.0.104
 USER = os.getenv("PI_USER", "winipi5")
 PASS = os.getenv("PI_PASS")
 REPO = "/home/winipi5/cloud_tutor/cloud-CLI"

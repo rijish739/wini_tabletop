@@ -1,0 +1,34 @@
+{
+  "letter": "S",
+  "phoneme": "sss",
+  "say": "sss",
+  "objects": [
+    {
+      "name": "Sun",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "S",
+    "T",
+    "U",
+    "V"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter S.",
+    "listen": "S says sss.",
+    "touch_ask": "Can you touch S?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say sss?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. sss.",
+    "repeat_move_on": "Thank you for trying. We will say sss again soon.",
+    "assoc": "Sun begins with S.",
+    "activity_ask": "Can you bring me the sun?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned S today. S for a sun."
+  }
+}

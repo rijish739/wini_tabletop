@@ -2832,9 +2832,25 @@ class TutorLoop:
                 from response_layer.compilers import compile_response
                 script = getattr(self, "_response_script", None)
                 if script is not None:
-                    rl_visual["response_bundle"] = compile_response(
+                    bundle = compile_response(
                         script, answer=answer, scene=rl_visual.get("scene"),
                         profile=script.device_profile)
+                    rl_visual["response_bundle"] = bundle
+                    # Board Buddy (BOARD_BUDDY_INTEGRATION_PLAN.md §3.1, §6.2): on a
+                    # board-capable device the earned visual compiled to a Board Buddy
+                    # payload. Surface it on the visual directive so it rides turn_meta as
+                    # a small JSON blob (§6.2 "payload crossing the wire is small JSON") —
+                    # the client's board_buddy_sink opens the child, renders it around the
+                    # streamed audio, and closes it. Non-board devices never see this key.
+                    board = next((b["visual"] for b in bundle.get("beats", [])
+                                  if isinstance(b.get("visual"), dict)
+                                  and b["visual"].get("kind") == "board_buddy_payload"), None)
+                    if board is not None:
+                        rl_visual["board_payload"] = board.get("payload")
+                        rl_visual["board_tmax"] = board.get("tmax", 0.0)
+                        rl_visual["board_animated"] = bool(board.get("animated"))
+                        print(f"[tutor] board buddy payload "
+                              f"({len(board.get('payload') or [])} elements) on turn_meta")
             except Exception as e:  # noqa: BLE001 — compilation degrades independently
                 print(f"[tutor] response compilation skipped: {e}")
 

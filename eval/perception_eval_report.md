@@ -1,6 +1,6 @@
 # Perception eval report (Part 11 Stage 2)
 
-> **Measured 2026-07-02** over **999 cached TEST rows** (`perception_eval_raw2.jsonl`) — **§5.5-hardened** (always-fill secondary_concepts, MiniLM candidate_concepts hints, resolver cross-check on the primary) + 20 authored intent probes. Gemini `gemini-2.5-flash` @ `asia-south1`, `temperature=0`, enum-constrained schema (108 concepts + INHERIT, 38 signals, 8 intents). CLAUDE.md: these numbers are re-measured, not hand-edited.
+> **Measured 2026-07-25** over **999 cached TEST rows** (`perception_eval_raw2.jsonl`) — **§5.5-hardened** (always-fill secondary_concepts, MiniLM candidate_concepts hints, resolver cross-check on the primary) + 20 authored intent probes. Gemini `gemini-2.5-flash` @ `asia-south1`, `temperature=0`, enum-constrained schema (108 concepts + INHERIT, 38 signals, 8 intents). CLAUDE.md: these numbers are re-measured, not hand-edited.
 
 ## Promotion to Stage 4: **GO**
 

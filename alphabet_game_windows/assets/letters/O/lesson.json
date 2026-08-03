@@ -1,0 +1,34 @@
+{
+  "letter": "O",
+  "phoneme": "oh",
+  "say": "oh",
+  "objects": [
+    {
+      "name": "Orange",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "O",
+    "P",
+    "Q",
+    "R"
+  ],
+  "mini_game": "feed",
+  "edible": true,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter O.",
+    "listen": "O says oh.",
+    "touch_ask": "Can you touch O?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say oh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. oh.",
+    "repeat_move_on": "Thank you for trying. We will say oh again soon.",
+    "assoc": "Orange begins with O.",
+    "activity_ask": "I am hungry. Can you give me the orange?",
+    "activity_ok": "Yummy! Thank you.",
+    "complete": "We learned O today. O for an orange."
+  }
+}

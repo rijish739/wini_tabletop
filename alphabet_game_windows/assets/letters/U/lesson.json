@@ -1,0 +1,34 @@
+{
+  "letter": "U",
+  "phoneme": "uh",
+  "say": "uh",
+  "objects": [
+    {
+      "name": "Umbrella",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "U",
+    "V",
+    "W",
+    "X"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter U.",
+    "listen": "U says uh.",
+    "touch_ask": "Can you touch U?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say uh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. uh.",
+    "repeat_move_on": "Thank you for trying. We will say uh again soon.",
+    "assoc": "Umbrella begins with U.",
+    "activity_ask": "Can you bring me the umbrella?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned U today. U for an umbrella."
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "letter": "B",
+  "phoneme": "buh",
+  "say": "buh",
+  "objects": [
+    {
+      "name": "Ball",
+      "image": "object.png"
+    }
+  ],
+  "choices": [
+    "B",
+    "C",
+    "D",
+    "E"
+  ],
+  "mini_game": "give",
+  "edible": false,
+  "lines": {
+    "intro": "Hello. Today we are meeting the letter B.",
+    "listen": "B says buh.",
+    "touch_ask": "Can you touch B?",
+    "touch_ok": "Thank you! I found it.",
+    "touch_retry": "Let's look again, together.",
+    "repeat_ask": "Can you say buh?",
+    "repeat_ok": "That was lovely. Thank you.",
+    "repeat_retry": "Let's try together. buh.",
+    "repeat_move_on": "Thank you for trying. We will say buh again soon.",
+    "assoc": "Ball begins with B.",
+    "activity_ask": "Can you bring me the ball?",
+    "activity_ok": "Thank you! I like it.",
+    "complete": "We learned B today. B for a ball."
+  }
+}

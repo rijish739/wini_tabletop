@@ -37,7 +37,12 @@ from .contracts import (
     TeachingScript,
     VisualType,
 )
-from .device_profile import DeviceCapabilityProfile, WINIPI5_PROFILE, profile_from_report
+from .device_profile import (
+    DeviceCapabilityProfile,
+    ESP32_P4_PROFILE,
+    WINIPI5_PROFILE,
+    profile_from_report,
+)
 
 __all__ = [
     "AssessmentHook",
@@ -52,6 +57,7 @@ __all__ = [
     "VisualType",
     "DeviceCapabilityProfile",
     "WINIPI5_PROFILE",
+    "ESP32_P4_PROFILE",
     "profile_from_report",
     # Planner / validator / adapter are imported lazily by callers to keep this
     # package importable (for the pure-data contracts + unit tests) without pulling

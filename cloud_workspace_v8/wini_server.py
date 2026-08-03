@@ -1,19 +1,18 @@
-"""Wini brain service — the WHOLE pipeline behind one HTTP endpoint.
+"""Wini brain service — the whole tutoring pipeline behind one HTTP endpoint.
 
-This is the cloud side of the thin-client split (CLAUDE.md deployment mandate:
-device = mic + speaker + display + touch, no brain on device). Everything a turn
-needs happens HERE, server-side:
+This is the cloud side of the thin-client design: the device handles only mic +
+speaker + display + touch, and everything a turn needs runs HERE on the server.
 
     audio in ──► Cloud STT ──► TutorLoop (Gemini perception + generation,
-                 (en-US)       retrieval, state, T9 display pick)
+                 (en-US)       retrieval, learner state, teaching-figure pick)
                                     │
               JSON out ◄── Cloud TTS (en-IN Chirp3-HD) ◄── sanitize_for_speech
               {transcript, answer, display[metadata], audio_b64, session_ended}
 
-The client never talks to Google APIs and never sees model SDKs — its whole
-contract is this server's two POST routes (see wini_client/README.md). Today the
-server runs on the Jetson beside the client; on Cloud Run the SAME file runs
-unchanged (PORT env, learner state moves to Firestore later).
+The client never calls Google APIs and never touches a model SDK — its entire
+contract is the two POST routes below. The service runs on Cloud Run (PORT env);
+per-learner state lives in Firestore when WINI_STATE_BACKEND=firestore, otherwise
+in a local JSON file.
 
 Endpoints
     GET  /health              -> {"ok": true, "ready": true|false, ...}
@@ -21,38 +20,35 @@ Endpoints
                               -> turn JSON (display metadata always included)
     POST /voice_turn          <- raw LINEAR16 mono int16 PCM body,
                                  header X-Sample-Rate (default 16000)
-                              -> NDJSON stream, one JSON object per line:
-                                 {"part":"filler", "filler", "bank", "transcript",
-                                   "audio_b64", "audio_rate"} — optional, flushed
-                                   early: a short cognitive-state phrase
-                                   (voice/filler_banks.py) picked from the
-                                   perception analysis and synthesised BEFORE
-                                   generation. Filler audio only with WINI_FILLERS=1.
-                                 {"part":"turn_meta", ...} — the whole turn minus
-                                   audio, so the client can drive the display/UI.
-                                 {"part":"audio","seq":N,"audio_b64","audio_rate"}
-                                   — Part 13 Stage 1: the answer's PCM in order as
-                                   it is synthesised, so playback starts ~0.3-1.0 s
-                                   in rather than after the whole answer exists.
-                                 last line: turn JSON + "audio_b64"/"audio_rate"
-                                 (24 kHz PCM). Non-stream readers that parse only
-                                 the final line still get the full turn — the
-                                 complete audio rides on it even when it was also
-                                 streamed. Streaming clients see "audio_streamed":
-                                 true and must SKIP that final audio, or the answer
-                                 is spoken twice.
+                              -> NDJSON stream, one JSON object per line (see below)
 
-                                 Ordering note: with streamed generation (Stage 2)
-                                 the first audio chunk can precede "turn_meta" —
-                                 speech starts before the turn is fully decided.
-                                 Clients must handle either order.
+/voice_turn stream lines, in the order the client usually sees them:
 
-Display contract (ESP32 SD-card design, JETSON_PIPELINE_RUNBOOK.md §14.3): the
-response carries METADATA ONLY — `display[].image_path` is the stable image ID the
-device resolves against its own copy of rag_store/figure_crops/.
+    {"part":"filler", ...}    Flushed early, as soon as STT + perception finish and
+                              BEFORE the answer is generated, so the client can react
+                              (show the transcript / a "thinking" face). Carries the
+                              resolved concept. Includes a short spoken cognitive-state
+                              phrase (voice/filler_banks.py) only when WINI_FILLERS=1.
+    {"part":"audio","seq":N}  Answer PCM streamed in order as it is synthesised, so
+                              playback starts ~0.3-1.0 s in instead of after the whole
+                              answer exists (Part 13 Stage 1).
+    {"part":"turn_meta", ...} The whole turn minus audio, so the client can drive the
+                              display / UI.
+    final line                Turn JSON plus the complete answer audio ("audio_b64" /
+                              "audio_rate", 24 kHz PCM). A non-stream reader that parses
+                              only this last line still gets a full turn. Streaming
+                              clients see "audio_streamed":true here and MUST skip this
+                              audio, or the answer plays twice.
+
+    Ordering note: with streamed generation (Stage 2) the first audio chunk can arrive
+    before "turn_meta" — speech starts before the turn is fully decided. Clients must
+    handle either order.
+
+Display contract: the response carries METADATA ONLY — `display[].image_path` is a
+stable image ID the device resolves against its own local copy of the figure crops.
 
 Run:  python wini_server.py [--port 8123]
-Env:  GEN_BACKEND=gemini (the point), WINI_SERVER_PORT, plus the usual Vertex vars.
+Env:  GEN_BACKEND=gemini, WINI_SERVER_PORT / PORT, plus the usual Vertex vars.
 """
 
 from __future__ import annotations
@@ -151,19 +147,19 @@ class Brain:
                 f_gem.result()
             print(f"[server] components built in "
                   f"{(time.perf_counter() - t_boot) * 1000:.0f} ms")
-            # Pacing governor — same before_turn/turn/after_turn sequence the
-            # retired ROS brain node ran. Best-effort: any failure falls back
-            # to a plain, unbudgeted turn.
+            # Pacing governor: runs the before_turn / turn / after_turn sequence
+            # that sets each turn's answer budget. Best-effort — any failure falls
+            # back to a plain, unbudgeted turn.
             try:
                 from pacing.pacing_controller import PacingController
                 self.pacing = PacingController()
             except Exception as e:  # noqa: BLE001
                 print(f"[server] pacing unavailable: {e}")
                 self.pacing = None
-            # SPOKEN fillers are opt-in (WINI_FILLERS=1) — rejected on the Jetson
-            # rig as artificial; the client masks generation latency with a
-            # "thinking" face instead (/wini/thinking, see wini_touch_trigger.py).
-            # The early NDJSON transcript line is streamed either way.
+            # SPOKEN fillers are opt-in (WINI_FILLERS=1): in testing they felt
+            # artificial, so by default the client masks generation latency with a
+            # "thinking" face instead. The early NDJSON transcript line is streamed
+            # either way.
             self.fillers = None
             if os.getenv("WINI_FILLERS", "0").lower() not in ("0", "false", ""):
                 try:
@@ -241,9 +237,9 @@ class Brain:
                 self._state_store = None
             # A fresh brain process IS a fresh session (§6.4): drop the
             # session-scoped no-repeat sets so retrieval starts from the full
-            # candidate pool again. Without this they persisted in
-            # learner_state.json across every run and grew without bound —
-            # 593 chunks were permanently blacklisted on the device (audit A-7).
+            # candidate pool again. Without this they persist in learner_state.json
+            # across every run and grow without bound — an earlier bug left 593
+            # chunks permanently blacklisted (audit A-7).
             try:
                 cleared = self.tutor.state.begin_session()
                 self.tutor.state.save()

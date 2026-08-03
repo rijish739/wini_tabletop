@@ -412,6 +412,19 @@ cold-start mastery of **0.30**, exactly like unseen Class-10 concepts.
 - response latency pattern
 - rolling HOPE scores (recent KI / KT / CT averages — used by retrieval ranking, §6.7)
 
+### State persistence backend (Part 15 Phase E)
+
+The learner model lives in memory (`LearnerState.data`) and persists behind a pluggable
+backend (`state_backend.py`, `WINI_STATE_BACKEND=json|firestore`). `json` (default) keeps the
+atomic local file. `firestore` stores the whole state as **one JSON field** in a per-learner
+document (regional, `asia-south1`) — the durable store when the local disk is ephemeral (Cloud
+Run). **Contract:** the in-memory copy is the working copy; the durable store is read once at
+turn start (instance startup) and written once at the **turn boundary** — **never mid-turn**,
+so no network hop enters the sub-100 ms state math. Turns are half-duplex per learner
+(`concurrency=1`), so a single-field last-writer-wins `set` is atomic and correct. Verified:
+a learner's mastery/misconception state survives an instance restart (a fresh instance loads
+the document, does not cold-start over it).
+
 ### Write-back APIs (state is updated by evidence, not only by inference)
 
 The learner state is not write-only from the Cognitive Analyzer. Two structured outcome APIs
@@ -826,10 +839,23 @@ real match tops out near 0.24). Candidates below it are ineligible; if none
 qualify the ranker returns empty with `ranking_trace.abstained = true` and a
 reason. The same principle governs two other selections that had no floor:
 
-- the tier-3 **teaching visual** (`T9_VISUAL_MIN_RELEVANCE`, 0.30) — being tagged
-  with the resolved concept is not evidence that a crop illustrates *this*
+- the tier-3 **teaching visual** (`T9_VISUAL_MIN_RELEVANCE`, **0.42**) — being
+  tagged with the resolved concept is not evidence that a crop illustrates *this*
   utterance. Failing the floor means showing **no** visual: one that contradicts
   the speech is worse than none.
+
+  The converse also holds, and cost a wrong picture in the field (2026-07-23):
+  **not** being tagged is not evidence that a crop *doesn't* illustrate it. Crop
+  concept tags are uneven — the Qutub Minar diagram carries only the legacy
+  `trigonometry` / `grade9::right_triangles` tags — so a hard tag filter hid the
+  one right figure and showed a generic lettered triangle in its place. Selection
+  is therefore **relevance-first**: every crop is scored against the utterance,
+  and the concept tag is a tie-break bonus (`T9_CONCEPT_BONUS`, 0.12), never a
+  veto. Admission is by origin — the resolved concept's chapter, the concept's
+  own tag, or, from further afield, a distinctly higher bar
+  (`T9_CROSS_CHAPTER_MIN`, 0.57), because a figure and the concept that uses it
+  can live in different chapters. Portraits of mathematicians are excluded by
+  kind: they caption well enough to win on topic and teach nothing.
 - the **prerequisite bridge** (`MIN_BRIDGE_RELEVANCE`, 0.20, §6.8) — the gate
   used to select on graph adjacency and mastery alone, which was both unstable
   and often irrelevant, and it arms a *graded* `pending_check`.

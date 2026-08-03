@@ -23,6 +23,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field, fields
 from typing import Any
 
+from .board_buddy_caps import STICKER_NAMES as _BB_STICKERS
+from .board_buddy_caps import ALL_TOOLS as _BB_ALL_TOOLS
 from .contracts import RobotPrimitive, _to_jsonable
 
 PROFILE_SCHEMA_VERSION = 1
@@ -44,6 +46,15 @@ class DeviceCapabilityProfile:
     supports_authored_scene: bool = True
     supports_animation: bool = True
     supports_interactive_visual: bool = False         # Phase-3+ touch widgets
+    # Board Buddy (BOARD_BUDDY_INTEGRATION_PLAN.md §5, §10.1). A device that can run the
+    # pygame/matplotlib Board Buddy surface reports supports_board_buddy=True and, when it
+    # ships only a SUBSET of the 8 tools / sticker library, lists what it has so the
+    # authoring belt honours the subset (empty list => the full v1.0 set). The ESP32-P4
+    # LVGL target cannot run pygame, so its profile keeps this False and the validator
+    # degrades to retrieved_crop / static_text_formula (§6.9).
+    supports_board_buddy: bool = False
+    board_buddy_tools: list[str] = field(default_factory=list)
+    board_buddy_sticker_names: list[str] = field(default_factory=list)
     # touch
     touch_present: bool = True
     # audio
@@ -96,6 +107,26 @@ WINIPI5_PROFILE = DeviceCapabilityProfile(
     firmware_version="winipi5-labwc-wayland",
     robot_primitives=[],
     known_disabled_features=["robot_motors", "robot_ears"],
+    # Board Buddy v1.0 is installed + unit-tested + rendering live on the Pi (§7 Phase 0),
+    # with the full tool + sticker set. Empty subset lists would also mean "full set", but
+    # spell it out so the profile is self-describing.
+    supports_board_buddy=True,
+    board_buddy_tools=list(_BB_ALL_TOOLS),
+    board_buddy_sticker_names=list(_BB_STICKERS),
+)
+
+#: The real hardware roadmap (memory hardware-target-esp32p4): ESP32-P4 + LVGL, which
+#: CANNOT run pygame/matplotlib. supports_board_buddy=False -> the validator degrades to a
+#: retrieved crop / static formula text (§6.9). Robot embodiment (ESP-SR + body) is future.
+ESP32_P4_PROFILE = DeviceCapabilityProfile(
+    device_class="esp32_p4",
+    firmware_version="esp32p4-lvgl",
+    display_w=600, display_h=1024,
+    renderer="lvgl",
+    supports_animation=False,
+    supports_board_buddy=False,
+    robot_primitives=[],
+    known_disabled_features=["pygame", "matplotlib", "board_buddy"],
 )
 
 

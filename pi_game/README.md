@@ -83,6 +83,87 @@ cmake --build pi_game/alphabet_ui/build -j4
 LVGL is **not vendored here** — the build reuses `wini_ui/lvgl` so both products
 stay on one engine.
 
+## Kannada (ಕನ್ನಡ swaragalu)
+
+The module teaches two alphabets on one engine. English is unchanged; Kannada
+adds the **13 swaragalu** (ಅ ಆ ಇ ಈ ಉ ಊ ಋ ಎ ಏ ಐ ಒ ಓ ಔ) as phase one — the
+vyanjanagalu (~34) are phase two, same pattern. The two yogavaahakalu (ಅಂ ಅಃ)
+are deferred: they are recited with the swaragalu but have no word-initial
+examples to anchor a lesson.
+
+**The language seam** (`languages.py`) bundles the four things that differ per
+alphabet — content module, Cloud voice + STT locale, asset directory, and the TTF
+`gen_assets` rasterizes from:
+
+| | English | Kannada |
+|---|---|---|
+| content | `content.py` | `content_kn.py` (ids are ASCII slugs `a`,`aa`,…; the akshara is `char`) |
+| assets | `assets/letters/<A>/` | `assets/kn/letters/<slug>/` |
+| voice / STT | `en-IN` | `kn-IN` (`ALPHABET_TTS_VOICE_KN`, default `kn-IN-Chirp3-HD-Achernar`) |
+| glyph font | Nunito | Noto Sans Kannada (`ALPHABET_FONT_KN`) |
+
+Progress is namespaced by language (a `lang` column, auto-migrated), so English A
+and Kannada ಅ never collide and resume is per-alphabet. The repeat-stage judge has
+a Kannada path (`speech._judge_attempt_kn`) that accepts the bare/held vowel but
+**rejects a word that merely starts with it** (ಆನೆ is not ಆ) — the Kannada form of
+the English "word starting with the letter" trap.
+
+**On-device build:**
+
+```bash
+# 1. a Kannada face for gen_assets (glyphs are PNGs, so this is a build-time dep
+#    only — the runtime uses the PNGs, not the font). No-sudo install, verified
+#    on winipi5 (2026-07-29):
+mkdir -p ~/.local/share/fonts
+curl -fsSL https://raw.githubusercontent.com/googlefonts/noto-fonts/main/hinted/ttf/NotoSansKannada/NotoSansKannada-Regular.ttf \
+  -o ~/.local/share/fonts/NotoSansKannada-Regular.ttf
+fc-cache -f ~/.local/share/fonts && fc-list | grep -i kannada
+# then point gen_assets at it (or apt-install fonts-noto and use the default path):
+export ALPHABET_FONT_KN=~/.local/share/fonts/NotoSansKannada-Regular.ttf
+
+# 2. render the Kannada assets (lesson.json + glyph/object PNGs)
+.venv/bin/python -m pi_game.gen_assets --lang kn --force
+
+# 3. cache every Kannada line (billed once); --prewarm-all does both languages
+.venv/bin/python -m pi_game.alphabet_server --prewarm-lang kn
+
+# 4. run Kannada now, before the start-screen toggle exists:
+ALPHABET_LANG=kn ./pi_game/run_alphabet.sh        # a separate desktop icon can set it
+
+# verify headless (no panel, no mic):
+ALPHABET_NO_MIC=1 .venv/bin/python -m pi_game.drive_lesson --lang kn --letter a
+```
+
+If a Chirp3-HD Kannada voice isn't available on the project, set
+`ALPHABET_TTS_VOICE_KN=kn-IN-Wavenet-A` (confirm with the Cloud TTS voice list).
+
+**The C UI (built).** Two things had to change in `alphabet_ui/`:
+
+1. **Kannada text is rendered as IMAGES, not an LVGL font.** LVGL v9 draws a
+   bitmap font codepoint-by-codepoint with no complex-script shaping, so a Kannada
+   LVGL font (via `lv_font_conv`) comes out broken — conjuncts don't form (ಕ್ಷ in
+   ಅಕ್ಷರ, ಸ್ಕ in ನಮಸ್ಕಾರ) and matras detach. Instead the brain renders each Kannada
+   line with Pillow + libraqm (`textimg.py`, verified `HAVE_RAQM` on the Pi, which
+   shapes correctly) and ships it as a PNG: stage messages carry `text_img`
+   (instruction) and `word_img` (object word), and `ready` carries `kn_label_img`
+   (the "ಕನ್ನಡ" toggle label). The UI blits these; English keeps native text
+   labels. `s_instr` / `s_instr_img` share the instruction slot, one visible at a
+   time. **No node / lv_font_conv is needed** — this was the wrong path.
+2. **A start-screen toggle** (English / ಕನ್ನಡ). `ipc_send_begin(letter, lang)`
+   emits `{"event":"begin","lang":"kn",…}`; `ALPHABET_LANG` still overrides it.
+
+**Audio on winipi5 uses `pw-play`, not `aplay`.** PipeWire owns the reSpeaker's
+single playback substream, so an exclusive `aplay -D plughw:CARD=Lite` gets
+"Device or resource busy" and there is no ALSA `pipewire` PCM to route around it —
+the lesson runs but is silent. `speech.play()` now prefers `pw-play` when present
+(overridable with `ALPHABET_PLAYER=pwplay|aplay`), falling back to aplay on boards
+without PipeWire.
+
+**Content note:** the akshara→word→art table in `content_kn.py` uses standard
+primer choices; four reuse English art where the Kannada word fits (ಅರಮನೆ→house,
+ಈಚಲು→tree, ಎಲೆ→leaf, ಐಸ್ ಕ್ರೀಂ→ice-cream). Worth a native-speaker pass before it
+ships to a child.
+
 ## Verifying without touching the device
 
 ```bash

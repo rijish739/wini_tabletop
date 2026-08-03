@@ -1,0 +1,17 @@
+[Desktop Entry]
+# Canonical launcher for the device desktop. Install with:
+#   cp Wini.desktop ~/Desktop/Wini.desktop && chmod +x ~/Desktop/Wini.desktop
+#
+# It runs the SAME script as `bash run_wini_package.sh` — brain + voice client +
+# touch UI — so the icon and the shell command are one path with one behaviour.
+# Launching from the seat matters: the processes inherit DISPLAY/XAUTHORITY and
+# the desktop PipeWire session (a bare-SSH launch has no audio session).
+# Terminal=false means no output is visible; the script tees to logs/launch.log.
+Type=Application
+Name=Wini Tutor
+Comment=Start Wini - brain, voice client and touch UI
+Exec=/bin/bash /home/winipi5/cloud_tutor/cloud-CLI/run_wini_package.sh
+Path=/home/winipi5/cloud_tutor/cloud-CLI
+Icon=face-smile
+Terminal=false
+Categories=Education;

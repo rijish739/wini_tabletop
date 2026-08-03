@@ -1,0 +1,251 @@
+{
+  "version": 1,
+  "concept_id": "jemh104__discriminant_nature_of_roots",
+  "title": "Discriminant and Nature of Roots",
+  "canvas": {
+    "w": 500,
+    "h": 380,
+    "pad_top": 30,
+    "pad_bottom": 20,
+    "pad_left": 20,
+    "pad_right": 20,
+    "equal_aspect": false
+  },
+  "view": {
+    "x0": 0,
+    "y0": 0,
+    "x1": 1,
+    "y1": 1
+  },
+  "base": [],
+  "beats": [
+    {
+      "narration": "Let's find the nature of the roots of two x squared plus three x minus five equals zero.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "2x² + 3x − 5 = 0",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.24
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "accent",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_1"
+      ]
+    },
+    {
+      "narration": "Identify a as two, b as three, and c as minus five.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "a = 2,  b = 3,  c = −5",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.372
+          ],
+          "anchor": "center",
+          "size": 20,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_2"
+      ]
+    },
+    {
+      "narration": "The discriminant D is b squared minus four a c.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "D = b² − 4ac",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.504
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_3"
+      ]
+    },
+    {
+      "narration": "Substitute the values.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "D = 3² − 4·2·(−5)",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.636
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_4"
+      ]
+    },
+    {
+      "narration": "That is nine plus forty, which equals forty-nine.",
+      "anim_ms": 600,
+      "hold_ms": 1100,
+      "in": [
+        {
+          "t": "label",
+          "text": "D = 9 + 40 = 49",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.768
+          ],
+          "anchor": "center",
+          "size": 23,
+          "color": "ink",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_5"
+      ]
+    },
+    {
+      "narration": "Since D is greater than zero, there are two distinct real roots.",
+      "anim_ms": 600,
+      "hold_ms": 1800,
+      "in": [
+        {
+          "t": "label",
+          "text": "D > 0  →  two real roots",
+          "space": "canvas",
+          "at": [
+            0.5,
+            0.9
+          ],
+          "anchor": "center",
+          "size": 20,
+          "color": "accent",
+          "anim": "fade"
+        }
+      ],
+      "claim_tags": [
+        "visual_step_6"
+      ]
+    }
+  ],
+  "adaptation_contract": {
+    "schema_version": 1,
+    "allowed_narration_modes": [
+      "as_authored",
+      "script_override",
+      "visual_only"
+    ],
+    "default_live_narration_mode": "script_override",
+    "claims": [
+      {
+        "claim_id": "visual_step_1",
+        "claim": "Visual step: 2x² + 3x − 5 = 0",
+        "tags": [
+          "visual",
+          "beat:0",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      },
+      {
+        "claim_id": "visual_step_2",
+        "claim": "Visual step: a = 2,  b = 3,  c = −5",
+        "tags": [
+          "visual",
+          "beat:1",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      },
+      {
+        "claim_id": "visual_step_3",
+        "claim": "Visual step: D = b² − 4ac",
+        "tags": [
+          "visual",
+          "beat:2",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      },
+      {
+        "claim_id": "visual_step_4",
+        "claim": "Visual step: D = 3² − 4·2·(−5)",
+        "tags": [
+          "visual",
+          "beat:3",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      },
+      {
+        "claim_id": "visual_step_5",
+        "claim": "Visual step: D = 9 + 40 = 49",
+        "tags": [
+          "visual",
+          "beat:4",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      },
+      {
+        "claim_id": "visual_step_6",
+        "claim": "Visual step: D > 0  →  two real roots",
+        "tags": [
+          "visual",
+          "beat:5",
+          "concept:jemh104__discriminant_nature_of_roots"
+        ]
+      }
+    ],
+    "beat_to_claims": {
+      "0": [
+        "visual_step_1"
+      ],
+      "1": [
+        "visual_step_2"
+      ],
+      "2": [
+        "visual_step_3"
+      ],
+      "3": [
+        "visual_step_4"
+      ],
+      "4": [
+        "visual_step_5"
+      ],
+      "5": [
+        "visual_step_6"
+      ]
+    },
+    "review": {
+      "status": "approved",
+      "reviewed_by": "response_layer_phase_2_5",
+      "note": "Live speech is owned by the Teaching Script; authored narration is demo-only."
+    }
+  }
+}

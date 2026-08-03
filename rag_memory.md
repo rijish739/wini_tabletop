@@ -1010,3 +1010,36 @@ the policy-shadow label space.
 `tutor_loop.py` on the device was BEHIND the laptop (missing the 2026-07-20 formula-links
 block); pushing the laptop copy carries that block, which is inert without
 `rag_store/formula_links.json` — still not deployed to `winipi5`.
+
+### Part 15 — Cloud Run + Firestore deployment (2026-07-25)
+
+The brain now runs as a warm Cloud Run service (`wini-brain`, asia-south1, min-instances=1,
+concurrency=1) with learner state in Firestore. Traps found, so they aren't rediscovered:
+
+- **flash-lite is SLOWER here, not faster.** The plan's Gemini 3.x targets don't exist; the
+  only real faster model (`gemini-2.5-flash-lite`) isn't in `asia-south1` (only `global`/
+  `us-central1`) and measured slower than `gemini-2.5-flash@asia-south1` on short replies. The
+  model swap is a regression — Phase C shipped as a revertible seam only, no flip.
+- **`--no-cpu-throttling` is mandatory on Cloud Run for this brain.** It loads in a background
+  thread (`Brain._load`); Cloud Run throttles CPU outside request handling, which would stall
+  that thread and the instance would never become `ready`. Always-allocated CPU keeps min-
+  instances warm and lets the load complete.
+- **Cloud Build uses `.gcloudignore` (NOT `.dockerignore`) to decide the UPLOAD.** Without a
+  `.gcloudignore` the bundled `google-cloud-sdk/` + `.git` inflate the context. Ship both.
+- **Cloud Build now runs as the Compute Engine default SA.** On a fresh project it lacks
+  `storage.objects.get` on the source bucket → 403 "could not resolve source". Grant
+  `<projnum>-compute@` roles/cloudbuild.builds.builder + storage.admin + artifactregistry.writer
+  + logging.logWriter.
+- **CPU-only torch.** Install `torch==2.6.0 --index-url https://download.pytorch.org/whl/cpu`
+  before the rest — the default index pulls multi-GB CUDA the container can't use. Bake MiniLM
+  in the image (`SentenceTransformer(...)` at build) so a cold instance never blocks on a
+  HuggingFace download.
+- **Firestore state = one JSON field.** Storing `LearnerState.data` as a native map trips
+  Firestore's no-nested-arrays rule; serialize the whole dict to a `state_json` string field —
+  atomic, last-writer-wins, no type limits.
+- **Parallel grader is outcome-identical.** `WINI_PARALLEL_GRADER` runs `judge_answer` alongside
+  perception and injects `precomputed_grade`; it is consumed only where the serial path would
+  have graded, so a non-attempt still scores `not_an_answer`. Proven by equivalence test.
+- **Streaming STT parity needs real-time pacing + a tail-guard.** Dumping all audio blocks
+  instantly drops the final word and looks like a regression; pacing blocks at ~50 ms (as the
+  device streams) plus keeping the last un-finalized interim gives 20/20 batch parity.
