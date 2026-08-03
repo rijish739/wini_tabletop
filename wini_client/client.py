@@ -44,30 +44,101 @@ RATE = 16000
 # platform seam 1: microphone (RMS auto-endpoint, ~40 lines, no model)
 # ---------------------------------------------------------------------------
 
-def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int = 1200,
+# ── VAD tuning (Part 13 follow-up, 2026-07-23) ─────────────────────────────
+#
+# The old endpointer compared RMS against ONE fixed threshold (0.018) for both
+# starting and stopping. On the Pi that is above the room's noise floor for
+# starting but BELOW it for stopping, so the "is it quiet again?" test never
+# passed: every measured turn on the device ended with reason="hard_cap",
+# capture_ms=15000, hangover_ms=0 — the child spoke for 3 s and then waited 12 s
+# in silence, and STT then paid ~3.5 s to transcribe 15 s of mostly nothing.
+#
+# The replacement tracks the actual noise floor and uses hysteresis: a loud
+# START gate keeps room noise from triggering a turn, a lower STOP gate lets a
+# sentence trail off without re-arming on the room tone between words.
+# Measured on winipi5's reSpeaker Lite, 2026-07-23 (tools/mic_floor.py and
+# tools/mic_speech_level.py, both checked in so this is re-derivable):
+#     idle floor   p50 0.0239, max 0.0303   <- the capture chain's OWN noise
+#     speech       p50 0.0763, p90 0.2487, peaks 0.43
+# The floor sits ABOVE the old fixed 0.018 gate — 0% of idle blocks fell below
+# it — which is the whole bug: "quiet" was unreachable, so no turn could ever
+# end and every one ran to the 15 s cap.
+VAD_ABS_FLOOR = 0.006      # never treat anything below this as speech
+# Both gates are PURELY floor-relative, with no absolute ceiling. An earlier
+# revision capped the start gate at 0.045 so a loud room could not make Wini
+# deaf — and measuring a room at floor 0.050 showed why that is wrong: the cap
+# put both gates BELOW the room, so the room read as continuous speech and the
+# turn ran to the 15 s hard cap. That is the original bug, reintroduced by the
+# safeguard. A gate under the noise floor is never the safer choice.
+#
+# At this device's 0.024 floor that puts stop at 0.041 and start at 0.055,
+# against measured speech of p50 0.076 and onsets of 0.16-0.29.
+VAD_START_MULT = 2.3       # start gate = floor x this
+VAD_STOP_MULT = 1.7        # stop gate  = floor x this; must clear the floor's
+                           # own peaks (~1.3x its median) or turns never end
+VAD_STOP_RATIO = 0.80      # hard invariant: stop gate stays below the start gate
+VAD_NOISE_ALPHA = 0.08     # EMA rate once running, updated on non-speech only
+VAD_MIN_SPEECH_MS = 120    # ignore clicks/thumps shorter than this
+VAD_CALIBRATE_MS = 300     # opening blocks: measure the floor, never latch speech
+
+# The learned floor persists across calls — the room does not change between
+# turns — but it is only a SEED: every recording re-measures the floor over its
+# calibration window (see below). Seeding alone is not enough, because a seed
+# below the true floor produces a stop gate below the room, which is exactly the
+# never-endpoints failure this replaced.
+_vad_noise = 0.020
+
+
+def record_utterance(rate: int = RATE, threshold: float | None = None,
+                     silence_ms: int = 700,
                      hard_cap_s: float = 15.0, preroll_ms: int = 400,
                      wait_for_speech_s: float | None = None,
                      stop_event=None) -> bytes | None:
     """Block until one spoken utterance is captured; return int16 mono PCM bytes.
 
+    Endpointing is adaptive by default (see the VAD_* constants). Passing
+    `threshold` pins the START gate to that fixed RMS instead — an escape hatch
+    (--rms-threshold) for a rig where the adaptive floor misbehaves. The STOP
+    gate stays noise-relative either way: a fixed stop gate is precisely the bug
+    this replaced.
+
     Returns None if wait_for_speech_s elapses with no speech (lets the main loop
     breathe — check the server, handle Ctrl-C — instead of blocking forever), or
-    if stop_event is set (checked between 50 ms blocks — PortAudio blocking
-    reads ignore SIGTERM, so an in-process host must stop the loop this way).
+    if stop_event is set (checked between blocks — PortAudio blocking reads
+    ignore SIGTERM, so an in-process host must stop the loop this way).
     """
+    global _vad_noise
     import sounddevice as sd
 
-    block_ms = 50
+    # 30 ms (was 50): the hangover and the stop-event check are both quantised
+    # to this, so a smaller block ends the turn sooner and costs nothing.
+    block_ms = 30
     block = int(rate * block_ms / 1000)
     silence_blocks = max(1, silence_ms // block_ms)
     preroll_blocks = max(1, preroll_ms // block_ms)
+    min_speech_blocks = max(1, VAD_MIN_SPEECH_MS // block_ms)
+    calib_blocks = max(1, VAD_CALIBRATE_MS // block_ms)
     wait_blocks = None if wait_for_speech_s is None else int(wait_for_speech_s * 1000 / block_ms)
     ring: list[np.ndarray] = []
     chunks: list[np.ndarray] = []
+    pending: list[np.ndarray] = []      # candidate speech, not yet latched
+    calib: list[float] = []             # opening blocks, used to measure the floor
     speaking = False
-    silent = waited = 0
+    silent = waited = seen = 0
     reason = "silence"
+    noise = _vad_noise
     deadline_blocks = int(hard_cap_s * 1000 / block_ms)
+
+    def gates(n: float) -> "tuple[float, float]":
+        stop = max(n * VAD_STOP_MULT, VAD_ABS_FLOOR * 0.7)
+        start = (threshold if threshold
+                 else max(n * VAD_START_MULT, VAD_ABS_FLOOR))
+        # Hysteresis is the point: a stop gate at or above the start gate would
+        # end the turn during the speech that started it. With an explicit
+        # --rms-threshold the START is pinned, so the STOP is what gives way.
+        start = max(start, stop / VAD_STOP_RATIO) if not threshold else start
+        return start, min(stop, start * VAD_STOP_RATIO)
+
     # Route via PulseAudio where present (honors PULSE_SOURCE; the raw ALSA
     # default on the Jetson is pinned to the onboard card with no mic — §4.2).
     try:
@@ -83,21 +154,43 @@ def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int
             data, _ = stream.read(block)
             flat = data.reshape(-1).copy()
             rms = float(np.sqrt(np.mean((flat.astype(np.float32) / 32768.0) ** 2)))
+            seen += 1
+            # The opening blocks are ALWAYS treated as room tone: they cover the
+            # mic's turn-on transient (loud enough to latch as speech) and they
+            # are where the floor is MEASURED. A 25th percentile, not a mean:
+            # it survives both that transient and a child who starts talking
+            # before the window closes, either of which would otherwise inflate
+            # the floor and raise the gates out of reach.
+            if seen <= calib_blocks:
+                calib.append(rms)
+                if seen == calib_blocks:
+                    noise = max(float(np.percentile(calib, 25)), 1e-4)
+            start_gate, stop_gate = gates(noise)
             if not speaking:
                 ring.append(flat)
                 ring = ring[-preroll_blocks:]
-                if rms >= threshold:
-                    speaking = True
-                    chunks.extend(ring)
-                    ring.clear()
-                    silent = 0
+                if rms >= start_gate and seen > calib_blocks:
+                    pending.append(flat)
+                    if len(pending) >= min_speech_blocks:
+                        speaking = True
+                        chunks.extend(ring)      # pre-roll: the clipped first word
+                        ring.clear()
+                        pending.clear()
+                        silent = 0
                 else:
+                    pending.clear()
+                    if seen > calib_blocks:   # don't fight the measured floor
+                        noise = ((1 - VAD_NOISE_ALPHA) * noise
+                                 + VAD_NOISE_ALPHA * rms)
                     waited += 1
                     if wait_blocks is not None and waited >= wait_blocks:
+                        _vad_noise = noise
                         return None
             else:
                 chunks.append(flat)
-                if rms < threshold:
+                # Hysteresis: stop_gate < start_gate, so a trailing-off word still
+                # counts as speech but the room tone between sentences does not.
+                if rms < stop_gate:
                     silent += 1
                     if silent >= silence_blocks:
                         break
@@ -106,19 +199,50 @@ def record_utterance(rate: int = RATE, threshold: float = 0.018, silence_ms: int
                 if len(chunks) >= deadline_blocks:
                     reason = "hard_cap"
                     break
+    _vad_noise = noise
+    if not chunks:
+        return None
     pcm = np.concatenate(chunks)
     # Part 13 diagnostics: the endpoint window is the ONE interval neither
     # ttfa_ms (armed AFTER this returns) nor the server's latency_ms can see.
-    # `speech_ms` is what the child actually said; `hangover_ms` is the fixed
-    # silence tail we spend confirming they stopped; `reason` distinguishes a
-    # clean endpoint from a runaway that ran to the 15 s cap.
+    # `speech_ms` is what the child actually said; `hangover_ms` is the silence
+    # tail we spend confirming they stopped; `reason` distinguishes a clean
+    # endpoint from a runaway that ran to the 15 s cap. `noise`/`start_gate`
+    # are what the adaptive gate settled on — a hard_cap with a start_gate at
+    # the ceiling means the room is too loud, not that the code regressed.
+    start_gate, _ = gates(noise)
     record_utterance.last = {
         "capture_ms": int(len(pcm) / rate * 1000),
         "speech_ms": int(max(0, len(chunks) - silence_blocks) * block_ms),
         "hangover_ms": int(min(silent, silence_blocks) * block_ms),
         "reason": reason,
+        "noise": round(noise, 4),
+        "gate": round(start_gate, 4),
     }
     return pcm.tobytes()
+
+
+def prime_input(rate: int = RATE) -> bool:
+    """Open (and immediately close) the capture stream once at startup.
+
+    The FIRST InputStream open on the Pi negotiates the reSpeaker's USB PCM
+    through PipeWire and takes noticeably longer than every later one — paid, as
+    it was, on the child's first utterance, inside the window where they are
+    already talking. Doing it during warmup moves that cost behind the splash.
+    Best-effort: a failure here just defers to the first real record_utterance."""
+    import sounddevice as sd
+
+    block = int(rate * 0.03)
+    for kw in ({"device": "pulse"}, {}):
+        try:
+            with sd.InputStream(samplerate=rate, channels=1, dtype="int16",
+                                blocksize=block, **kw) as s:
+                s.read(block)          # actually pull a buffer: opening is lazy
+            return True
+        except (ValueError, sd.PortAudioError):
+            continue
+    print("[client] input prime deferred (no capture device yet)")
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -137,6 +261,16 @@ _dev_native_rate = None      # cached native output rate for the resample path
 PLAY_FADE_S = 0.010    # fade-in/out to kill waveform-edge clicks
 PLAY_TAIL_S = 0.150    # silence written after speech so the buffered tail is
                        # fully out before we return to listening (half-duplex)
+
+# Board Buddy live-surface pacing (real-pipeline fixes, 2026-08-03).
+# BOARD_SEGMENT_S: how long each build-up step stays before the next element is added.
+#   Wall-clock rather than beat-synced — the streamed-audio path emits no per-beat
+#   completion event, and the driver stops as soon as the audio does, so a slow answer
+#   simply shows fewer steps rather than desynchronising.
+# BOARD_DWELL_S: how long the finished board stays after Wini stops speaking, before the
+#   panel returns to the LVGL parent. 0 = hand back immediately.
+BOARD_SEGMENT_S = float(os.getenv("WINI_BOARD_SEGMENT_S", "3.5"))
+BOARD_DWELL_S = float(os.getenv("WINI_BOARD_DWELL_S", "2.0"))
 
 
 def _close_out_stream() -> None:
@@ -447,19 +581,187 @@ class AudioStreamPlayer:
             self._log(f"[client] streamed playback failed: {self._error}")
 
 
+_scene_nonce = 0
+
+
+class _SceneVisual:
+    """VISUAL-ONLY tier-0 scene (SCENE_VISUALS_GUIDE §4). Renders a scene's
+    accumulated beat frames and grows the panel figure in step with the brain
+    answer's audio chunks — it plays NO audio of its own (the reSpeaker Lite has a
+    single playback substream; a second TTS consumer starved the answer, seen live
+    2026-07-26). The brain's real answer stays the sound; this only draws.
+
+    Frames render on a background thread so the HTTP reader never blocks; each beat
+    gets a unique /tmp path (per-instance nonce) so the LVGL figure card never
+    reloads a stale cached image."""
+
+    def __init__(self, scene: dict, chan, theme: str, log=print,
+                 tmpdir: str | None = None):
+        global _scene_nonce
+        _scene_nonce += 1
+        self.scene = scene
+        self.chan = chan
+        self.theme = theme
+        self.log = log
+        self.n = len(scene.get("beats", []))
+        tmp = tmpdir or os.environ.get("TMPDIR", "/tmp")
+        self.paths = [os.path.join(tmp, f"wini_scene_{_scene_nonce}_{i}.png")
+                      for i in range(self.n)]
+        self.ready = [False] * self.n
+        self.shown = -1
+        self._lock = threading.Lock()
+        self._stop = threading.Event()
+        threading.Thread(target=self._render_all, name="scene-render",
+                         daemon=True).start()
+
+    def _render_one(self, i: int) -> bool:
+        try:
+            from figures.scene_render import render_beat_frame
+            render_beat_frame(self.scene, i, self.theme, scale=2.0,
+                              out_path=self.paths[i])
+            with self._lock:
+                self.ready[i] = True
+            return True
+        except Exception as e:  # noqa: BLE001 — a bad frame must never cost the turn
+            self.log(f"[scene] render beat {i} failed: {e}")
+            return False
+
+    def _render_all(self) -> None:
+        for i in range(self.n):
+            self._render_one(i)
+
+    def _send(self, i: int) -> None:
+        try:
+            self.chan.send({"cmd": "figure", "path": self.paths[i]})
+            self.shown = i
+        except Exception as e:  # noqa: BLE001
+            self.log(f"[scene] figure send failed: {e}")
+
+    def show_first(self) -> None:
+        """Put beat 0's frame up right away (render it synchronously if the
+        background thread hasn't reached it yet) so the picture is on screen the
+        moment the answer starts, not a beat later."""
+        if self.n == 0:
+            return
+        if not self.ready[0]:
+            self._render_one(0)
+        if self.ready[0] and self.shown < 0:
+            self._send(0)
+
+    def start_paced(self) -> None:
+        """Reveal the beats on a WALL-CLOCK schedule (the scene's own authored
+        ``anim_ms`` + ``hold_ms`` per beat), not per audio chunk.
+
+        The answer streams ~one small PCM chunk every quarter-second (~78 for a
+        20s answer) but a scene has only 4-8 beats, so keying the reveal to the
+        chunk index saturated ``min(chunk_idx, n-1)`` to the LAST beat within the
+        first second — the child saw the finished figure instantly, never the
+        build-up (seen live 2026-07-26). Time-pacing decouples the two: beat 0 now,
+        then one beat per authored dwell, so the steps draw on as Wini talks."""
+        self.show_first()
+        if self.n <= 1:
+            return
+        threading.Thread(target=self._pace_loop, name="scene-pace",
+                         daemon=True).start()
+
+    def _pace_loop(self) -> None:
+        for i in range(1, self.n):
+            prev = self.scene["beats"][i - 1]
+            dwell = (prev.get("anim_ms", 600) + prev.get("hold_ms", 800)) / 1000.0
+            if self._stop.wait(dwell):
+                return          # finish() (answer ended) — snap to full elsewhere
+            self._show_when_ready(i)
+
+    def _show_when_ready(self, i: int, spins: int = 150) -> None:
+        """Send beat ``i`` once its frame exists, waiting briefly for the render
+        thread (rendering a beat is 32-36ms; a fresh miss renders it inline)."""
+        for _ in range(spins):
+            with self._lock:
+                if self.ready[i]:
+                    break
+            if self._stop.wait(0.02):
+                return
+        else:
+            self._render_one(i)
+        with self._lock:
+            if i <= self.shown:
+                return
+        self._send(i)
+
+    def finish(self) -> None:
+        """Guarantee the COMPLETE final frame is on screen when the answer ends
+        (a short answer may not have paced through every beat)."""
+        self._stop.set()
+        if self.n == 0:
+            return
+        last = self.n - 1
+        if not self.ready[last]:
+            self._render_one(last)
+        if self.ready[last] and self.shown != last:
+            self._send(last)
+
+
 # ---------------------------------------------------------------------------
 # brain service contract (platform seam 3 is the display sink; 4 is the trigger)
 # ---------------------------------------------------------------------------
 
+def _cloud_run_auth(base: str):
+    """Return a zero-arg callable giving an `Authorization` header dict for a
+    private Cloud Run brain, or None when no auth is needed (Part 15).
+
+    Local brains (localhost / 127.0.0.1 / plain http) need no auth — the callable
+    is None and every request is byte-identical to the on-Pi setup. For a remote
+    https run.app endpoint we mint a Google-signed **ID token** whose audience is
+    the service URL, from the device service-account key at $WINI_SA_KEY. The token
+    is cached inside the credentials object and refreshed only when expired."""
+    if base.startswith("http://") or "127.0.0.1" in base or "localhost" in base:
+        return None
+    key_path = os.getenv("WINI_SA_KEY")
+    if not key_path:
+        print("[client] remote brain but WINI_SA_KEY is unset — calls will be "
+              "unauthenticated (expect 401/403).")
+        return None
+    try:
+        from google.oauth2 import service_account
+        from google.auth.transport.requests import Request as _GRequest
+    except ImportError:
+        print("[client] google-auth not installed; cannot authenticate to the "
+              "cloud brain. `pip install google-auth`.")
+        return None
+    creds = service_account.IDTokenCredentials.from_service_account_file(
+        key_path, target_audience=base)
+    _req = _GRequest()
+
+    def _header():
+        if not creds.valid:
+            creds.refresh(_req)
+        return {"Authorization": f"Bearer {creds.token}"}
+
+    return _header
+
+
 class BrainClient:
     def __init__(self, base_url: str):
         self.base = base_url.rstrip("/")
+        self._auth = _cloud_run_auth(self.base)
+
+    def _headers(self, extra: dict | None = None) -> dict:
+        h = dict(extra or {})
+        if self._auth is not None:
+            h.update(self._auth())
+        # Part 15: app shared-secret for a public Cloud Run brain. Sent on every
+        # request; the server rejects a mismatch with 401 before any billed work.
+        api_key = os.getenv("WINI_API_KEY", "").strip()
+        if api_key:
+            h["X-Wini-Key"] = api_key
+        return h
 
     def wait_ready(self, timeout_s: float = 300.0) -> dict:
         t0 = time.time()
         while time.time() - t0 < timeout_s:
             try:
-                h = requests.get(f"{self.base}/health", timeout=5).json()
+                h = requests.get(f"{self.base}/health", timeout=5,
+                                 headers=self._headers()).json()
                 if h.get("ready"):
                     return h
                 if h.get("error"):
@@ -484,11 +786,11 @@ class BrainClient:
         `X-Wini-Mode` header — additive; the brain records it (Part 12 §5.9).
         None ⇒ no header ⇒ byte-identical to today (server defaults to EXPLAIN).
         """
-        headers = {"Content-Type": "application/octet-stream",
+        headers = self._headers({"Content-Type": "application/octet-stream",
                    "X-Sample-Rate": str(rate),
                    # No compression layer between us and the NDJSON lines: a
                    # decompressor is another place the stream can buffer.
-                   "Accept-Encoding": "identity"}
+                   "Accept-Encoding": "identity"})
         if mode:
             headers["X-Wini-Mode"] = mode
         r = requests.post(f"{self.base}/voice_turn", data=pcm, timeout=120,
@@ -526,7 +828,8 @@ class BrainClient:
         payload = {"text": text, "speak": speak}
         if mode:
             payload["mode"] = mode
-        r = requests.post(f"{self.base}/turn", json=payload, timeout=120)
+        r = requests.post(f"{self.base}/turn", json=payload, timeout=120,
+                          headers=self._headers())
         r.raise_for_status()
         return r.json()
 
@@ -607,10 +910,74 @@ class _StopOrPause:
         return (self._stop is not None and self._stop.is_set()) or self._paused.is_set()
 
 
+def _select_recorder(vad: str, log=print):
+    """Pick the utterance recorder. 'silero' = neural VAD (rejects non-speech energy
+    the RMS gate falsely triggers on; the RPi stand-in for the ESP32-P4 ESP-SR AFE).
+    'rms' = the energy/floor-relative fallback. 'auto' = Silero if onnxruntime + the
+    model are present, else RMS. Same signature/return either way (drop-in)."""
+    want = (vad or "auto").lower()
+    if want != "rms":
+        note = "unavailable"
+        try:
+            from wini_client import vad_silero
+            if vad_silero.available():
+                log("[client] VAD: Silero neural (rejects non-speech energy)")
+                return vad_silero.record_utterance_silero
+            note = "onnxruntime or silero_vad.onnx missing"
+        except Exception as e:  # noqa: BLE001
+            note = str(e)
+        log(f"[client] VAD: Silero {note} — falling back to RMS energy")
+    else:
+        log("[client] VAD: RMS energy (floor-relative)")
+    return record_utterance
+
+
+def _fmt_diag(d: dict) -> list[str]:
+    """Format the brain's per-turn `diagnostics` block into a few readable terminal
+    lines: the pedagogy decision, the cognitive-signal vector, and learner-state flags.
+    Returns [] when there is nothing to show (a non-learning turn carries no cognitive
+    update)."""
+    if not d:
+        return []
+    cog = d.get("cognitive") or {}
+    lines = []
+    why = f" ({d['why']})" if d.get("why") else ""
+    mastery = d.get("mastery")
+    mastery_s = f" mastery={mastery:.2f}" if isinstance(mastery, (int, float)) else ""
+    lines.append(f"[diag] action={d.get('action')}{why}  need={d.get('need')}  "
+                 f"mode={d.get('mode')}  concept={d.get('concept')}{mastery_s}")
+    if cog:
+        # show the cognitive vector compactly, biggest signals first
+        order = ("cognitive_load", "frustration_risk", "confusion", "curiosity",
+                 "engagement", "confidence", "boredom")
+        parts = [f"{k.replace('_risk','').replace('cognitive_','')}={cog[k]:.2f}"
+                 for k in order if k in cog]
+        parts += [f"{k}={v:.2f}" for k, v in cog.items() if k not in order]
+        lines.append("       cognitive: " + "  ".join(parts))
+    vis = d.get("visual") or {}
+    extras = []
+    if d.get("signals"):
+        extras.append(f"signals={d['signals']}")
+    if vis.get("type"):
+        extras.append(f"visual={vis.get('type')}(earned={vis.get('earned')})")
+    if d.get("pending_check"):
+        extras.append(f"pending_check={d['pending_check']}")
+    if d.get("pending_hope"):
+        extras.append(f"pending_hope={d['pending_hope']}")
+    if d.get("writeback"):
+        extras.append(f"graded={d['writeback']}")
+    if extras:
+        lines.append("       " + "  ".join(extras))
+    return lines
+
+
 def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
-                rms_threshold: float = 0.018, silence_ms: int = 1200,
+                rms_threshold: float | None = None, silence_ms: int = 700,
+                vad: str = "auto",
                 exit_on_session_end: bool = False, stop_event=None,
-                mode_state=None, audio_manager=None, log=print) -> str:
+                mode_state=None, audio_manager=None, log=print,
+                scenes: bool = True, scene_theme: str = "light",
+                store_dir=None, diag: bool = False) -> str:
     """The listen → turn → speak loop, callable as a library (the ROS-less
     platform runs this on its ClientThread with an InProcSink + stop_event).
 
@@ -628,11 +995,104 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
     # Claim the speaker BEFORE the first mic open: on the single-PCM reSpeaker
     # Lite, opening playback after a capture churn is what silenced the voice.
     prime_output()
+    # ...then pay the capture-open cost here rather than inside the child's
+    # first sentence. Order matters — playback first, per the comment above.
+    prime_input()
     ttfa = Ttfa()
     paused = getattr(mode_state, "paused", None) if mode_state is not None else None
     rec_stop = _StopOrPause(stop_event, paused) if paused is not None else stop_event
+    record_fn = _select_recorder(vad, log)   # Silero neural VAD, or RMS fallback
+
+    # Tier-0 authored scenes (SCENE_VISUALS_GUIDE §4) — VISUAL-ONLY. On an EXPLAIN
+    # turn whose resolved concept has an authored scene, the scene's frames become
+    # the figure and GROW in step with the brain's spoken answer (one beat per
+    # audio chunk). The brain's real answer stays the ONLY audio — the scene does
+    # NOT speak. That is deliberate: the reSpeaker Lite has a single playback
+    # substream, so a second TTS consumer (the old scene-narration mode) fought the
+    # answer for the device and both went silent ([PaErrorCode -9985], seen live
+    # 2026-07-26). Keeping the answer as the audio also means the child hears a real
+    # answer to THEIR question, not a canned worked example.
+    #
+    # Only possible on the LVGL panel — the sink exposes its mode channel as `_ch`;
+    # other sinks (console/ROS/in-proc) have no `_ch`, so scenes stay off and the
+    # crop path is unchanged.
+    scene_chan = getattr(sink, "_ch", None)
+    # Board Buddy (BOARD_BUDDY_INTEGRATION_PLAN.md §3.2): when the brain ships a
+    # `board_payload` on the visual directive and this device can render it, the richer
+    # Board Buddy surface replaces the scene-PNG figure for that turn. Flag-gated (default
+    # OFF) so existing devices are byte-identical until Board Buddy is provisioned + the
+    # Wayland/touch co-existence is verified live (§6.1, Phase 3).
+    board_sink = None
+    if os.getenv("WINI_BOARD_BUDDY", "0").strip().lower() in ("1", "true", "yes", "on") \
+            and scene_chan is not None:
+        try:
+            from wini_client.board_buddy_sink import BoardBuddySink
+            board_sink = BoardBuddySink(chan=scene_chan, log=log)
+            log("[client] Board Buddy rendering ENABLED (WINI_BOARD_BUDDY=1)")
+        except Exception as e:  # noqa: BLE001 — never block the loop on the board sink
+            log(f"[client] Board Buddy sink unavailable ({e}); scene-PNG path only")
+            board_sink = None
+    scene_lookup = None
+    if scenes and scene_chan is not None:
+        try:
+            from wini_client.scene_player import (
+                scene_for_concept as _scene_for_concept,
+                load_scene_index as _load_scene_index)
+            scene_lookup = _scene_for_concept
+            n_scenes = len(_load_scene_index(store_dir))
+            log(f"[client] tier-0 scene visuals ON ({n_scenes} authored) for EXPLAIN turns")
+        except Exception as e:  # noqa: BLE001 — scenes are additive; never block the loop
+            log(f"[client] tier-0 scenes unavailable ({e}); using crop path only")
+            scene_lookup = None
+
+    def _pick_scene(concept_id):
+        """A tier-0 scene for this concept iff the child is in EXPLAIN mode — a
+        scene is a teaching aid, never a graded reveal. Returns the scene or None."""
+        if scene_lookup is None:
+            return None
+        m = str((mode_state.mode if mode_state is not None else None) or "EXPLAIN").upper()
+        return scene_lookup(concept_id, store_dir) if m == "EXPLAIN" else None
+
+    # Board Buddy live-surface state. `gen` invalidates a segment driver left over from an
+    # earlier turn so a stale thread can never paint over a newer board.
+    board_state = {"gen": 0, "stop": threading.Event()}
+
+    def _close_board():
+        if board_sink is not None:
+            board_state["stop"].set()   # stop any running segment driver first
+            board_state["gen"] += 1
+            board_sink.close()          # idempotent — tears the child down, restores card
+
+    def _drive_board_segments(segments, gen):
+        """Step the board through its build-up while the answer is being spoken.
+
+        Board Buddy is a pure executor: the surface only changes when it is handed a NEW
+        payload. Before this, the client sent exactly one `board` verb per turn, so the
+        figure was complete on frame 1 and never moved again for the rest of the answer —
+        the "frozen on the first beat" report. We now walk the brain's `board_segments`,
+        which build the board up one element at a time.
+
+        Paced on a wall clock rather than per-beat callbacks: the streamed-audio path has
+        no per-beat completion event, and clamping speech to the board would break the
+        answer-length rule. The driver just stops when the audio does.
+        """
+        ev = board_state["stop"]
+        for seg in segments[1:]:                 # segment 0 was drawn synchronously
+            if ev.wait(BOARD_SEGMENT_S):
+                return                           # audio finished / board closed
+            if gen != board_state["gen"] or board_sink is None or not board_sink.active:
+                return                           # superseded by a newer turn
+            try:
+                board_sink.board(seg.get("payload") or [],
+                                 tmax=float(seg.get("tmax") or 0.0),
+                                 animated=bool(seg.get("animated")), wait=False)
+            except Exception as e:  # noqa: BLE001 — a board step never costs the turn
+                log(f"[board] segment step failed: {e}")
+                return
+
     while True:
         if stop_event is not None and stop_event.is_set():
+            _close_board()
             return "stopped"
         # UI pause button: mic muted, no brain turns until the second tap.
         if paused is not None and paused.is_set():
@@ -647,10 +1107,10 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
         try:
             if trigger == "enter":
                 input("\n[press Enter, then speak]")
-            pcm = record_utterance(threshold=rms_threshold,
-                                   silence_ms=silence_ms,
-                                   wait_for_speech_s=30.0 if trigger == "vad" else None,
-                                   stop_event=rec_stop)
+            pcm = record_fn(threshold=rms_threshold,
+                            silence_ms=silence_ms,
+                            wait_for_speech_s=30.0 if trigger == "vad" else None,
+                            stop_event=rec_stop)
             if not pcm:
                 continue  # idle window elapsed (or paused/stopping) — loop re-checks
             if paused is not None and paused.is_set():
@@ -658,10 +1118,46 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
             t0 = time.time()
             ttfa.arm()      # recording just ended — the child is now waiting
             early_seen = []
+            # Tier-0 scene VISUAL for this turn (or None). The scene's frames grow
+            # the figure as the answer speaks; the brain's answer stays the audio.
+            # `rl` records whether the Response Layer is driving this turn (the brain
+            # rides "rl":true on the filler line); when it is, the authoritative visual
+            # directive rides turn_meta and concept-default arming is suppressed.
+            scene_ctx: dict = {"vis": None, "meta_seen": False, "rl": False,
+                               "directive": None, "board": False}
+
+            def _arm_scene(concept_id, graded: bool, scene=None) -> None:
+                """Attach a visual scene for an EXPLAIN, non-graded turn (once).
+                `scene` may be an INLINE spec — the brain's drawn-from-answer scene
+                (response_layer.scene_author), which mirrors Wini's actual words —
+                otherwise it is looked up by concept. A graded turn keeps the plain path."""
+                if scene_ctx["vis"] is not None or graded or scene_chan is None:
+                    return
+                if scene is None:
+                    scene = _pick_scene(concept_id)
+                if scene is None or not scene.get("beats"):
+                    return
+                try:
+                    scene_ctx["vis"] = _SceneVisual(scene, scene_chan, scene_theme,
+                                                    log=log)
+                    src = "drawn from answer" if scene.get("generated") else f"for {concept_id}"
+                    log(f"[client] scene visual ({len(scene['beats'])} beats, {src}) "
+                        f"— figure grows as Wini speaks")
+                except Exception as e:  # noqa: BLE001 — never let a scene cost the turn
+                    log(f"[client] scene visual init failed ({e}); crop path")
 
             def on_part(part: dict) -> None:
                 early_seen.append(True)
                 log(f"\nYou:  {part.get('transcript', '')}")
+                # If the brain rides the resolved concept on this early line
+                # (server change; cloud brain may not yet), arm the visual now so
+                # the picture is up as the first words play. But when the Response
+                # Layer is engaged ("rl":true) the EARNED visual decision rides
+                # turn_meta — do not concept-default-arm here; wait for the directive.
+                if part.get("rl"):
+                    scene_ctx["rl"] = True
+                else:
+                    _arm_scene(part.get("concept"), graded=False)
                 if part.get("filler"):
                     log(f"Wini [{part.get('bank')}]: {part.get('filler')}")
                 if part.get("audio_b64"):
@@ -688,12 +1184,80 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
                 player.push(base64.b64decode(part["audio_b64"]),
                             int(part.get("audio_rate", 24000)),
                             seq=part.get("seq"))
+                # The scene reveal is time-paced (start_paced), NOT chunk-paced:
+                # audio chunks arrive ~4x/s but a scene has only 4-8 beats, so
+                # chunk-keying saturated to the final beat within the first second.
 
             def on_meta(part: dict) -> None:
                 # Display up BEFORE the first sample, preserving "show while
                 # explaining" now that speech starts before the turn is complete.
                 sink.thinking(False)
-                apply_turn_ui(part, sink)
+                scene_ctx["meta_seen"] = True
+                # Arm the visual off the authoritative concept/mode (the cloud brain
+                # reaches here, not on_part). Graded or non-EXPLAIN turns get no scene.
+                vis_dir = part.get("visual")
+                # Board Buddy: a board-capable device renders the brain's payload on the
+                # native surface instead of arming a scene-PNG figure (§3.2). Open + hand
+                # off; the child animates around the streamed audio, closed at turn end.
+                if board_sink is not None and vis_dir and vis_dir.get("board_payload"):
+                    scene_ctx["board"] = True
+                    try:
+                        board_sink.handle({"cmd": "board_open"})
+                        # Build-up sequence from the brain. Segment 0 goes out now so the
+                        # board is up as speech starts; the rest are stepped by the driver
+                        # thread below. Falls back to the flat merged payload when the
+                        # brain sent no segments (older brain / animated single board).
+                        segments = vis_dir.get("board_segments") or []
+                        first = (segments[0].get("payload") if segments
+                                 else vis_dir.get("board_payload"))
+                        board_sink.handle({"cmd": "board",
+                                           "payload": first,
+                                           "tmax": vis_dir.get("board_tmax", 0.0),
+                                           "animated": vis_dir.get("board_animated"),
+                                           "wait": False})   # don't block the audio thread
+                        if len(segments) > 1:
+                            board_state["stop"] = threading.Event()
+                            board_state["gen"] += 1
+                            threading.Thread(
+                                target=_drive_board_segments,
+                                args=(segments, board_state["gen"]),
+                                name="bb-segments", daemon=True).start()
+                            log(f"[board] {len(segments)} segments; "
+                                f"stepping every {BOARD_SEGMENT_S}s")
+                        on_turn = getattr(sink, "on_turn", None)
+                        if on_turn is not None:
+                            on_turn(part)
+                        ui_applied.append(True)
+                        log(f"Wini: {part.get('answer')}")
+                        return
+                    except Exception as e:  # noqa: BLE001 — degrade to the scene/crop path
+                        log(f"[client] board render failed ({e}); scene path")
+                        scene_ctx["board"] = False
+                if scene_ctx["rl"] or vis_dir is not None:
+                    # Response Layer: arm a scene ONLY when the Visual Benefit Gate
+                    # earned one (arm_scene). Otherwise the turn is speech-only, or the
+                    # display path shows an EARNED crop — never a concept-default scene.
+                    scene_ctx["directive"] = vis_dir
+                    if vis_dir and vis_dir.get("arm_scene"):
+                        _arm_scene(part.get("concept"), graded=False,
+                                   scene=vis_dir.get("scene"))
+                else:
+                    _arm_scene(part.get("concept"), graded=bool(part.get("writeback")))
+                vis = scene_ctx["vis"]
+                if vis is not None:
+                    # Switch to the explain screen + header + caption, but let the
+                    # scene own the FIGURE (skip apply_turn_ui's crop show()). Send
+                    # the scene's first frame right after so on_turn's figure-off
+                    # never leaves the card blank.
+                    on_turn = getattr(sink, "on_turn", None)
+                    if on_turn is not None:
+                        try:
+                            on_turn(part)
+                        except Exception as e:  # noqa: BLE001 — a UI cue never costs a turn
+                            log(f"[display] on_turn failed: {e}")
+                    vis.start_paced()
+                else:
+                    apply_turn_ui(part, sink)
                 ui_applied.append(True)
                 log(f"Wini: {part.get('answer')}")
 
@@ -706,7 +1270,17 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
                     mode=(mode_state.mode if mode_state is not None else None))
             finally:
                 sink.thinking(False)
-                player.finish()
+                player.finish()          # blocks until every queued chunk has been spoken
+                # Hand the panel back to the LVGL parent now that the answer has been
+                # spoken. Without this the pygame child stayed up for good and the picker
+                # / explain card never returned — the device looked stuck on the Board
+                # Buddy screen. `_close_board` also stops the segment driver, so a board
+                # can never outlive the speech it belongs to.
+                if scene_ctx.get("board"):
+                    if BOARD_DWELL_S > 0:
+                        time.sleep(BOARD_DWELL_S)   # let the child read the finished board
+                    _close_board()
+                    scene_ctx["board"] = False
             transcript = result.get("transcript", "")
             if not transcript:
                 continue  # STT heard nothing intelligible — re-listen silently
@@ -715,10 +1289,46 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
             streamed = bool(result.get("audio_streamed")) and player.started
             if not streamed:
                 log(f"Wini: {result.get('answer')}")
+            vis = scene_ctx["vis"]
+            # Non-streamed Response-Layer turn (on_meta never ran): honor the visual
+            # directive off the final result so an EARNED scene still arms.
+            rl_dir = result.get("visual")
+            if vis is None and not scene_ctx["meta_seen"] and rl_dir \
+                    and rl_dir.get("arm_scene"):
+                _arm_scene(result.get("concept"), graded=False, scene=rl_dir.get("scene"))
+                vis = scene_ctx["vis"]
+            # Final authoritative gate (covers NON-streamed turns, where on_meta
+            # never ran): a graded or non-EXPLAIN turn shows its normal display, not
+            # a teaching scene. The answer audio is unaffected either way.
+            if vis is not None and (bool(result.get("writeback"))
+                    or str(result.get("mode") or "EXPLAIN").upper() != "EXPLAIN"):
+                log("[client] tier-0 scene dropped (graded/non-EXPLAIN turn)")
+                vis = scene_ctx["vis"] = None
+            # A non-streamed scene turn never hit on_meta: set its screen now so the
+            # scene figure has an explain screen to land on.
+            if vis is not None and not scene_ctx["meta_seen"]:
+                on_turn = getattr(sink, "on_turn", None)
+                if on_turn is not None:
+                    try:
+                        on_turn(result)
+                    except Exception as e:  # noqa: BLE001
+                        log(f"[display] on_turn failed: {e}")
+                vis.start_paced()
+            # The answer is ALWAYS the audio (streamed already played; non-streamed
+            # plays here from audio_b64). For a scene turn `ui_applied=True` keeps
+            # speak_result from re-showing the T9 crop over our figure; clear() at
+            # its end returns the status indicator to "waiting" so the child knows
+            # it is their turn.
             speak_result(result, sink,
                          mute=(paused is not None and paused.is_set()),
                          audio_manager=audio_manager, ttfa=ttfa,
-                         ui_applied=bool(ui_applied), audio_played=streamed)
+                         ui_applied=bool(ui_applied) or vis is not None,
+                         audio_played=streamed)
+            if vis is not None:
+                vis.finish()   # leave the COMPLETE figure up for the child to study
+            if board_sink is not None and scene_ctx.get("board"):
+                # Leave Board Buddy surface active after speech so the student can study the figure
+                pass
             # Logged AFTER playback starts so ttfa_ms is populated. ttfa_ms is the
             # child-facing number; the latency_ms breakdown must account for it.
             _cap = getattr(record_utterance, "last", {})
@@ -727,6 +1337,9 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
                 f"latency={result.get('latency_ms')} "
                 f"chunks={player.chunks_played} "
                 f"action={result.get('action')} display={bool(result.get('display'))}")
+            if diag:
+                for _dl in _fmt_diag(result.get("diagnostics") or {}):
+                    log(_dl)
             if result.get("session_ended"):
                 if exit_on_session_end:
                     log("[client] session ended — going to sleep (hold chin to wake).")
@@ -734,6 +1347,7 @@ def run_session(brain: BrainClient, sink, *, trigger: str = "vad",
                 log("[client] session ended (farewell spoken) — back to idle listening.")
         except requests.RequestException as e:
             log(f"[client] server error ({e}); retrying in 3s")
+            _close_board()
             if stop_event is not None and stop_event.wait(3):
                 return "stopped"
             if stop_event is None:
@@ -823,8 +1437,17 @@ def main() -> None:
                     default=os.getenv("WINI_ON_SESSION_END", "listen"),
                     help="'exit' = go to sleep after the farewell (the touch "
                          "trigger node restarts the client on a chin hold)")
-    ap.add_argument("--rms-threshold", type=float, default=0.018)
-    ap.add_argument("--silence-ms", type=int, default=1200)
+    ap.add_argument("--vad", choices=["auto", "silero", "rms"],
+                    default=os.getenv("WINI_VAD", "auto"),
+                    help="endpointer: 'silero' neural VAD (rejects non-speech "
+                         "energy), 'rms' the energy fallback, 'auto' Silero if "
+                         "available else RMS (default).")
+    ap.add_argument("--rms-threshold", type=float, default=None,
+                    help="pin the VAD start gate to a fixed RMS. Default: adapt "
+                         "to the measured room noise floor (VAD_* in this file).")
+    ap.add_argument("--silence-ms", type=int, default=700,
+                    help="silence held after speech before the turn is sent. "
+                         "Every ms here is added directly to the child's wait.")
     ap.add_argument("--once-text", default=None,
                     help="one text turn through the full output path, then exit")
     ap.add_argument("--ui-port", type=int, default=int(os.getenv("WINI_UI_PORT", "0")),
@@ -845,6 +1468,18 @@ def main() -> None:
                     help="gpiochip number for the touch pin (Pi 5 = 4).")
     ap.add_argument("--no-touch-audio", action="store_true",
                     help="disable the emotion-based touch-audio engine entirely.")
+    ap.add_argument("--no-scenes", action="store_true",
+                    help="disable tier-0 authored scenes (SCENE_VISUALS_GUIDE §4); "
+                         "EXPLAIN turns then always use the T9 similarity crops.")
+    ap.add_argument("--scene-theme", choices=["light", "dark"],
+                    default=os.getenv("WINI_SCENE_THEME", "light"),
+                    help="light/dark theme for rendered scene frames (default light).")
+    ap.add_argument("--diag", action="store_true",
+                    default=os.getenv("WINI_DIAG", "").strip().lower()
+                    in ("1", "true", "yes", "on"),
+                    help="print the learner cognitive state + pedagogy decision each "
+                         "turn (action/why, cognitive signals, mastery, pending check). "
+                         "Also enabled by WINI_DIAG=1.")
     args = ap.parse_args()
 
     brain = BrainClient(args.server)
@@ -874,6 +1509,12 @@ def main() -> None:
     print(f"[client] waiting for brain at {args.server} ...")
     health = brain.wait_ready()
     print(f"[client] brain ready (gen_backend={health.get('gen_backend')})")
+    # Warm the audio devices HERE, not on entry to run_session: the launcher
+    # holds the UI splash until the brain is ready, and run_session does not
+    # start until the child has tapped a card — so priming there still charged
+    # the first-open cost to their first sentence. Both calls are idempotent.
+    prime_output()
+    prime_input()
     if channel is not None:
         # Releases the UI's splash. Sticky: the launcher holds wini_ui back until
         # the brain is warm, so the UI usually connects AFTER this point.
@@ -917,10 +1558,13 @@ def main() -> None:
             try:
                 reason = run_session(brain, sink, trigger=args.trigger,
                                      rms_threshold=args.rms_threshold,
-                                     silence_ms=args.silence_ms,
+                                     silence_ms=args.silence_ms, vad=args.vad,
                                      exit_on_session_end=exit_on_end,
                                      mode_state=mode_state,
-                                     audio_manager=audio_manager)
+                                     audio_manager=audio_manager,
+                                     scenes=not args.no_scenes,
+                                     scene_theme=args.scene_theme,
+                                     store_dir=Path(args.store), diag=args.diag)
             except KeyboardInterrupt:
                 print("\n[client] bye")
                 return

@@ -178,6 +178,38 @@ def test_position_is_clamped_or_laid_out() -> None:
         assert caps.POS_Y_MIN <= y <= caps.POS_Y_MAX
 
 
+def test_progressive_segments_build_the_board_up() -> None:
+    """Real-pipeline fix: the compiler used to emit ONE segment holding the whole board, so
+    the device drew the finished figure on frame 1 and it never changed while Wini spoke."""
+    from .board_buddy_author import progressive_segments
+
+    payload = [
+        {"type": "text", "pos": [40, 40], "text": "Parabola"},
+        {"type": "stickers", "pos": [40, 94], "item": "star", "count": 1},
+        {"type": "graph", "pos": [40, 174], "equation": "x^2-5*x+6"},
+        {"type": "text", "pos": [40, 422], "text": "y = 0 at x = 2, 3"},
+    ]
+    segs = progressive_segments(payload)
+    assert len(segs) == 4, "a 4-element board should build up in 4 steps"
+    assert [len(s["payload"]) for s in segs] == [1, 2, 3, 4], "must be cumulative"
+    assert segs[-1]["payload"] == payload, "the final board must be unchanged"
+
+
+def test_progressive_segments_leave_animation_alone() -> None:
+    """An animated board owns its own timeline — restarting it per element would stutter."""
+    from .board_buddy_author import progressive_segments
+
+    animated = [
+        {"type": "text", "pos": [40, 40], "text": "y = a x^2"},
+        {"type": "graph", "pos": [40, 100], "equation": "{a}*x^2"},
+        {"type": "text", "pos": [40, 340], "text": "a grows"},
+        {"type": "animate_param", "var": "a", "from": 1, "to": 3, "duration": 2.5},
+    ]
+    assert len(progressive_segments(animated)) == 1
+    # and a board too small to build up stays a single segment
+    assert len(progressive_segments(animated[:2])) == 1
+
+
 def test_sanitizer_never_deletes_the_mathematics() -> None:
     """BUG-8: the old patterns allowed a bare "see" and ate to the end of the sentence,
     so an ordinary tutoring line lost its whole claim."""

@@ -109,10 +109,18 @@ def _compile_board_buddy(scene: dict, answer: str | None, profile: dict,
         payload = compile_scene_to_board(scene, answer=answer, profile=profile)
     if not payload:
         return None
+    # PROGRESSIVE REVEAL (real-pipeline fix, 2026-08-03). This used to emit exactly ONE
+    # segment holding the whole board, so the device drew the finished figure on the first
+    # frame and it never changed for the rest of the answer — the "frozen on the first beat"
+    # report. The orchestrator that produces a genuine multi-segment sequence is off by
+    # default (WINI_BB_ORCHESTRATOR) and costs an LLM call per segment, so instead we derive
+    # the sequence deterministically: the board BUILDS UP one element at a time, in the order
+    # the author wrote them, which is already the order the answer works through. No extra
+    # model calls, and the last segment is byte-identical to the flat `payload`.
+    from .board_buddy_author import progressive_segments
+    segments = progressive_segments(payload)
     return {"kind": "board_buddy_payload", "payload": payload,
-            # A single authored board is one segment for the live surface.
-            "segments": [{"payload": payload, "tmax": tmax_hint(payload),
-                          "animated": payload_has_animation(payload), "speech": None}],
+            "segments": segments,
             "tmax": tmax_hint(payload), "animated": payload_has_animation(payload),
             "narration_mode": NARRATION_SCRIPT_OVERRIDE}
 

@@ -205,6 +205,20 @@ _CONTROL_TYPES = frozenset({"animate_param", "animation"})
 _AUTHOR_ATTEMPTS = 2
 _AUTHOR_BACKOFF_S = 1.5
 
+# Output budget for the board-authoring call. ROOT CAUSE of BUG-9a, found 2026-08-03 once
+# JsonResult started reporting WHY a structured call failed: the live log said
+# `reason='max-tokens (raise max_output_tokens)'` on every decline. At 700 the structured
+# JSON for a full board (up to 12 elements, each with pos/size/colour/ranges, plus schema
+# overhead) truncates mid-object, so `_extract_json` returns None and the whole board is
+# thrown away — which is why a real turn silently degraded to a one-sentence prose card
+# while the same call succeeded on short answers in isolation. This is NOT the classic
+# thinking-budget trap (llm_vertex already sets thinking_budget=0); the VISIBLE output
+# simply did not fit.
+#
+# Raising the cap is close to free: Vertex bills the tokens actually produced, not the
+# ceiling, and a board that genuinely needs fewer still stops early.
+_AUTHOR_MAX_TOKENS = 2048
+
 _LAYOUT_LEFT = 40          # left margin; text is drawn from this x rightwards
 _LAYOUT_TOP = 40           # first element's top edge
 _LAYOUT_GUTTER = 22        # vertical breathing room between elements
@@ -936,6 +950,39 @@ def sync_speech_with_visuals(answer: str, payload: list | None) -> str:
 
 
 
+def progressive_segments(payload: list[dict]) -> list[dict]:
+    """Turn one finished board into a BUILD-UP sequence the device can step through.
+
+    Real-pipeline fix 2026-08-03. The compiler used to emit a single segment containing the
+    whole board, so the device drew the completed figure on frame 1 and nothing ever changed
+    while Wini talked — reported as "stuck on the first beat". Board Buddy is a pure
+    executor: it renders exactly what it is handed, so a board only changes if we hand it a
+    new payload. This produces those payloads deterministically (no extra LLM calls) by
+    revealing one element at a time, cumulatively, in author order — which is already the
+    order the answer works through.
+
+    Contract kept by design:
+      * the LAST segment equals the full ``payload``, so the finished board is unchanged;
+      * an ANIMATED board stays a single segment — the animation is itself the motion, and
+        restarting it per element would stutter it;
+      * control records (``animate_param``/``animation``) ride along in every segment that
+        contains the element they drive, so a partial board is never mid-animation-less.
+    """
+    renderable = [e for e in payload if e.get("type") not in _CONTROL_TYPES]
+    controls = [e for e in payload if e.get("type") in _CONTROL_TYPES]
+
+    # Nothing to build up, or an animation owns the timeline -> one segment (today's shape).
+    if len(renderable) <= 2 or controls or payload_has_animation(payload):
+        return [{"payload": payload, "tmax": tmax_hint(payload),
+                 "animated": payload_has_animation(payload), "speech": None}]
+
+    segments: list[dict] = []
+    for i in range(1, len(renderable) + 1):
+        step = renderable[:i]
+        segments.append({"payload": step, "tmax": 0.0, "animated": False, "speech": None})
+    return segments
+
+
 def author_board_from_answer(answer: str, concept_id: str | None = None,
                              context: str | None = None,
                              profile: dict | None = None,
@@ -966,10 +1013,15 @@ def author_board_from_answer(answer: str, concept_id: str | None = None,
     schema = _board_element_schema()
     res = None
     for attempt in range(_AUTHOR_ATTEMPTS):
+        # ESCALATING budget: a max-tokens decline is not transient — retrying at the SAME
+        # ceiling just truncates in the same place. Longer answers produce longer boards
+        # (the schema is a union over all tools, so the model fills many fields per
+        # element), so the retry doubles the ceiling instead of merely waiting.
+        budget = _AUTHOR_MAX_TOKENS * (2 ** attempt)
         try:
             from llm_vertex import generate_json
             res = generate_json(prompt, response_schema=schema,
-                                temperature=0.0, max_output_tokens=700)
+                                temperature=0.0, max_output_tokens=budget)
         except Exception as e:  # noqa: BLE001 — a drawing failure must never cost the turn
             print(f"[board_buddy] author call raised (attempt {attempt + 1}"
                   f"/{_AUTHOR_ATTEMPTS}): {type(e).__name__}: {e}")
@@ -977,10 +1029,15 @@ def author_board_from_answer(answer: str, concept_id: str | None = None,
         if res is not None and res.ok and isinstance(res.data, dict):
             break
         if attempt < _AUTHOR_ATTEMPTS - 1:
-            delay = _AUTHOR_BACKOFF_S * (attempt + 1)
+            # A max-tokens decline needs a bigger ceiling, not a pause — retry immediately.
+            truncated = "max-tokens" in str(getattr(res, "reason", ""))
+            delay = 0.0 if truncated else _AUTHOR_BACKOFF_S * (attempt + 1)
             print(f"[board_buddy] author declined (ok={getattr(res, 'ok', None)}, "
-                  f"reason={getattr(res, 'reason', '?')!r}); retrying in {delay:.1f}s")
-            time.sleep(delay)
+                  f"reason={getattr(res, 'reason', '?')!r}, budget={budget}); "
+                  f"retrying at {budget * 2} tokens"
+                  + (f" after {delay:.1f}s" if delay else " immediately"))
+            if delay:
+                time.sleep(delay)
 
     if res is None or not res.ok or not isinstance(res.data, dict):
         print(f"[board_buddy] author gave up after {_AUTHOR_ATTEMPTS} attempt(s) "
