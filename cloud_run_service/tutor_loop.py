@@ -72,9 +72,19 @@ load_dotenv(Path(__file__).parent / ".env")
 # so every qwen_chat call site (answer, cohesion judge, grader) switches at once.
 GEN_BACKEND = os.getenv("GEN_BACKEND", "gemini").strip().lower()
 
-# Response Layer (response_layer_architecture_plan.md, Phase 1+2). Default ON (1):
-# when WINI_RESPONSE_LAYER=1 the Teaching Script Planner + Visual Benefit Gate + validator
-# decide WHETHER a visual is earned and WHICH one BEFORE generation (script-first).
+# Response Layer (response_layer_architecture_plan.md, Phase 1+2): the Teaching Script
+# Planner + Visual Benefit Gate + validator decide WHETHER a visual is earned and WHICH
+# one BEFORE generation (script-first).
+#
+# DEFAULT ON, deliberately (confirmed 2026-08-02). It shipped default-OFF while it was a
+# staged slice, and an earlier pass flipped it to "1" silently while claiming the cause was
+# a late .env load — that diagnosis was wrong (this repo's .env carries only the four
+# GOOGLE_*/VERTEX_* keys and has never set this flag; the default is what turns it on).
+# Keeping it ON is the intent — the layer IS the architecture now, and Board Buddy hangs
+# off it. What made default-ON dangerous was not the flag but the gate erosion alongside it
+# (BUG-3: _VISUAL_CONCEPT_KEYWORDS widened until every algebra turn drew a board). With the
+# gate reverted, default-ON means "the gate runs", not "a board always appears".
+# Set WINI_RESPONSE_LAYER=0 for the legacy answer-first path.
 RESPONSE_LAYER = os.getenv("WINI_RESPONSE_LAYER", "1").strip().lower() \
     not in ("0", "false", "no", "")
 

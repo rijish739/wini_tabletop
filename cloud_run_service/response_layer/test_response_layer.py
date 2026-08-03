@@ -155,6 +155,66 @@ def test_gate_social_kind_rejects():
     assert not vi.allowed
 
 
+def test_gate_algebra_concepts_are_not_blanket_visual():
+    """BUG-3 regression: the gate must stay a DECISION, not degenerate to always-allow.
+
+    An earlier pass added "equation", "expression", "root", "zero", "algebra",
+    "quadratic", "polynomial", "factor" to _VISUAL_CONCEPT_KEYWORDS. Those are substring
+    matches over concept_type + concept_id, so essentially every Class-10 algebra concept
+    became "inherently visual" and a board was armed on nearly every turn — exactly the
+    concept-default behaviour the gate exists to replace.
+
+    These concepts must be speech-only ABSENT turn-scoped evidence that a picture helps.
+    They are still perfectly able to earn a visual via _representation_remedy (covered by
+    test_gate_representation_remedy_earns_scene) — that is the intended route.
+    """
+    for cid, ctype in (
+        ("jemh104__nature_of_roots", "algebraic"),
+        ("jemh102__zeroes_of_a_polynomial", "algebraic"),
+        ("jemh103__pair_of_linear_equations", "algebraic"),
+        ("jemh104__standard_form_expression", "definitional"),
+        ("jemh104__quadratic_equation", "algebraic"),
+    ):
+        ctx = _ctx(pedagogical_action="EXPLAIN", concept_id=cid, concept_type=ctype,
+                   available_scene_concept_id=None, available_crop=None)
+        vi = visual_gate.decide(ctx)
+        assert not vi.allowed, (
+            f"{cid} ({ctype}) auto-earned a visual — the gate has degenerated to "
+            f"always-allow again: {vi.reason}")
+
+    # Positive control: a PROCEDURAL concept still earns on the baseline keyword set
+    # (§12.1 line 1 names "procedural" explicitly). This is the pre-existing, intended
+    # behaviour — reverting BUG-3 must not over-correct and suppress it.
+    ctx = _ctx(pedagogical_action="EXPLAIN",
+               concept_id="jemh104__solving_by_factorisation",
+               concept_type="procedure_algebraic",
+               available_scene_concept_id=None, available_crop=None)
+    assert visual_gate.decide(ctx).allowed, \
+        "procedural concepts must still earn a visual (§12.1)"
+
+
+def test_board_buddy_kill_switch_disables_the_board_target():
+    """BUG-5 regression: WINI_BOARD_BUDDY=0 must fall back off the board target."""
+    import os
+
+    from .compilers import _board_buddy_enabled
+
+    original = os.environ.get("WINI_BOARD_BUDDY")
+    try:
+        for value, expected in (("0", False), ("false", False), ("off", False),
+                                ("1", True), ("", True)):
+            os.environ["WINI_BOARD_BUDDY"] = value
+            assert _board_buddy_enabled() is expected, \
+                f"WINI_BOARD_BUDDY={value!r} should map to enabled={expected}"
+        os.environ.pop("WINI_BOARD_BUDDY", None)
+        assert _board_buddy_enabled() is True, "default must be ON (board is intended)"
+    finally:
+        if original is None:
+            os.environ.pop("WINI_BOARD_BUDDY", None)
+        else:
+            os.environ["WINI_BOARD_BUDDY"] = original
+
+
 # ---- validator ------------------------------------------------------------
 def test_validator_clean_script_keeps_visual():
     ctx = _ctx(pedagogical_action="EXPLAIN",

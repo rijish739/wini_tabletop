@@ -31,9 +31,18 @@ _VISUAL_CONCEPT_KEYWORDS = (
     "area", "volume", "derivation", "procedure", "procedural", "construction",
     "tabular", "table", "symbolic", "formula", "triangle", "circle", "polygon",
     "trigonometr", "angle", "vector", "shape", "plot", "chart", "number_line",
-    "parabola", "distance", "section", "similar", "factor", "factorization",
-    "equation", "quadratic", "algebra", "polynomial", "expression", "root", "zero",
+    "parabola", "distance", "section", "similar",
 )
+# REVERTED 2026-08-02 (BOARD_BUDDY_REGRESSION_AUDIT.md BUG-3). An earlier pass added
+# "factor", "factorization", "equation", "quadratic", "algebra", "polynomial",
+# "expression", "root" and "zero" here to make algebra turns draw a board. These are
+# SUBSTRING matches over concept_type + concept_id, and "equation"/"expression"/"root"/
+# "zero" match nearly every Class-10 algebra concept — so _is_visual_concept() became
+# ~always-True and decide() degenerated to always-allow. That reinstates exactly the
+# concept-default behaviour this module exists to replace (§3.2 "visuals are earned").
+# If a specific topic genuinely needs a visual, express it as a representation remedy
+# (_representation_remedy: an explicit ask, a representation target, or a misconception),
+# which is turn-scoped evidence — not as a blanket concept keyword.
 
 _HIGH_LOAD = 0.7
 _HIGH_FRUSTRATION = 0.6

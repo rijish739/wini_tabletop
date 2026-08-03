@@ -294,7 +294,74 @@ complies needs a live run (and Cloud Run redeploy), which has not been done.
 4. Verify: replay a set of EXPLAIN turns and check the earned/not-earned split is a
    *decision* again, not ~100% allow. `[tutor] response-layer [...] earned=` already logs this.
 
-### Stage 3 — Fix the layout engine (fixes BUG-6, BUG-7)
+### Stage 2 — Restore the gate — **DONE 2026-08-02, verified live on winipi5**
+
+1. ✅ Reverted `_VISUAL_CONCEPT_KEYWORDS` to the baseline tuple, with a comment recording
+   why the widened set is wrong and where topic-specific needs belong instead
+   (`_representation_remedy`, which is turn-scoped evidence).
+2. ✅ `WINI_RESPONSE_LAYER` **stays default-ON**, now documented as a deliberate decision
+   rather than a silent flip. The report's stated cause (a late `.env` load) was wrong —
+   this repo's `.env` holds only the four `GOOGLE_*`/`VERTEX_*` keys and never set the flag.
+   What made default-ON dangerous was BUG-3 beside it, not the flag itself.
+3. ✅ Restored the `WINI_BOARD_BUDDY` kill switch (`compilers._board_buddy_enabled`,
+   default ON, read per call so it is flippable without a restart).
+4. ✅ Regression cover added: `test_gate_algebra_concepts_are_not_blanket_visual` (five
+   algebra concepts must be speech-only, plus a positive control that a *procedural*
+   concept still earns — §12.1) and `test_board_buddy_kill_switch_disables_the_board_target`.
+
+**Suite: 74 passed, 0 failed, 1 skipped.**
+
+#### Live device verification (winipi5, 192.168.29.24)
+
+Pushed `tutor_loop.py` (as a patch — the 204 KB file exceeds the base64-over-exec push),
+`visual_gate.py` and `compilers.py` to the device; ran the local brain and drove it with
+`POST /stream_turn` (bypasses STT, keeps the Response Layer + SYNC_VISUAL path live).
+
+| turn | input | gate | board | deixis in speech |
+|---|---|---|---|---|
+| 1 | "how to find the area of a triangle?" | **declined** | none | clean |
+| 2 | "I cannot picture what a parabola looks like…" | allow: *representation gap* | text-only | clean |
+| 3 | "Show me the graph of y = x²−5x+6…" | allow: *representation gap* | text-only | clean |
+| 4 | "I cannot picture it. Show me the graph…" | allow: *representation gap* | **5 elements incl. graph** | clean |
+| 5 | same as 4, with `WINI_BOARD_BUDDY=0` | allow | **none (killed)** | clean |
+
+Results:
+- **Stage 1 holds live: 5/5 turns, zero deictic promises.** Turn 4 had a real board and
+  still did not say "look at the graph" — the board illustrates the speech instead of being
+  pointed at.
+- **Stage 2 holds: the gate is a decision again.** Turn 1 declined. Turns 2–4 were allowed
+  through `_representation_remedy` ("I cannot picture it") — the *correct* route — not
+  through a blanket concept keyword.
+- **The kill switch works on device** (turn 5): the gate still allows, but no board is
+  compiled and the turn degrades to speech.
+- Turn 4's payload rendered on the real panel via `wini_client/board_buddy_player.py`
+  (`Loaded 5 elements from JSON payload (status: success)`).
+
+#### New findings from the live run
+
+**BUG-6b — `graph` is the one tool with no `pos` in its schema.** `TOOL_SCHEMAS["graph"]`
+requires only `equation`, so `_normalise_element` never assigns it a position and the brain's
+layout never places it. Board Buddy then draws it at its own default (top-left) — directly
+on top of the title the brain *did* place at `[40, 80]`. The panel screenshot shows
+"Parabola: Football's Path" written across the graph's y-axis. Fold this into Stage 3:
+give `graph` a laid-out position (or reserve its box in the cursor) rather than leaving it
+unpositioned.
+
+**BUG-9a is worse than the test flake suggested.** The rich author path is *not* dead — run
+in isolation with spaced calls it succeeded 4/4 on the same long answer. But under the call
+volume of a real turn (perception + generation + grader + scene author + board author) it
+returned `ok=False` and silently degraded to the conservative scene→payload translation,
+which is why turns 2 and 3 produced a single prose sentence at `[300, 128]`
+(`0.5×600, 0.16×800` — the scene translator's centre, not `_default_pos`). Turn 4, on a
+freshly restarted brain, got the rich path. So the board a child sees depends on transient
+Vertex pressure. This needs a retry/backoff around the author call and a logged reason on
+decline — currently `author_board_from_answer` swallows the failure with a bare
+`except Exception: return None` and prints nothing.
+
+*(Method note: an earlier reading of this as "long answers fail deterministically" was my own
+probe rate-limiting itself — 3 back-to-back calls per iteration. Spaced retries disproved it.)*
+
+### Stage 3 — Fix the layout engine (fixes BUG-6, BUG-6b, BUG-7)
 
 Replace `_default_pos(index)` with a height-aware cursor:
 

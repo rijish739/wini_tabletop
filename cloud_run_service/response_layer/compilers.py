@@ -117,6 +117,24 @@ def _compile_board_buddy(scene: dict, answer: str | None, profile: dict,
             "narration_mode": NARRATION_SCRIPT_OVERRIDE}
 
 
+def _board_buddy_enabled() -> bool:
+    """Runtime kill switch for the Board Buddy compiler target (WINI_BOARD_BUDDY).
+
+    Restored 2026-08-02 (BOARD_BUDDY_REGRESSION_AUDIT.md BUG-5): the flag had been dropped
+    entirely, leaving board capability decided ONLY by the device profile — so on a
+    board-capable device there was no way to turn the board off without editing the profile
+    and redeploying. Default ON (the board is the intended behaviour on such a device);
+    set WINI_BOARD_BUDDY=0 to fall back to the scene_spec PNG path, which is the fastest
+    way to isolate "is this a board bug or a brain bug?" on a live device.
+
+    Read per call, not at import: the flag must be flippable without a process restart, and
+    an import-time read is what made WINI_RESPONSE_LAYER look broken (BUG-4).
+    """
+    import os
+    return os.getenv("WINI_BOARD_BUDDY", "1").strip().lower() \
+        not in ("0", "false", "no", "off")
+
+
 def _compile_visual(beat, scene: dict | None, profile: dict,
                     answer: str | None = None, want_animation: bool = False,
                     want_real_life: bool = False) -> dict | None:
@@ -130,8 +148,9 @@ def _compile_visual(beat, scene: dict | None, profile: dict,
                 "representation_target": intent.representation_target}
     if intent.visual_type in (VisualType.AUTHORED_SCENE,
                                VisualType.GENERATED_DECLARATIVE_SCENE_SPEC):
-        board_capable = bool(profile.get("renderer") == "board_buddy"
-                             or profile.get("supports_board_buddy"))
+        board_capable = _board_buddy_enabled() and bool(
+            profile.get("renderer") == "board_buddy"
+            or profile.get("supports_board_buddy"))
         if scene is not None:
             review = review_scene(scene)
             if not review.ok:
