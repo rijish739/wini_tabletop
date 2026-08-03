@@ -59,6 +59,12 @@ class JsonResult:
     text: str               # raw model text (for logging / debugging)
     latency_ms: int
     ok: bool                # True iff structured JSON parsed cleanly
+    # WHY the call produced nothing usable, when ok is False (added 2026-08-03,
+    # BOARD_BUDDY_REGRESSION_AUDIT.md BUG-9a). Callers used to see only ok=False and
+    # could not tell a MAX_TOKENS truncation from a safety block from an empty
+    # candidate — which is how the Board Buddy author's silent degradation to a
+    # one-sentence prose card stayed invisible. Empty string when ok is True.
+    reason: str = ""
 
 
 _clients: dict[str, object] = {}
@@ -292,7 +298,35 @@ def generate_json(
     latency_ms = int((time.perf_counter() - t0) * 1000)
     text = (getattr(response, "text", "") or "").strip()
     data = _extract_json(text)
-    return JsonResult(data=data, text=text, latency_ms=latency_ms, ok=data is not None)
+    return JsonResult(data=data, text=text, latency_ms=latency_ms, ok=data is not None,
+                      reason="" if data is not None else _json_failure_reason(response, text))
+
+
+def _json_failure_reason(response, text: str) -> str:
+    """Best-effort description of why a structured call yielded no JSON.
+
+    Reads the finish reason / safety block off the candidate rather than leaving the caller
+    with a bare ok=False. Never raises — a diagnostic must not become a second failure.
+    """
+    try:
+        feedback = getattr(response, "prompt_feedback", None)
+        blocked = getattr(feedback, "block_reason", None) if feedback else None
+        if blocked:
+            return f"prompt-blocked:{blocked}"
+        candidates = getattr(response, "candidates", None) or []
+        if not candidates:
+            return "no-candidates"
+        finish = getattr(candidates[0], "finish_reason", None)
+        if finish is not None:
+            name = getattr(finish, "name", None) or str(finish)
+            if str(name).upper().endswith("MAX_TOKENS"):
+                # CLAUDE.md gotcha G1's sibling: the visible budget ran out mid-JSON.
+                return "max-tokens (raise max_output_tokens)"
+            if str(name).upper() not in ("STOP", "FINISHREASON.STOP"):
+                return f"finish:{name}"
+        return "empty-text" if not text else "unparseable-json"
+    except Exception as e:  # noqa: BLE001
+        return f"unknown ({type(e).__name__})"
 
 
 def main() -> None:

@@ -978,12 +978,13 @@ def author_board_from_answer(answer: str, concept_id: str | None = None,
             break
         if attempt < _AUTHOR_ATTEMPTS - 1:
             delay = _AUTHOR_BACKOFF_S * (attempt + 1)
-            print(f"[board_buddy] author declined (ok="
-                  f"{getattr(res, 'ok', None)}); retrying in {delay:.1f}s")
+            print(f"[board_buddy] author declined (ok={getattr(res, 'ok', None)}, "
+                  f"reason={getattr(res, 'reason', '?')!r}); retrying in {delay:.1f}s")
             time.sleep(delay)
 
     if res is None or not res.ok or not isinstance(res.data, dict):
         print(f"[board_buddy] author gave up after {_AUTHOR_ATTEMPTS} attempt(s) "
+              f"(reason={getattr(res, 'reason', '?')!r}) "
               f"-> degrading to the scene translation / speech-only")
         return None
 

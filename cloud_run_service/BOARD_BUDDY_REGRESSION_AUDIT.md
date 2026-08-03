@@ -404,6 +404,13 @@ at a brain-assigned `[40, 174]`. Screenshots: `shot_stage2_board_live.png` (befo
    `except Exception: return None` printed nothing, which is why a board silently degrading
    to a one-sentence prose card went unnoticed. Budget kept deliberately small (2 attempts,
    1.5 s) because this runs after generation with audio already streaming.
+   `JsonResult` also gained a `reason` field (`llm_vertex._json_failure_reason`): callers
+   previously saw only `ok=False` and could not distinguish a `MAX_TOKENS` truncation from a
+   safety block from an empty candidate. Live logs now read e.g.
+   `author declined (ok=False, reason='max-tokens (raise max_output_tokens)')`.
+   **This mitigates but does not eliminate BUG-9a** — the board a child sees still depends on
+   Vertex succeeding within 2 attempts. It is now diagnosable instead of silent, which is the
+   precondition for tuning it properly.
 3. ✅ **BUG-11 checked, currently benign.** All three `board_buddy.py` copies (repo,
    device repo, `~/board_buddy_sandbox`) are byte-identical (`d9b68792`, 1956 lines) and all
    support `tree`. `ALL_TOOLS`, `TOOL_SCHEMAS` and `WINIPI5_PROFILE.board_buddy_tools` agree
