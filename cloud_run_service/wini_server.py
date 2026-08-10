@@ -63,6 +63,8 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+from runtime_flags import RESPONSE_LAYER
+
 STT_TIMEOUT_S = 20.0
 TTS_TIMEOUT_S = 30.0
 
@@ -81,11 +83,10 @@ STREAM_GEN = _flag("WINI_STREAM_GEN", "1")
 # instead of serially after it (the grader needs neither perception nor state).
 # Removes the RC-3 serial-grader block from `brain`. Revertible: WINI_PARALLEL_GRADER=0.
 PARALLEL_GRADER = _flag("WINI_PARALLEL_GRADER", "1")
-# Response Layer (response_layer_architecture_plan.md). Default OFF. When on, the brain
+# Response Layer (response_layer_architecture_plan.md). Shared default/source with tutor.
 # rides "rl":true on the early filler line (so the client waits for the authoritative
 # visual directive on turn_meta instead of concept-default-arming a scene) and forwards
 # the turn's `visual` directive. Same env var tutor_loop.RESPONSE_LAYER reads.
-RESPONSE_LAYER = _flag("WINI_RESPONSE_LAYER")
 
 # Part 15: app-level shared-secret gate for a publicly-reachable Cloud Run service.
 # When WINI_API_KEY is set, every POST (the billed /turn and /voice_turn) must carry
@@ -346,8 +347,9 @@ class Brain:
 
     def text_turn(self, text: str, speak: bool, answer_budget: dict | None = None,
                   precomputed_analysis: dict | None = None,
-                  precomputed_grade: str | None = None,
-                  mode: str | None = None, emit=None) -> dict:
+                  precomputed_grade: dict | str | None = None,
+                  mode: str | None = None, emit=None,
+                  stt_confidence: float | None = None) -> dict:
         from voice.sanitize import sanitize_for_speech
 
         import tutor_loop as _tl
@@ -388,7 +390,8 @@ class Brain:
             try:
                 result = self.tutor.turn(text, answer_budget=answer_budget,
                                          precomputed_analysis=precomputed_analysis,
-                                         precomputed_grade=precomputed_grade)
+                                         precomputed_grade=precomputed_grade,
+                                         stt_confidence=stt_confidence)
             finally:
                 # The sink is thread-local and turn-scoped — clear it before any
                 # other turn can run on this thread.
@@ -521,7 +524,7 @@ class Brain:
         except Exception as e:  # noqa: BLE001
             print(f"[server] durable state write failed (retried next turn): {e}")
 
-    def _maybe_speculate_grade(self, transcript: str):
+    def _maybe_speculate_grade(self, transcript: str, stt_confidence: float = 1.0):
         """Part 15 Phase B: submit the answer grader for the armed pending_check
         so it runs CONCURRENTLY with the perception call in before_turn().
 
@@ -551,7 +554,10 @@ class Brain:
             except Exception:  # noqa: BLE001 — pre-gate is optional, never fatal
                 pass
             import tutor_loop as _tl
-            return _pool.submit(_tl.judge_answer, q, exp, transcript)
+            return _pool.submit(
+                _tl.judge_answer, q, exp, transcript, pending.get("rubric") or "",
+                stt_confidence=stt_confidence,
+                idempotency_key=pending.get("idempotency_key"))
         except Exception as e:  # noqa: BLE001 — speculation must never break a turn
             print(f"[server] grade speculation skipped: {e}")
             return None
@@ -567,7 +573,14 @@ class Brain:
         `mode` is the touch-UI pedagogy selection (X-Wini-Mode); it is recorded
         on the session and echoed back, no behavior change (Part 12 §5.9)."""
         t0 = time.perf_counter()
-        transcript = _bounded(self.stt.recognize_pcm, STT_TIMEOUT_S, pcm, rate)
+        if hasattr(self.stt, "recognize_pcm_evidence"):
+            stt_evidence = _bounded(
+                self.stt.recognize_pcm_evidence, STT_TIMEOUT_S, pcm, rate)
+            transcript = stt_evidence.transcript
+            stt_confidence = float(stt_evidence.confidence)
+        else:  # compatibility with existing test/device adapters
+            transcript = _bounded(self.stt.recognize_pcm, STT_TIMEOUT_S, pcm, rate)
+            stt_confidence = 1.0
         stt_ms = int((time.perf_counter() - t0) * 1000)
         if not transcript:
             # nothing recognized — the client just re-listens; don't burn a turn
@@ -581,7 +594,7 @@ class Brain:
         # Gemini calls overlap. Joined just before text_turn below.
         grade_future = None
         if PARALLEL_GRADER and getattr(self.tutor, "want_answer", True):
-            grade_future = self._maybe_speculate_grade(transcript)
+            grade_future = self._maybe_speculate_grade(transcript, stt_confidence)
 
         # Pacing before_turn (analysis + answer budget) -> cognitive filler.
         # Best-effort: a failure here must never cost the turn itself.
@@ -657,8 +670,9 @@ class Brain:
         out = self.text_turn(transcript, speak=True, answer_budget=budget,
                              precomputed_analysis=precomputed,
                              precomputed_grade=precomputed_grade, mode=mode,
-                             emit=emit)
+                             emit=emit, stt_confidence=stt_confidence)
         out["latency_ms"]["stt"] = stt_ms
+        out["stt_confidence"] = round(stt_confidence, 4)
         out["latency_ms"]["perception"] = perception_ms
         # grade_ms is the JOIN wait after perception — near-0 means the grader
         # finished inside the perception window (the whole point of Phase B).

@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -51,6 +52,12 @@ from query import (
     need_evidence,
     resolve_band,
     snapshot_rerank,
+)
+from runtime_flags import (
+    GRADER_WRITE_CONFIDENCE_MIN,
+    P0_EVIDENCE,
+    RESPONSE_LAYER,
+    STT_WRITE_CONFIDENCE_MIN,
 )
 
 try:
@@ -84,9 +91,8 @@ GEN_BACKEND = os.getenv("GEN_BACKEND", "gemini").strip().lower()
 # off it. What made default-ON dangerous was not the flag but the gate erosion alongside it
 # (BUG-3: _VISUAL_CONCEPT_KEYWORDS widened until every algebra turn drew a board). With the
 # gate reverted, default-ON means "the gate runs", not "a board always appears".
-# Set WINI_RESPONSE_LAYER=0 for the legacy answer-first path.
-RESPONSE_LAYER = os.getenv("WINI_RESPONSE_LAYER", "1").strip().lower() \
-    not in ("0", "false", "no", "")
+# Set WINI_RESPONSE_LAYER=0 for the legacy answer-first path. The value and
+# default come from runtime_flags so the server and tutor cannot disagree.
 
 # Perception (Part 11, PART11_GEMINI_PERCEPTION_LAYER.md): ONE structured Gemini
 # call (intent + signals + concept). Promoted Stage 4 (2026-07-02); the local
@@ -109,7 +115,8 @@ from perception.config import PERCEPTION_BACKEND  # noqa: E402
 def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
                  acknowledged: bool = False, clarification: bool = False,
                  learning_start: bool = False, visual: bool = False,
-                 purpose: bool = False, student_problem: bool = False) -> tuple[str, str, str]:
+                 purpose: bool = False, student_problem: bool = False,
+                 transfer_ready: bool = False) -> tuple[str, str, str]:
     s = set(signals)
     # rule 1a-vis (deterministic, outranks rule 1b): the student said they cannot
     # PICTURE it ("I cannot imagine this") or asked what it looks like. That is a
@@ -170,7 +177,7 @@ def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
     if student_problem:
         return "SOLVE_STUDENT_PROBLEM", "schema", \
             "rule 4b: student brought their own problem -> solve THAT instance using the stored method"
-    if "transfer_ready_evidence" in flags or "ready_for_next" in s:
+    if transfer_ready and ("transfer_ready_evidence" in flags or "ready_for_next" in s):
         return "TRANSFER_PROBLEM", "transfer", "rule 5: transfer readiness -> near transfer first (section 6.6)"
     if s & {"request_representation", "representation_shift", "graphical", "diagrammatic"}:
         return "REPRESENTATION_TRANSLATION", "integrate", "rule 6: representation gap -> translate (rule 5, KI)"
@@ -184,7 +191,8 @@ def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
         return "EXPLAIN", "explain", "rule 10a: confusion default -> explain simply"
     if abstained and not acknowledged:
         return "EXPLAIN", "explain", "rule 10a: unresolved + no clear signal -> explain simply"
-    return "QUIZ", "practice", "rule 10b: no distress signal -> practice in ZPD"
+    return "EXPLAIN", "explain", \
+        "rule 10b: no verified assessment selected -> grounded explanation, never pseudo-quiz"
 
 
 # ---------------------------------------------------------------------------
@@ -390,7 +398,7 @@ def _first_complete_sentence(text: str) -> str | None:
 
 
 def _stream_answer(prompt: str, max_tokens: int, answer_budget: dict | None,
-                   sink) -> str:
+                   sink, required_question: str | None = None) -> str:
     """Generate the answer as a token stream, releasing sentence 0 immediately.
 
     Why only sentence 0 goes out early: `_truncate_to_spoken_budget` builds its
@@ -440,6 +448,7 @@ def _stream_answer(prompt: str, max_tokens: int, answer_budget: dict | None,
                 text = _truncate_to_spoken_budget(
                     text, int(answer_budget.get("max_words", 35)),
                     int(answer_budget.get("max_sentences", 2)))
+            text = _ensure_assessment_question(text, required_question)
             sink(text)
             return text
         # Sentence 0 is already being spoken; re-generating would say it twice.
@@ -451,6 +460,7 @@ def _stream_answer(prompt: str, max_tokens: int, answer_budget: dict | None,
         final = _truncate_to_spoken_budget(
             final, int(answer_budget.get("max_words", 35)),
             int(answer_budget.get("max_sentences", 2)))
+    final = _ensure_assessment_question(final, required_question)
     if not released:
         sink(final)
     elif final.startswith(released):
@@ -497,7 +507,8 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
                 clarify: bool = False, intro: bool = False, visualize: bool = False,
                 animate: bool = False, real_life: bool = False,
                 same_problem: bool = False,
-                grounding: str = "manifest_only") -> str:
+                grounding: str = "manifest_only",
+                required_question: str | None = None) -> str:
     tone = {
         "ENCOURAGE": "The student is frustrated or overloaded. Be warm and brief; acknowledge effort first.",
         "MISCONCEPTION_PROBE": "Ask the diagnostic question from the evidence FIRST. Do not reveal the correction yet.",
@@ -757,11 +768,19 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             "example, do NOT swap in different values, and do NOT restate the question "
             "with other numbers. Answer the part they are now asking about using that "
             "one same worked example.\n")
+    assessment_cue = ""
+    if required_question:
+        assessment_cue = (
+            "VERIFIED ASSESSMENT: end with the exact stored question below, verbatim. "
+            "Do not invent another question, paraphrase it, solve it, hint at its answer, "
+            "or state its answer.\n"
+            f"STORED QUESTION: {required_question}\n")
     prompt = (
         f"You are Wini, a friendly Class 10 Maths tutor ({chapter_hint}).\n"
         f"Pedagogical action for this turn: {action}. {tone}\n"
         + (f"Context: {writeback_note}\n" if writeback_note else "")
         + continuity_cue
+        + assessment_cue
         + style_cue
         + clarify_cue
         + screen_cue
@@ -778,7 +797,7 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
     # same temperature, same budget — only the transport differs.
     sink = _sink()
     if STREAM_GEN and GEN_BACKEND == "gemini" and sink is not None:
-        return _stream_answer(prompt, max_tokens, answer_budget, sink)
+        return _stream_answer(prompt, max_tokens, answer_budget, sink, required_question)
     text = qwen_chat(prompt, temperature=0.3, max_tokens=max_tokens)
     if answer_budget:
         text = _truncate_to_spoken_budget(
@@ -786,7 +805,7 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             int(answer_budget.get("max_words", 35)),
             int(answer_budget.get("max_sentences", 2)),
         )
-    return text
+    return _ensure_assessment_question(text, required_question)
 
 
 def _budget_for_generation(answer_budget: dict | None, action: str) -> dict | None:
@@ -923,7 +942,8 @@ def qwen_cohesion_check(evidence: list[dict], blocks_text: dict) -> list[str]:
 
 
 def judge_answer(question: str, expected: str, student_answer: str,
-                 rubric: str = "") -> str:
+                 rubric: str = "", *, stt_confidence: float | None = None,
+                 idempotency_key: str | None = None) -> dict:
     """Grade a check answer — hardened, deterministic-first (Part 12 §5.4).
 
     1. A deterministic numeric/expression/yes-no equivalence check (math_grade)
@@ -937,11 +957,17 @@ def judge_answer(question: str, expected: str, student_answer: str,
     Returns correct | partial | wrong | not_an_answer. Any failure degrades to
     not_an_answer so learner state is never moved by a broken grader.
     """
+    det = None
     try:
         import math_grade
         det = math_grade.grade(expected, student_answer)
-        if det in ("correct", "wrong"):
-            return det
+        if det == "correct" or (det == "wrong" and not rubric):
+            return {
+                "outcome": det, "confidence": 1.0, "path": "deterministic",
+                "misconception_consistent": False,
+                "stt_confidence": stt_confidence,
+                "idempotency_key": idempotency_key,
+            }
     except Exception:  # noqa: BLE001 — deterministic layer must never break grading
         pass
     prompt = (
@@ -950,21 +976,41 @@ def judge_answer(question: str, expected: str, student_answer: str,
         f"EXPECTED ANSWER: {expected}\n"
         + (f"GRADING NOTES (common traps / why a wrong answer is wrong): {rubric}\n" if rubric else "")
         + f"STUDENT REPLY: {student_answer}\n\n"
-        'Classify the student reply. Respond with ONLY one JSON object like {"outcome": "correct"}.\n'
+        'Respond with ONLY JSON: {"outcome":"correct","confidence":0.95,'
+        '"misconception_consistent":false}.\n'
         "outcome must be one of: correct (matches expected), partial (right direction, "
         "incomplete or with an error), wrong (contradicts expected), not_an_answer "
         "(the reply does not attempt the question — e.g. a new question, topic change, or 'i dont know')."
     )
     try:
-        text = qwen_chat(prompt, temperature=0.0, max_tokens=40, small=True)  # grader (Part 15 C)
+        text = qwen_chat(prompt, temperature=0.0, max_tokens=80, small=True)  # grader (Part 15 C)
         import re as _re
         m = _re.search(r'"outcome"\s*:\s*"(correct|partial|wrong|not_an_answer)"', text)
-        if m:
-            return m.group(1)
-        m = _re.search(r"\b(correct|partial|wrong|not_an_answer)\b", text.lower())
-        return m.group(1) if m else "not_an_answer"
+        parsed = m.group(1) if m else "not_an_answer"
+        cm = _re.search(r'"confidence"\s*:\s*(0(?:\.\d+)?|1(?:\.0+)?)', text)
+        confidence = float(cm.group(1)) if cm else 0.5
+        consistent = bool(_re.search(
+            r'"misconception_consistent"\s*:\s*true\b', text, _re.I))
+        outcome = det if det == "wrong" else parsed
+        return {
+            "outcome": outcome,
+            "confidence": 1.0 if det == "wrong" else confidence,
+            "path": "deterministic+rubric" if det == "wrong" else "rubric_model",
+            "misconception_consistent": bool(consistent and confidence >= 0.8),
+            "stt_confidence": stt_confidence,
+            "idempotency_key": idempotency_key,
+        }
     except Exception:  # noqa: BLE001
-        return "not_an_answer"
+        if det == "wrong":
+            return {"outcome": "wrong", "confidence": 1.0,
+                    "path": "deterministic+rubric_unavailable",
+                    "misconception_consistent": False,
+                    "stt_confidence": stt_confidence,
+                    "idempotency_key": idempotency_key}
+        return {"outcome": "not_an_answer", "confidence": 0.0,
+                "path": "grader_unavailable", "misconception_consistent": False,
+                "stt_confidence": stt_confidence,
+                "idempotency_key": idempotency_key}
 
 
 def _plainify_math(s: str) -> str:
@@ -983,6 +1029,64 @@ def _plainify_math(s: str) -> str:
     return to_question(s)
 
 
+_VERIFIED_ITEM_CACHE_PATH = STORE / "verified_quiz_items.json"
+_VERIFIED_ITEM_CACHE: dict | None = None
+_ITEM_VERIFIER_VERSION = "p0-independent-v1"
+
+
+def _verified_item_cache() -> dict:
+    global _VERIFIED_ITEM_CACHE
+    if _VERIFIED_ITEM_CACHE is None:
+        try:
+            raw = json.loads(_VERIFIED_ITEM_CACHE_PATH.read_text(encoding="utf-8"))
+            _VERIFIED_ITEM_CACHE = {
+                k: v for k, v in (raw.items() if isinstance(raw, dict) else [])
+                if isinstance(v, dict) and v.get("item_verified") is True
+            }
+        except Exception:  # noqa: BLE001
+            _VERIFIED_ITEM_CACHE = {}
+    return _VERIFIED_ITEM_CACHE
+
+
+def _save_verified_item_cache() -> None:
+    cache = _verified_item_cache()
+    tmp = _VERIFIED_ITEM_CACHE_PATH.with_suffix(".json.tmp")
+    try:
+        tmp.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
+        os.replace(tmp, _VERIFIED_ITEM_CACHE_PATH)
+    except Exception:  # noqa: BLE001 - cache failure disables reuse, never verification
+        try:
+            tmp.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+
+def _verify_generated_item(question: str, proposed_answer: str) -> dict | None:
+    """Independently solve a generated item without showing the proposed key."""
+    prompt = (
+        "Independently solve this Class 10 maths question. Do not assume any supplied key.\n"
+        f"QUESTION: {question}\n"
+        'Return ONLY JSON: {"derived_answer":"...","confidence":0.99}. '
+        "Use a fully simplified short exact answer."
+    )
+    try:
+        raw = qwen_chat(prompt, temperature=0.0, max_tokens=120, small=True)
+        import re as _re
+        match = _re.search(r"\{.*\}", raw, _re.S)
+        obj = json.loads(match.group(0)) if match else {}
+        derived = str(obj.get("derived_answer") or "").strip().replace("$", "")
+        confidence = float(obj.get("confidence", 0.0))
+        if not derived or confidence < 0.90:
+            return None
+        import math_grade
+        if math_grade.grade(proposed_answer, derived) != "correct":
+            return None
+        return {"derived_answer": derived, "confidence": confidence,
+                "version": _ITEM_VERIFIER_VERSION}
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = None) -> dict | None:
     """Generate ONE short-answer quiz item {question, expected_answer} from a
     problem_schema (Part 12 §4.4). Runtime generation is used because the store
@@ -998,6 +1102,19 @@ def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = Non
     if clean_avoid:
         avoid_txt = ("Do NOT repeat or lightly reword any of these already-asked "
                      "questions:\n" + "\n".join(f"- {a}" for a in clean_avoid) + "\n")
+    cache_material = json.dumps({
+        "schema_id": schema.get("id") or schema.get("schema_id"),
+        "method_steps": schema.get("method_steps") or [],
+        "variables": schema.get("isomorphic_variables") or [],
+        "concept": concept_name,
+        "avoid": sorted(clean_avoid),
+        "verifier": _ITEM_VERIFIER_VERSION,
+    }, sort_keys=True, ensure_ascii=True)
+    cache_key = hashlib.sha256(cache_material.encode("utf-8")).hexdigest()
+    cached = _verified_item_cache().get(cache_key)
+    if cached and cached.get("item_verified") is True:
+        return dict(cached)
+
     prompt = (
         "You are setting ONE short quiz question for a Class 10 maths student.\n"
         f"CONCEPT: {concept_name}\n"
@@ -1016,7 +1133,7 @@ def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = Non
         'Respond with ONLY one JSON object: {"question": "...", "expected_answer": "..."}'
     )
     try:
-        raw = qwen_chat(prompt, temperature=0.7, max_tokens=220)
+        raw = qwen_chat(prompt, temperature=0.0, max_tokens=220)
         import re as _re
         m = _re.search(r"\{.*\}", raw, _re.S)
         if not m:
@@ -1026,9 +1143,159 @@ def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = Non
         # answer: only strip LaTeX delimiters (grading-neutral); do NOT reword ^ etc.
         a = str(obj.get("expected_answer") or "").strip().replace("$", "").strip()
         if q and a:
-            return {"question": q, "expected_answer": a}
+            verification = _verify_generated_item(q, a)
+            if not verification:
+                return None
+            item_id = "verified_quiz::" + hashlib.sha256(
+                f"{q}\n{a}".encode("utf-8")).hexdigest()[:20]
+            item = {
+                "item_id": item_id, "question": q, "expected_answer": a,
+                "rubric": "", "assessment_purpose": "test",
+                "response_type": "short_exact", "reveal_policy": "after_attempt",
+                "item_verified": True,
+                "verification_provenance": "independent_model_agreement",
+                "verification_version": verification["version"],
+                "verifier_confidence": verification["confidence"],
+            }
+            _verified_item_cache()[cache_key] = item
+            _save_verified_item_cache()
+            return dict(item)
     except Exception:  # noqa: BLE001 — a broken generator ends the set, never crashes a turn
         return None
+    return None
+
+
+def _assessment_hook(candidate: dict, script_id: str, beat_id: str):
+    from response_layer.contracts import AssessmentHook, AssessmentHookType, ExecutionMode
+
+    kind = candidate.get("kind")
+    hook_type = {
+        "bridge": AssessmentHookType.DIAGNOSTIC_PROBE,
+        "misconception": AssessmentHookType.MISCONCEPTION_PROBE,
+        "test": AssessmentHookType.MICRO_CHECK,
+    }.get(kind, AssessmentHookType.MICRO_CHECK)
+    item_id = candidate.get("item_id") or candidate.get("id")
+    return AssessmentHook(
+        hook_id=f"{script_id}:{beat_id}:{item_id}",
+        hook_type=hook_type,
+        execution_mode=ExecutionMode.SPOKEN,
+        target_concept=candidate.get("concept_id"),
+        target_misconception=(item_id if kind == "misconception" else None),
+        expected_response_type=candidate.get("response_type") or "short_text",
+        correctness_rule=candidate.get("rubric") or candidate.get("expected_answer"),
+        state_update_intent=("bridge" if kind == "bridge" else kind),
+        evidence_refs=[item_id] if item_id else [],
+        item_id=item_id,
+        question=candidate.get("question"),
+        expected_answer=candidate.get("expected_answer"),
+        rubric=candidate.get("rubric") or "",
+        assessment_purpose=candidate.get("assessment_purpose") or kind,
+        reveal_policy=candidate.get("reveal_policy") or "after_attempt",
+        item_verified=bool(candidate.get("item_verified")),
+        verification_provenance=candidate.get("verification_provenance"),
+        verification_version=candidate.get("verification_version"),
+        hint_chain=list(candidate.get("hint_chain") or []),
+    )
+
+
+def attach_assessment_hook(script, candidate: dict | None):
+    """Attach at most one verified hook to the script, replacing placeholders."""
+    if script is None:
+        return None
+    for beat in script.beats:
+        beat.assessment_hook = None
+    if not candidate:
+        return script
+    beat = script.beats[-1] if script.beats else None
+    if beat is None:
+        return script
+    beat.assessment_hook = _assessment_hook(candidate, script.script_id, beat.beat_id)
+    beat.completion_condition = "await_spoken_answer"
+    return script
+
+
+def assessment_script(candidate: dict, action: str, concept_id: str | None):
+    """Build the compact contract used when the response layer is rolled back or
+    a TEST question deliberately bypasses generation."""
+    from response_layer.contracts import Beat, ResponseKind, TeachingScript
+    script_id = "assessment_" + hashlib.sha256(
+        f"{candidate.get('id')}:{time.time_ns()}".encode("utf-8")).hexdigest()[:16]
+    beat = Beat(beat_id="b0", pedagogical_step="test_question",
+                atomic_learning_claim="", evidence_refs=[candidate.get("id")])
+    script = TeachingScript(
+        script_id=script_id, turn_id=f"turn_{time.time_ns()}",
+        response_kind=ResponseKind.INSTRUCTIONAL,
+        pedagogical_action=action, concept_id=concept_id,
+        beats=[beat], entry_beat_id="b0")
+    return attach_assessment_hook(script, candidate)
+
+
+def arm_from_script(script, session: dict) -> dict | None:
+    """The P0 path's sole writer of ``session['pending_check']``.
+
+    A script with zero, multiple, or incomplete verified hooks is non-assessing.
+    ``pending_check`` is the serialized AssessmentHook plus compatibility aliases,
+    so there is one outstanding-check representation rather than two contracts.
+    """
+    hooks = [(beat, beat.assessment_hook) for beat in (getattr(script, "beats", []) or [])
+             if beat.assessment_hook is not None]
+    valid = [(beat, hook) for beat, hook in hooks if (
+        hook.item_verified and hook.item_id and hook.question
+        and (hook.expected_answer or hook.rubric) and hook.assessment_purpose
+        and hook.reveal_policy
+    )]
+    if len(valid) != 1 or len(hooks) != 1:
+        return None
+    beat, hook = valid[0]
+    pending = hook.to_dict()
+    pending.update({
+        "kind": hook.state_update_intent or "practice",
+        "id": hook.item_id,
+        "concept_id": hook.target_concept,
+        "script_id": script.script_id,
+        "beat_id": beat.beat_id,
+        "attempt": 1,
+        "item_source": hook.verification_provenance or "authored_store",
+        "idempotency_key": f"{script.script_id}:{beat.beat_id}:1",
+    })
+    session["pending_check"] = pending
+    return pending
+
+
+def _normalise_assessment_text(value: str) -> str:
+    return " ".join(re.findall(r"[a-z0-9]+", str(value or "").lower()))
+
+
+def _ensure_assessment_question(answer: str, question: str | None) -> str:
+    """Ensure the verified item is delivered verbatim as the final question."""
+    answer = (answer or "").strip()
+    question = (question or "").strip()
+    if not question:
+        return answer
+    if _normalise_assessment_text(question) in _normalise_assessment_text(answer):
+        return answer
+    return f"{answer} {question}".strip()
+
+
+def assessment_delivery_issue(answer: str, hook) -> str | None:
+    """Return a deterministic reason to void, or None when delivery is intact."""
+    if not hook or not hook.item_verified:
+        return "unverified_item"
+    q_norm = _normalise_assessment_text(hook.question or "")
+    a_norm = _normalise_assessment_text(answer)
+    if not q_norm or q_norm not in a_norm:
+        return "verified_question_not_delivered"
+    expected = str(hook.expected_answer or "").strip().lower()
+    # Remove the question before key-leak inspection: the item itself may contain
+    # answer-domain words (especially binary questions).
+    body = a_norm.replace(q_norm, " ")
+    if expected in ("yes", "no"):
+        if re.search(rf"\b(?:answer|correct answer|it)\s+(?:is|would be)\s+{expected}\b", body):
+            return "answer_key_leak"
+    else:
+        key_norm = _normalise_assessment_text(expected)
+        if key_norm and re.search(rf"(?<!\w){re.escape(key_norm)}(?!\w)", body):
+            return "answer_key_leak"
     return None
 
 
@@ -1361,8 +1628,26 @@ class TutorLoop:
                 if expected and q and inst not in seen:
                     return {"kind": "practice", "id": inst, "concept_id": concept_id,
                             "question": q, "expected_answer": expected,
+                            "rubric": node.get("rubric") or node.get("why_wrong") or "",
+                            "assessment_purpose": "practice",
+                            "response_type": node.get("response_type") or "short_text",
+                            "reveal_policy": node.get("reveal_policy") or "after_attempt",
+                            "item_verified": True,
+                            "verification_provenance": (node.get("verification_provenance")
+                                                        or "authored_store"),
+                            "verification_version": node.get("verification_version") or "store-v1",
                             "difficulty": node.get("difficulty"),
                             "hint_chain": node.get("hint_chain")}
+        if P0_EVIDENCE:
+            for schema_id in self._concept_schema_ids(concept_id):
+                schema = dict(self.graph.nodes.get(schema_id, {}))
+                schema.setdefault("schema_id", schema_id)
+                item = generate_quiz_item(
+                    schema, self.concept_name(concept_id), avoid=sorted(seen))
+                if item and item.get("item_id") not in seen:
+                    return {**item, "kind": "practice", "id": item["item_id"],
+                            "concept_id": concept_id, "assessment_purpose": "practice",
+                            "difficulty": schema.get("difficulty"), "hint_chain": []}
         return None
 
     def _concept_schema_ids(self, concept_id: str | None) -> list:
@@ -1415,13 +1700,20 @@ class TutorLoop:
                 step = self.modes.score_quiz(ts["results"], len(ts["results"]),
                                              MASTERY_GATE_DEFAULT)
             else:
-                iid = f"quiz::{concept_id}::{step['i']}::{int(time.time())}"
+                iid = item.get("item_id") or f"quiz::{concept_id}::{step['i']}::{int(time.time())}"
                 ts.setdefault("items", []).append({
                     "id": iid, "schema_id": step["schema_id"],
                     "question": item["question"], "expected_answer": item["expected_answer"],
                     "difficulty": schema.get("difficulty")})
                 pending = {"kind": "test", "id": iid, "concept_id": concept_id,
                            "question": item["question"], "expected_answer": item["expected_answer"],
+                           "rubric": item.get("rubric") or "",
+                           "assessment_purpose": "test",
+                           "response_type": item.get("response_type") or "short_exact",
+                           "reveal_policy": item.get("reveal_policy") or "after_attempt",
+                           "item_verified": bool(item.get("item_verified")),
+                           "verification_provenance": item.get("verification_provenance"),
+                           "verification_version": item.get("verification_version"),
                            "difficulty": schema.get("difficulty"), "hint_chain": None}
                 return {"action": "TEST_QUESTION", "need": "schema", "why": step["why"],
                         "speak": self._test_question_line(step["i"], step["n"],
@@ -1789,6 +2081,7 @@ class TutorLoop:
             available_scene_concept_id=scene_cid, available_crop=available_crop,
         )
         script = _rl.TeachingScriptPlanner().plan(ctx)
+        attach_assessment_hook(script, getattr(self, "_assessment_candidate", None))
         ev_text = {}
         for e in evidence:
             row = self.chunks_by_id.get(e["id"])
@@ -2302,6 +2595,7 @@ class TutorLoop:
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "learner_id": self.state.data.get("learner_id"),
             "utterance": text,
+            "safety_tier": "protected_supervision",
             "source": route.source,
             "handled": "scripted_reply+persisted_alert+supervisor_notify",
         }
@@ -2324,7 +2618,9 @@ class TutorLoop:
     def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
         log_row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
-            "question": text, "action": route.primary, "action_reason": route.reason,
+            "question": ("[REDACTED_SAFETY_UTTERANCE]" if route.safety_alert else text),
+            "log_tier": ("general_redacted" if route.safety_alert else "general"),
+            "action": route.primary, "action_reason": route.reason,
             "need": "none", "intent": route.primary, "route_source": route.source,
             "safety_alert": bool(route.safety_alert),
             "concept": {"concept_id": route.concept_id,
@@ -2338,7 +2634,12 @@ class TutorLoop:
 
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None,
-             precomputed_grade: str | None = None, _allow_shift: bool = True) -> dict:
+             precomputed_grade: dict | str | None = None,
+             stt_confidence: float | None = None, _allow_shift: bool = True) -> dict:
+        self._response_script = None
+        self._assessment_candidate = None
+        stt_confidence = 1.0 if stt_confidence is None else max(
+            0.0, min(1.0, float(stt_confidence)))
         # Part 15 Phase B: `precomputed_grade` is a grader outcome the server
         # computed CONCURRENTLY with perception (the grader needs only the armed
         # pending_check + transcript, never perception). It is consumed ONLY on the
@@ -2354,6 +2655,38 @@ class TutorLoop:
         # yes/no answers the "switch to X?" offer deterministically (no model
         # call); anything longer falls through with the offer cancelled.
         session = self.state.data.setdefault("session", {})
+        if P0_EVIDENCE and stt_confidence < STT_WRITE_CONFIDENCE_MIN:
+            # Safety still runs first and remains authoritative. Every other
+            # low-confidence transcript is observational only: do not consume
+            # offers, shift topics, grade, or apply cognitive deltas.
+            low_route = _front_gate(text)
+            if low_route is not None and low_route.safety_alert:
+                low_route.primary = "SAFETY"
+                self._log_safety(text, low_route)
+                return self._handle_nonlearning(low_route, text, answer_budget)
+            pending = session.get("pending_check") or {}
+            reply = "I may have heard that wrong. Please say that again"
+            if pending.get("question"):
+                reply += f" for this question: {pending['question']}"
+            else:
+                reply += "."
+            self._log_shift(
+                text, "CONFIRM_LOW_CONFIDENCE",
+                f"STT confidence {stt_confidence:.3f} below write floor; no learning write",
+                reply)
+            return {
+                "action": "CONFIRM_LOW_CONFIDENCE",
+                "action_reason": "low STT confidence; no learning write",
+                "need": "none", "shadow": None,
+                "concept": {"concept_id": session.get("current_concept"),
+                            "concept_confidence": 0.0, "abstained": True},
+                "signals": [], "cognitive_update": {}, "n_evidence": 0,
+                "bridge_ids": [], "writeback": None, "hope_update": None,
+                "pending_check": pending.get("id"), "pending_hope": None,
+                "answer_budget": answer_budget, "pace": session.get("pace", {}),
+                "display": [], "session_ended": False, "answer": reply,
+                "answer_source": "scripted", "gen_backend": None,
+            }
         if session.get("pending_shift"):
             out = self._consume_pending_shift(session, text, answer_budget)
             if out is not None:
@@ -2432,7 +2765,8 @@ class TutorLoop:
                 return self._handle_nonlearning(route, text, answer_budget)
             # Real learning turn: the child re-engaged with maths, so reset the
             # social/emotional steer-back streak (Fix C cooldown counter).
-            session["steer_streak"] = 0
+            if not (P0_EVIDENCE and stt_confidence < STT_WRITE_CONFIDENCE_MIN):
+                session["steer_streak"] = 0
 
         # 1-2. cognitive analysis + state update (Parts 1+2+3)
         if precomputed_analysis is None:
@@ -2606,17 +2940,72 @@ class TutorLoop:
                 # A non-attempt never grades (§13) — and if the server speculatively
                 # graded this turn, its result is discarded here, exactly as the
                 # serial path would never have called judge_answer.
-                outcome = "not_an_answer"
+                grade_result = {"outcome": "not_an_answer", "confidence": 1.0,
+                                "path": "non_attempt_gate",
+                                "misconception_consistent": False,
+                                "stt_confidence": stt_confidence,
+                                "idempotency_key": pending.get("idempotency_key")}
             elif precomputed_grade is not None:
                 # Part 15 Phase B: the grader already ran in parallel with perception
                 # on the identical (question, expected, text) — reuse it, no re-call.
-                outcome = precomputed_grade
+                if isinstance(precomputed_grade, dict):
+                    grade_result = dict(precomputed_grade)
+                else:  # flag-off/backward-compatible server result
+                    grade_result = {"outcome": precomputed_grade, "confidence": 1.0,
+                                    "path": "legacy_precomputed",
+                                    "misconception_consistent": False}
+                if P0_EVIDENCE and grade_result.get("idempotency_key") != \
+                        pending.get("idempotency_key"):
+                    grade_result = judge_answer(
+                        pending["question"], pending["expected_answer"], text,
+                        pending.get("rubric") or "", stt_confidence=stt_confidence,
+                        idempotency_key=pending.get("idempotency_key"))
             else:
-                outcome = judge_answer(pending["question"], pending["expected_answer"], text)
+                grade_result = judge_answer(
+                    pending["question"], pending["expected_answer"], text,
+                    pending.get("rubric") or "", stt_confidence=stt_confidence,
+                    idempotency_key=pending.get("idempotency_key"))
+            outcome = grade_result.get("outcome")
+            grader_confidence = float(grade_result.get("confidence") or 0.0)
+            if P0_EVIDENCE and outcome in ("correct", "partial", "wrong") \
+                    and grader_confidence < GRADER_WRITE_CONFIDENCE_MIN:
+                return self._shift_reply(
+                    text,
+                    "I couldn't grade that confidently. Please try your answer once more.",
+                    "CONFIRM_LOW_GRADER_CONFIDENCE",
+                    f"grader confidence {grader_confidence:.3f} below write floor; check preserved",
+                    session, answer_budget)
             if outcome in ("correct", "partial", "wrong"):
                 hints_used = (self.state.concept_states.get(pending["concept_id"]) or {}) \
                     .get("hints_used_current", 0)
-                if pending["kind"] == "bridge":
+                if P0_EVIDENCE:
+                    from response_layer.contracts import OutcomeEvent
+                    event = OutcomeEvent(
+                        script_id=pending["script_id"], beat_id=pending["beat_id"],
+                        attempt=int(pending.get("attempt") or 1),
+                        assessment_hook_id=pending.get("hook_id"), outcome=outcome,
+                        learner_id=self.state.data.get("learner_id"),
+                        concept_id=pending.get("concept_id"),
+                        kc_id=pending.get("concept_id"), item_id=pending.get("item_id") or pending.get("id"),
+                        item_source=pending.get("item_source"),
+                        assessment_purpose=pending.get("assessment_purpose"),
+                        grader_path=grade_result.get("path"),
+                        grader_confidence=grader_confidence,
+                        stt_confidence=stt_confidence,
+                        payload={
+                            "mutation_kind": pending.get("kind"),
+                            "target_concept": pending.get("concept_id"),
+                            "target_misconception": pending.get("target_misconception"),
+                            "difficulty": pending.get("difficulty"),
+                            "hints_used": hints_used,
+                            "misconception_consistent": bool(
+                                grade_result.get("misconception_consistent", False)),
+                            "assistance_consumed": hints_used,
+                        })
+                    writeback = self.state.apply_outcome_event(event)
+                    if pending.get("kind") in ("practice", "test", "parallel_retest"):
+                        practice_outcome, practice_hints = outcome, int(hints_used)
+                elif pending["kind"] == "bridge":
                     writeback = self.state.apply_bridge_result(pending["id"], outcome)
                 elif pending["kind"] in ("practice", "test", "parallel_retest"):
                     # Part 12: graded PRACTICE/TEST item -> the third evidence API.
@@ -2641,7 +3030,7 @@ class TutorLoop:
                              or self.graph.nodes.get(pending["id"], {}).get(
                                  "supports_representation") or [])
                     self._mark_representations_known(pending.get("concept_id"), _reps)
-            session.pop("pending_check", None)
+                session.pop("pending_check", None)
 
         # 1c. pending HOPE probe from the previous turn (Part 4 wired live): if
         # the tutor served a CT/KT/KI probe last turn and the student attempted
@@ -2751,6 +3140,8 @@ class TutorLoop:
                 visual=(wants_visual and not answer_try),
                 purpose=(wants_why and not answer_try),
                 student_problem=student_problem,
+                transfer_ready=(bool(primary) and
+                                self.state.transfer_readiness(primary) >= 0.75),
             )
         # L3: learner state snapshot
         try:
@@ -2836,7 +3227,8 @@ class TutorLoop:
             for _, mid, d in self.graph.out_edges(primary, data=True):
                 if d.get("relation") != "has_misconception":
                     continue
-                if self.state.misconception_status(mid) not in ("untracked", "weakening"):
+                if self.state.misconception_status(mid) not in (
+                        "untracked", "candidate", "weakening"):
                     continue
                 a = self.graph.nodes[mid]
                 if a.get("diagnostic_question"):
@@ -2846,6 +3238,10 @@ class TutorLoop:
                                           hint_chain=a.get("hint_chain")))
                     break
 
+        # Select at most one assessment for the script. Under P0 this does not
+        # write session state; arm_from_script is the sole writer after delivery
+        # validation. The flag-off branch retains the legacy writer for rollback.
+        assessment_candidate = None
         # arm the pending check for the NEXT turn: first diagnostic served wins
         # (bridges precede misconceptions in evidence order, matching section 6.8).
         # ONLY the two mastery-grading diagnostics may arm it — a `ct_probe` also
@@ -2860,12 +3256,27 @@ class TutorLoop:
             if not q:
                 continue
             node = self.graph.nodes.get(e["id"], {})
-            session["pending_check"] = {
+            expected = node.get("expected_answer", "")
+            candidate = {
                 "kind": "bridge" if e["type"] == "bridge_diagnostic" else "misconception",
                 "id": e["id"], "concept_id": primary or e.get("target_concept"),
-                "question": q, "expected_answer": node.get("expected_answer", ""),
+                "question": q, "expected_answer": expected,
+                "rubric": node.get("rubric") or node.get("why_wrong") or "",
+                "assessment_purpose": "diagnostic",
+                "response_type": node.get("response_type") or "short_text",
+                "reveal_policy": node.get("reveal_policy") or "after_attempt",
+                "item_verified": bool(expected),
+                "verification_provenance": (node.get("verification_provenance")
+                                            or ("authored_store" if expected else None)),
+                "verification_version": node.get("verification_version") or "store-v1",
                 "hint_chain": e.get("hint_chain") or node.get("hint_chain"),
             }
+            if P0_EVIDENCE:
+                if candidate["item_verified"]:
+                    assessment_candidate = candidate
+                    break
+                continue
+            session["pending_check"] = candidate
             break
 
         # 4a-practice. Part 12 (§4.3/§5.2): a graded PRACTICE item arms pending_check
@@ -2878,13 +3289,27 @@ class TutorLoop:
                 and not session.get("pending_check"):
             pc = self._practice_gradeable(primary, session)
             if pc:
-                session["pending_check"] = pc
+                if P0_EVIDENCE:
+                    assessment_candidate = assessment_candidate or pc
+                else:
+                    session["pending_check"] = pc
 
         # 4a-test. Part 12 (§4.4): a TEST item OWNS the pending_check slot. Unlike
         # PRACTICE, assessment is deliberate quizzing, so probe-before-correct does
         # NOT preempt it — the test question overrides any bridge/misconception arm.
         if mode == "TEST" and mode_item and mode_item.get("pending"):
-            session["pending_check"] = mode_item["pending"]
+            if P0_EVIDENCE:
+                assessment_candidate = mode_item["pending"]
+            else:
+                session["pending_check"] = mode_item["pending"]
+
+        if P0_EVIDENCE and session.get("pending_check"):
+            assessment_candidate = None
+        if P0_EVIDENCE and action in {
+                "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
+                "TRANSFER_PROBLEM", "TEST_QUESTION", "QUIZ"} and not assessment_candidate:
+            action, need = "EXPLAIN", "explain"
+            why = f"{why}; P0 fail-closed: no verified item, so no assessing question"
 
         candidates_idx = [i for i, r in enumerate(self.chunks)
                           if any(c in (r.get("concept_ids") or []) for c in concept_ids)] \
@@ -2980,6 +3405,7 @@ class TutorLoop:
         display = mode_cards + crop_items
         figure_on_screen = bool(display)
         rl_visual = None
+        self._assessment_candidate = assessment_candidate
         if RESPONSE_LAYER and self.want_answer \
                 and not (mode_item and mode_item.get("speak")):
             try:
@@ -3146,7 +3572,8 @@ class TutorLoop:
                                      animate=(wants_animation and not answer_try),
                                      real_life=(wants_real_life and not answer_try),
                                      same_problem=same_problem,
-                                     grounding=grounding)
+                                     grounding=grounding,
+                                     required_question=(assessment_candidate or {}).get("question"))
             finally:
                 # Turn-scoped: never let this thread's hook leak into another turn.
                 set_first_sentence_hook(None)
@@ -3325,6 +3752,26 @@ class TutorLoop:
         # streamed-prefix invariant that _truncate_to_spoken_budget depends on. The promise
         # is now prevented at the source instead: qwen_answer(board_pending=True) forbids
         # deictic references whenever the board is still pending (see §5 screen_cue).
+
+        # P0 one-arming path. Arm only after the exact verified question survived
+        # generation/streaming and the deterministic key-leak check. A corrupted
+        # assessment is explicitly voided and can never reach next-turn grading.
+        if P0_EVIDENCE and assessment_candidate and not session.get("pending_check"):
+            script = self._response_script or assessment_script(
+                assessment_candidate, action, primary)
+            hooks = [b.assessment_hook for b in script.beats if b.assessment_hook]
+            issue = ("script_validation_failed"
+                     if script.validation and not script.validation.get("ok", False)
+                     else (assessment_delivery_issue(answer or "", hooks[0])
+                           if len(hooks) == 1 else "assessment_hook_count"))
+            if issue:
+                session["voided_check"] = {
+                    "item_id": assessment_candidate.get("id"), "reason": issue,
+                    "script_id": getattr(script, "script_id", None),
+                }
+            else:
+                session.pop("voided_check", None)
+                arm_from_script(script, session)
 
         # Emit early turn_meta as soon as the visual directive and display are ready
         # (SYNC_VISUAL). This reaches the client while speech is still streaming,

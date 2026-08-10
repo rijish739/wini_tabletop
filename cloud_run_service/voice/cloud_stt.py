@@ -9,6 +9,7 @@ roots", ...) that a generic model otherwise mangles ("railroads").
 from __future__ import annotations
 
 import time
+from dataclasses import dataclass
 
 from google.cloud import speech
 
@@ -27,6 +28,12 @@ MATHS_PHRASES = [
 ]
 
 
+@dataclass(frozen=True)
+class TranscriptionEvidence:
+    transcript: str
+    confidence: float
+
+
 class CloudStt:
     def __init__(self, language: str = "en-US", phrases: list[str] | None = None,
                  boost: float = 18.0, model: str = "latest_short") -> None:
@@ -36,8 +43,12 @@ class CloudStt:
         self.context = speech.SpeechContext(phrases=phrases or MATHS_PHRASES, boost=boost)
 
     def recognize_pcm(self, pcm: bytes, rate: int) -> str:
+        """Compatibility API returning text only."""
+        return self.recognize_pcm_evidence(pcm, rate).transcript
+
+    def recognize_pcm_evidence(self, pcm: bytes, rate: int) -> TranscriptionEvidence:
         if not pcm:
-            return ""
+            return TranscriptionEvidence("", 0.0)
         if _dbg:
             _dbg.emit(_dbg.L1, "stt_start", mode="pcm", pcm_bytes=len(pcm), rate=rate)
         t0 = time.perf_counter()
@@ -54,6 +65,10 @@ class CloudStt:
             transcript = " ".join(
                 r.alternatives[0].transcript for r in resp.results if r.alternatives
             ).strip()
+            confidences = [float(r.alternatives[0].confidence)
+                           for r in resp.results if r.alternatives
+                           and getattr(r.alternatives[0], "confidence", None) is not None]
+            confidence = (sum(confidences) / len(confidences)) if confidences else 0.0
         except Exception as _e:
             if _dbg:
                 _dbg.emit(_dbg.L1, "stt_error", mode="pcm", error=str(_e))
@@ -61,8 +76,8 @@ class CloudStt:
         ms = int((time.perf_counter() - t0) * 1000)
         if _dbg:
             _dbg.emit(_dbg.L1, "stt_done", mode="pcm", transcript=transcript,
-                      ms=ms, empty=not bool(transcript))
-        return transcript
+                      confidence=round(confidence, 4), ms=ms, empty=not bool(transcript))
+        return TranscriptionEvidence(transcript, max(0.0, min(1.0, confidence)))
 
     def _recognition_config(self, rate: int) -> "speech.RecognitionConfig":
         """The one config both paths share — so streaming transcripts match batch by

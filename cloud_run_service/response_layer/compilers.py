@@ -204,6 +204,10 @@ def _compile_interaction(beat, profile: dict) -> dict | None:
               "target_concept": hook.target_concept,
               "target_misconception": hook.target_misconception,
               "state_update_intent": hook.state_update_intent,
+              "item_id": hook.item_id,
+              "assessment_purpose": hook.assessment_purpose,
+              "item_verified": hook.item_verified,
+              "reveal_policy": hook.reveal_policy,
               "evidence_refs": list(hook.evidence_refs),
               "idempotency_seed": f"{hook.hook_id}:{beat.beat_id}"}
     if hook.execution_mode == ExecutionMode.SPOKEN:
@@ -271,4 +275,3 @@ def compile_response(script: TeachingScript, *, answer: str | None = None,
         "beats": compiled,
         "compiler_telemetry": {"robot_primitives_dropped": robot_dropped},
     }
-

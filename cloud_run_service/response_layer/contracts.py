@@ -150,6 +150,18 @@ class AssessmentHook:
     branch_targets: dict[str, str] = field(default_factory=dict)  # outcome -> beat_id
     # idempotency_key is filled at runtime (script_id+beat_id+attempt); left None at plan
     idempotency_key: str | None = None
+    # P0 evidence contract. A hook is armable only when these fields identify a
+    # verified, gradeable item. Legacy fields above remain for device packages.
+    item_id: str | None = None
+    question: str | None = None
+    expected_answer: str | None = None
+    rubric: str | None = None
+    assessment_purpose: str | None = None
+    reveal_policy: str = "after_attempt"
+    item_verified: bool = False
+    verification_provenance: str | None = None
+    verification_version: str | None = None
+    hint_chain: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return _to_jsonable(self)
@@ -173,6 +185,16 @@ class AssessmentHook:
             telemetry_tags=list(d.get("telemetry_tags") or []),
             branch_targets=dict(d.get("branch_targets") or {}),
             idempotency_key=d.get("idempotency_key"),
+            item_id=d.get("item_id"),
+            question=d.get("question"),
+            expected_answer=d.get("expected_answer"),
+            rubric=d.get("rubric"),
+            assessment_purpose=d.get("assessment_purpose"),
+            reveal_policy=d.get("reveal_policy") or "after_attempt",
+            item_verified=bool(d.get("item_verified", False)),
+            verification_provenance=d.get("verification_provenance"),
+            verification_version=d.get("verification_version"),
+            hint_chain=list(d.get("hint_chain") or []),
         )
 
 
@@ -433,6 +455,15 @@ class OutcomeEvent:
     attempt: int
     assessment_hook_id: str | None = None
     outcome: str | None = None                       # correct | incorrect | non_attempt ...
+    learner_id: str | None = None
+    concept_id: str | None = None
+    kc_id: str | None = None
+    item_id: str | None = None
+    item_source: str | None = None
+    assessment_purpose: str | None = None
+    grader_path: str | None = None
+    grader_confidence: float | None = None
+    stt_confidence: float | None = None
     payload: dict = field(default_factory=dict)
     ts: str = field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"))
 
@@ -454,6 +485,15 @@ class OutcomeEvent:
             attempt=int(d.get("attempt") or 0),
             assessment_hook_id=d.get("assessment_hook_id"),
             outcome=d.get("outcome"),
+            learner_id=d.get("learner_id"),
+            concept_id=d.get("concept_id"),
+            kc_id=d.get("kc_id"),
+            item_id=d.get("item_id"),
+            item_source=d.get("item_source"),
+            assessment_purpose=d.get("assessment_purpose"),
+            grader_path=d.get("grader_path"),
+            grader_confidence=d.get("grader_confidence"),
+            stt_confidence=d.get("stt_confidence"),
             payload=dict(d.get("payload") or {}),
             ts=d.get("ts") or time.strftime("%Y-%m-%dT%H:%M:%S"),
         )

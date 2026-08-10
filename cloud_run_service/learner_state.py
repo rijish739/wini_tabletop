@@ -66,10 +66,10 @@ ITEM_HINT_DISCOUNT = 0.25   # each hint used shaves 25% off a positive gain (min
 ITEM_HISTORY_MAX = 12       # outcomes kept per item (spaced-review / exclusion)
 MASTERY_GATE_DEFAULT = 0.8  # Bloom/Rosenshine ~80% criterion (§4.4)
 
-# Misconception status machine, architecture section 10 (plan A2.6):
-# active -> weakening (1 correct probe) -> resolved (2 consecutive correct)
-# resolved -> recurring (any later failure); recurring behaves like active.
+# Misconception evidence lifecycle. A single result can create at most a
+# candidate; supported requires converging consistent evidence.
 RESOLVE_AFTER_CONSECUTIVE_CORRECT = 2
+SUPPORT_AFTER_CONSISTENT_FAILURES = 2
 
 # ---------------------------------------------------------------------------
 # Bridge policy contract (plan Phase 3 step 7 / A2.4)
@@ -83,7 +83,7 @@ RESOLVE_AFTER_CONSECUTIVE_CORRECT = 2
 # never display-only (apply_bridge_result writes mastery back).
 BRIDGE_MASTERY_THRESHOLD = 0.6
 BRIDGE_SKIP_ZPD_CENTER = 7.0
-BRIDGE_MASTERY_DELTA = {"correct": +0.25, "partial": -0.10, "wrong": -0.10}
+BRIDGE_MASTERY_DELTA = {"correct": +0.25, "partial": +0.05, "wrong": -0.10}
 
 
 @dataclass
@@ -345,6 +345,8 @@ class LearnerState:
         outcome: str,
         concept_id: Optional[str] = None,
         hints_used: int = 0,
+        evidence_consistent: bool = False,
+        evidence_ref: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Write back one diagnostic-probe outcome (plan Phase 5 step 5 / A2.4 / A2.6).
 
@@ -357,31 +359,50 @@ class LearnerState:
         if outcome not in PROBE_MASTERY_DELTA:
             raise ValueError(f"outcome must be one of {sorted(PROBE_MASTERY_DELTA)}, got {outcome!r}")
 
-        ms = self.misconception_states.setdefault(misconception_id, {
-            "status": "active", "consecutive_correct": 0, "consecutive_failures": 0,
-        })
-        status = ms.get("status", "active")
+        ms = self.misconception_states.get(misconception_id)
+        # A first correct response is evidence against the named misconception;
+        # do not create an "active" record merely because a probe was answered.
+        if ms is None and (outcome == "correct" or not evidence_consistent):
+            status = "untracked"
+            consecutive_failures = 0 if outcome == "correct" else 1
+        else:
+            ms = self.misconception_states.setdefault(misconception_id, {
+                "status": "candidate", "consecutive_correct": 0,
+                "consecutive_failures": 0, "consistent_failures": 0,
+                "evidence_refs": [],
+            })
+            status = ms.get("status", "candidate")
+            if evidence_ref and evidence_ref not in ms.setdefault("evidence_refs", []):
+                ms["evidence_refs"].append(evidence_ref)
 
-        if outcome == "correct":
-            ms["consecutive_correct"] = int(ms.get("consecutive_correct", 0)) + 1
-            ms["consecutive_failures"] = 0
-            if ms["consecutive_correct"] >= RESOLVE_AFTER_CONSECUTIVE_CORRECT:
-                status = "resolved"
-            elif status in ("active", "recurring"):
-                status = "weakening"
-        else:  # wrong or partial: the misconception is still biting
-            ms["consecutive_correct"] = 0
-            ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
-            if status == "resolved":
-                status = "recurring"
-            elif status == "weakening":
-                status = "active"
-        ms["status"] = status
-        ms["last_probed"] = datetime.now(timezone.utc).isoformat()
+            if outcome == "correct":
+                ms["consecutive_correct"] = int(ms.get("consecutive_correct", 0)) + 1
+                ms["consecutive_failures"] = 0
+                if status in ("supported", "recurring", "weakening"):
+                    status = ("resolved" if ms["consecutive_correct"] >=
+                              RESOLVE_AFTER_CONSECUTIVE_CORRECT else "weakening")
+                elif ms["consecutive_correct"] >= RESOLVE_AFTER_CONSECUTIVE_CORRECT:
+                    status = "resolved"
+            else:
+                ms["consecutive_correct"] = 0
+                ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
+                if evidence_consistent:
+                    ms["consistent_failures"] = int(ms.get("consistent_failures", 0)) + 1
+                    if status == "resolved":
+                        status = "recurring"
+                    elif int(ms["consistent_failures"]) >= SUPPORT_AFTER_CONSISTENT_FAILURES:
+                        status = "supported"
+                    else:
+                        status = "candidate"
+                # An ordinary wrong answer does not prove this particular
+                # misconception. Preserve the current status without strengthening.
+            ms["status"] = status
+            ms["last_probed"] = datetime.now(timezone.utc).isoformat()
+            consecutive_failures = int(ms.get("consecutive_failures", 0))
 
         struggled = (
             int(hints_used) >= STRUGGLE_HINT_THRESHOLD
-            or int(ms["consecutive_failures"]) >= STRUGGLE_FAIL_THRESHOLD
+            or consecutive_failures >= STRUGGLE_FAIL_THRESHOLD
         )
 
         mastery = None
@@ -392,7 +413,7 @@ class LearnerState:
             cs["struggle"] = {
                 "struggling": struggled,
                 "hints_used_last": int(hints_used),
-                "consecutive_failures": int(ms["consecutive_failures"]),
+                "consecutive_failures": consecutive_failures,
             }
             # Probe answered -> current problem is over; reset the per-problem counter.
             cs.pop("current_problem_id", None)
@@ -448,18 +469,26 @@ class LearnerState:
             self.bridges_served.append(bridge_id)
         if outcome != "correct" and revealed_misconception_id:
             ms = self.misconception_states.setdefault(revealed_misconception_id, {
-                "status": "active", "consecutive_correct": 0, "consecutive_failures": 0,
+                "status": "candidate", "consecutive_correct": 0,
+                "consecutive_failures": 0, "consistent_failures": 0,
+                "evidence_refs": [],
             })
-            ms["status"] = "recurring" if ms.get("status") == "resolved" else "active"
             ms["consecutive_correct"] = 0
             ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
+            ms["consistent_failures"] = int(ms.get("consistent_failures", 0)) + 1
+            if ms.get("status") == "resolved":
+                ms["status"] = "recurring"
+            elif int(ms["consistent_failures"]) >= SUPPORT_AFTER_CONSISTENT_FAILURES:
+                ms["status"] = "supported"
+            else:
+                ms["status"] = "candidate"
         return {
             "bridge_id": bridge_id,
             "outcome": outcome,
             "mastery": mastery,
             "action": "proceed" if outcome == "correct" else "serve_recap_first",
-            "misconception_set_active": (revealed_misconception_id
-                                         if outcome != "correct" and revealed_misconception_id else None),
+            "misconception_candidate": (revealed_misconception_id
+                                        if outcome != "correct" and revealed_misconception_id else None),
         }
 
     # ------------------------------------------------------------------
@@ -505,6 +534,109 @@ class LearnerState:
             "hints_used": int(hints_used),
             "mastery": round(mastery, 4), "mastery_delta": round(delta, 4),
         }
+
+    # ------------------------------------------------------------------
+    # P0 single evidence-ledger funnel. The legacy apply_* methods remain above
+    # as the rollback path; the live P0 path enters learner state only here.
+    # ------------------------------------------------------------------
+    @property
+    def evidence_ledger(self) -> list:
+        return self.data.setdefault("evidence_ledger", [])
+
+    def apply_outcome_event(self, event) -> Dict[str, Any]:
+        """Idempotently apply one verified ``OutcomeEvent`` and append it once.
+
+        The event and its application result are persisted in the same in-memory
+        state object and therefore in the same atomic LearnerState.save(). A retry
+        with the same key returns the recorded result without mutating state.
+        """
+        from response_layer.contracts import OutcomeEvent
+        from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN, STT_WRITE_CONFIDENCE_MIN
+
+        if isinstance(event, dict):
+            event = OutcomeEvent.from_dict(event)
+        if not isinstance(event, OutcomeEvent):
+            raise TypeError("event must be an OutcomeEvent or dict")
+        key = event.idempotency_key
+        if not event.script_id or not event.beat_id or event.attempt < 1:
+            raise ValueError("OutcomeEvent requires script_id, beat_id, and attempt >= 1")
+        for row in self.evidence_ledger:
+            if row.get("idempotency_key") == key:
+                result = dict(row.get("application") or {})
+                result.update({"status": "duplicate", "idempotency_key": key})
+                return result
+
+        outcome = str(event.outcome or "").lower()
+        if outcome not in ("correct", "partial", "wrong"):
+            return {"status": "rejected", "reason": "unscorable_outcome",
+                    "idempotency_key": key}
+        if event.stt_confidence is not None and \
+                float(event.stt_confidence) < STT_WRITE_CONFIDENCE_MIN:
+            return {"status": "suppressed", "reason": "low_stt_confidence",
+                    "idempotency_key": key}
+        if event.grader_confidence is not None and \
+                float(event.grader_confidence) < GRADER_WRITE_CONFIDENCE_MIN:
+            return {"status": "suppressed", "reason": "low_grader_confidence",
+                    "idempotency_key": key}
+
+        payload = dict(event.payload or {})
+        concept = event.concept_id or payload.get("target_concept")
+        item_id = event.item_id or event.assessment_hook_id or event.beat_id
+        mutation_kind = payload.get("mutation_kind") or payload.get("kind") or "practice"
+        target = item_id if mutation_kind == "bridge" else concept
+        before = self.mastery(target) if target else None
+
+        if mutation_kind == "bridge":
+            result = self.apply_bridge_result(
+                item_id, outcome, payload.get("revealed_misconception_id"))
+        elif mutation_kind == "misconception":
+            result = self.apply_probe_result(
+                item_id, outcome, concept_id=concept,
+                hints_used=int(payload.get("hints_used") or 0),
+                evidence_consistent=bool(payload.get("misconception_consistent", False)),
+                evidence_ref=key)
+        else:
+            if not concept:
+                return {"status": "rejected", "reason": "missing_target_concept",
+                        "idempotency_key": key}
+            result = self.apply_item_result(
+                item_id, outcome, concept, kind=mutation_kind,
+                difficulty=payload.get("difficulty"),
+                hints_used=int(payload.get("hints_used") or 0))
+
+        after = self.mastery(target) if target else before
+        application = dict(result)
+        application.update({
+            "status": "applied", "idempotency_key": key,
+            "mastery_before": before, "mastery_after": after,
+            "mastery_delta_applied": (None if before is None or after is None
+                                      else round(after - before, 4)),
+        })
+        row = event.to_dict()
+        row["application"] = application
+        self.evidence_ledger.append(row)
+        return dict(application)
+
+    def replay_mastery(self, concept_id: str) -> Optional[float]:
+        """Replay the recorded mastery chain for one concept.
+
+        Returns None when P0 has not recorded evidence for the concept. A broken
+        before/after chain raises instead of silently hiding ledger corruption.
+        """
+        value: Optional[float] = None
+        for row in self.evidence_ledger:
+            app = row.get("application") or {}
+            payload = row.get("payload") or {}
+            target = row.get("concept_id") or payload.get("target_concept")
+            if payload.get("mutation_kind") == "bridge":
+                target = row.get("item_id") or row.get("assessment_hook_id")
+            if target != concept_id or app.get("status") != "applied":
+                continue
+            before, after = app.get("mastery_before"), app.get("mastery_after")
+            if value is not None and before is not None and abs(float(before) - value) > 1e-9:
+                raise ValueError(f"ledger mastery chain broken for {concept_id}")
+            value = None if after is None else float(after)
+        return value
 
     def item_seen_recently(self, concept_id: str, item_id: str, within: int = 3) -> bool:
         """True if this item was served in the last `within` outcomes (quiz-set

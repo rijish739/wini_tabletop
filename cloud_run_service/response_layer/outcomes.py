@@ -31,6 +31,10 @@ class OutcomeEmitter:
             attempt=int(attempt),
             assessment_hook_id=str(hook_id),
             outcome=_normalise(runner_event.get("outcome")),
+            concept_id=interaction.get("target_concept"),
+            kc_id=interaction.get("target_concept"),
+            item_id=interaction.get("item_id") or str(hook_id),
+            assessment_purpose=interaction.get("assessment_purpose"),
             payload={
                 "hook_type": interaction.get("hook_type"),
                 "target_concept": interaction.get("target_concept"),
@@ -69,7 +73,9 @@ def apply_at_turn_close(state, events: Iterable[OutcomeEvent],
         concept = payload.get("target_concept")
         misconception = payload.get("target_misconception")
         try:
-            if outcome is None:
+            if hasattr(state, "apply_outcome_event"):
+                result = state.apply_outcome_event(event)
+            elif outcome is None:
                 result = {"status": "recorded_only", "reason": "unscorable_outcome"}
             elif payload.get("state_update_intent") == "bridge":
                 result = state.apply_bridge_result(
@@ -88,4 +94,3 @@ def apply_at_turn_close(state, events: Iterable[OutcomeEvent],
         applied.add(key)
         results.append({"idempotency_key": key, "outcome": outcome, "result": result})
     return results, applied
-

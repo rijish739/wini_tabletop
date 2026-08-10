@@ -90,9 +90,24 @@ class ScriptValidator:
         grounding_ok = True
         allowed_steps_ok = True
         probe_ok = True
+        assessment_hooks_ok = True
         robot_dropped = 0
 
         for beat in script.beats:
+            # P0 evidence integrity: planner placeholders describe interaction
+            # shape only; they are not assessing contracts. Fail closed.
+            hook = beat.assessment_hook
+            if hook is not None and not (
+                    hook.item_verified and hook.item_id and hook.question
+                    and (hook.expected_answer or hook.rubric)
+                    and hook.assessment_purpose):
+                assessment_hooks_ok = False
+                issues.append(
+                    f"beat {beat.beat_id}: unverified assessment hook downgraded to non-assessing")
+                beat.assessment_hook = None
+                if beat.completion_condition in ("await_spoken_answer", "await_local_response"):
+                    beat.completion_condition = "speech_complete"
+
             # rule 2 — allowed-step compliance (§B8)
             if not templates.is_step_allowed(script.pedagogical_action, beat.pedagogical_step):
                 allowed_steps_ok = False
@@ -158,6 +173,7 @@ class ScriptValidator:
             "grounding_ok": grounding_ok,
             "allowed_steps_ok": allowed_steps_ok,
             "probe_before_correct_ok": probe_ok,
+            "assessment_hooks_ok": assessment_hooks_ok,
             "robot_dropped": robot_dropped,
             "issues": issues,
             "visual": final_visual,

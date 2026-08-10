@@ -32,11 +32,33 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
+import re
 from typing import Optional
 
 
 def _backend_name() -> str:
     return os.getenv("WINI_STATE_BACKEND", "json").strip().lower()
+
+
+def resolve_learner_id() -> str:
+    """Resolve a non-shared learner key from deployment-authenticated identity.
+
+    ``WINI_LEARNER_ID`` remains the explicit compatibility override. Otherwise a
+    per-device or per-session identity injected by the authenticated deployment is
+    pseudonymized before it becomes a document ID. Firestore fails closed instead
+    of putting unrelated children in the historical ``default`` document.
+    """
+    explicit = os.getenv("WINI_LEARNER_ID", "").strip()
+    if explicit and explicit.lower() != "default":
+        return re.sub(r"[^A-Za-z0-9_.-]", "_", explicit)[:120]
+    identity = (os.getenv("WINI_AUTHENTICATED_DEVICE_ID", "").strip()
+                or os.getenv("WINI_AUTHENTICATED_SESSION_ID", "").strip())
+    if not identity:
+        raise RuntimeError(
+            "Firestore requires WINI_LEARNER_ID or an authenticated device/session identity")
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+    return f"learner_{digest}"
 
 
 def get_state_store() -> "Optional[FirestoreStateStore]":
@@ -59,7 +81,7 @@ class FirestoreStateStore:
 
         project = os.getenv("GOOGLE_CLOUD_PROJECT") or None
         self.collection = os.getenv("WINI_FIRESTORE_COLLECTION", "learner_state")
-        self.learner_id = os.getenv("WINI_LEARNER_ID", "default")
+        self.learner_id = resolve_learner_id()
         # A named database is allowed (regional Firestore is created with a name);
         # "(default)" is the unnamed default database.
         database = os.getenv("WINI_FIRESTORE_DATABASE", "(default)")
