@@ -161,6 +161,12 @@ class AssessmentHook:
     item_verified: bool = False
     verification_provenance: str | None = None
     verification_version: str | None = None
+    verification_status: str = "unverified"
+    verification_token: str | None = None
+    item_source: str | None = None
+    binary_item: bool = False
+    difficulty: float | str | None = None
+    metadata: dict = field(default_factory=dict)
     hint_chain: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -194,6 +200,12 @@ class AssessmentHook:
             item_verified=bool(d.get("item_verified", False)),
             verification_provenance=d.get("verification_provenance"),
             verification_version=d.get("verification_version"),
+            verification_status=d.get("verification_status") or "unverified",
+            verification_token=d.get("verification_token"),
+            item_source=d.get("item_source"),
+            binary_item=bool(d.get("binary_item", False)),
+            difficulty=d.get("difficulty"),
+            metadata=dict(d.get("metadata") or {}),
             hint_chain=list(d.get("hint_chain") or []),
         )
 
@@ -453,6 +465,9 @@ class OutcomeEvent:
     script_id: str
     beat_id: str
     attempt: int
+    event_id: str = field(default_factory=lambda: f"evt_{uuid.uuid4().hex}")
+    turn_id: str | None = None
+    idempotency_token: str | None = None
     assessment_hook_id: str | None = None
     outcome: str | None = None                       # correct | incorrect | non_attempt ...
     learner_id: str | None = None
@@ -464,12 +479,27 @@ class OutcomeEvent:
     grader_path: str | None = None
     grader_confidence: float | None = None
     stt_confidence: float | None = None
+    consistent_with_misconception: bool | None = None
+    assistance_offered: int = 0
+    assistance_consumed: int = 0
+    delay_days: float = 0.0
+    action: str = "unknown"
+    barrier: str = "unknown"
+    mode: str = "EXPLAIN"
+    representation: str | None = None
     payload: dict = field(default_factory=dict)
     ts: str = field(default_factory=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"))
+    schema_version: int = 1
+
+    def __post_init__(self) -> None:
+        if not self.kc_id and self.concept_id:
+            self.kc_id = self.concept_id
+        if not self.turn_id:
+            self.turn_id = self.script_id or None
 
     @property
     def idempotency_key(self) -> str:
-        return f"{self.script_id}:{self.beat_id}:{self.attempt}"
+        return self.idempotency_token or f"{self.script_id}:{self.beat_id}:{self.attempt}"
 
     def to_dict(self) -> dict:
         d = _to_jsonable(self)
@@ -483,6 +513,9 @@ class OutcomeEvent:
             script_id=d.get("script_id") or "",
             beat_id=d.get("beat_id") or "",
             attempt=int(d.get("attempt") or 0),
+            event_id=d.get("event_id") or f"evt_{uuid.uuid4().hex}",
+            turn_id=d.get("turn_id"),
+            idempotency_token=d.get("idempotency_key") or d.get("idempotency_token"),
             assessment_hook_id=d.get("assessment_hook_id"),
             outcome=d.get("outcome"),
             learner_id=d.get("learner_id"),
@@ -494,6 +527,18 @@ class OutcomeEvent:
             grader_path=d.get("grader_path"),
             grader_confidence=d.get("grader_confidence"),
             stt_confidence=d.get("stt_confidence"),
+            consistent_with_misconception=(
+                d.get("consistent_with_misconception")
+                if "consistent_with_misconception" in d
+                else (d.get("payload") or {}).get("misconception_consistent")),
+            assistance_offered=int(d.get("assistance_offered") or 0),
+            assistance_consumed=int(d.get("assistance_consumed") or 0),
+            delay_days=float(d.get("delay_days") or 0.0),
+            action=d.get("action") or "unknown",
+            barrier=d.get("barrier") or "unknown",
+            mode=d.get("mode") or "EXPLAIN",
+            representation=d.get("representation"),
             payload=dict(d.get("payload") or {}),
             ts=d.get("ts") or time.strftime("%Y-%m-%dT%H:%M:%S"),
+            schema_version=int(d.get("schema_version") or 1),
         )

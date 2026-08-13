@@ -1309,3 +1309,20 @@ is the open integration step.
 write-back are **untouched**. Phases changed deployment, persistence, and scheduling — not
 pedagogy. The grader change is outcome-identical by test; the model is unchanged, so the
 baseline gates above still hold.
+
+### P0 Evidence Integrity — COMPLETE locally (2026-08-12)
+
+- Added typed `evidence/` ledger/grading/replay and `items/` candidate/verification/bank modules.
+- Made `record_outcome`, `arm_from_script`, and `items.verify` the three mandatory choke points;
+  static invariant tests prove the only projection, pending-check assignment, and generated-bank
+  append call sites.
+- Migrated bridge, misconception, PRACTICE, TEST, response-layer device outcomes, serial grading,
+  and concurrent grading. STT confidence/turn identity/idempotency now reach the ledger.
+- Added fail-closed identity binding, safety tier/redaction, sparse global observations,
+  deterministic streaming-compatible realization checks, TEST non-disclosure, measured transfer
+  readiness gating, bridge-partial separation, and no-verified-item downgrade.
+- Measured: P0 33/33; response/Board Buddy 77 pass, 5 dependency/fixture skips; golden items 50/50;
+  regression harness all checks pass; gate recall 20/20 safety and 9/9 nonsense; compileall and
+  diff checks pass. Model-free P0 microbench: realization p95 0.0118 ms, incremental ledger append
+  p95 0.2605 ms, duplicate lookup p95 0.0023 ms; zero added TTFA/model calls by placement.
+- Migration and rollback: `P0_EVIDENCE_MIGRATION.md`. P1-P4 intentionally remain unstarted.

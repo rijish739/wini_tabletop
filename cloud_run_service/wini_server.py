@@ -60,10 +60,11 @@ import os
 import queue
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-from runtime_flags import RESPONSE_LAYER
+from runtime_flags import RESPONSE_LAYER, STT_WRITE_CONFIDENCE_MIN
 
 STT_TIMEOUT_S = 20.0
 TTS_TIMEOUT_S = 30.0
@@ -223,6 +224,8 @@ class Brain:
             self._state_store = None
             try:
                 import state_backend
+                self.learner_id = state_backend.resolve_runtime_learner_id()
+                state_backend.bind_state_identity(self.tutor.state.data, self.learner_id)
                 self._state_store = state_backend.get_state_store()
                 if self._state_store is not None:
                     loaded = self._state_store.load()
@@ -230,15 +233,21 @@ class Brain:
                         # Replace the working copy wholesale — LearnerState reads
                         # everything through data.setdefault accessors, so swapping
                         # .data is a complete, side-effect-free state load.
-                        self.tutor.state.data = loaded
+                        from evidence import migrate_state_data
+                        self.tutor.state.data = migrate_state_data(loaded)
+                        state_backend.bind_state_identity(self.tutor.state.data, self.learner_id)
                         print(f"[server] loaded learner state from "
                               f"{self._state_store.describe()}")
                     else:
                         print(f"[server] no durable state yet at "
                               f"{self._state_store.describe()} — cold start")
             except Exception as e:  # noqa: BLE001 — never block readiness on the store
-                print(f"[server] state backend unavailable; using local JSON: {e}")
-                self._state_store = None
+                # Never fall into a shared local/default learner after an identity
+                # or durable-store failure: evidence isolation fails closed.
+                self.error = f"learner identity/state backend unavailable: {e}"
+                self.ready = False
+                print(f"[server] {self.error}; refusing learner turns")
+                return
             # A fresh brain process IS a fresh session (§6.4): drop the
             # session-scoped no-repeat sets so retrieval starts from the full
             # candidate pool again. Without this they persist in learner_state.json
@@ -349,10 +358,17 @@ class Brain:
                   precomputed_analysis: dict | None = None,
                   precomputed_grade: dict | str | None = None,
                   mode: str | None = None, emit=None,
-                  stt_confidence: float | None = None) -> dict:
+                  stt_confidence: float | None = None,
+                  turn_id: str | None = None,
+                  learner_id: str | None = None) -> dict:
         from voice.sanitize import sanitize_for_speech
 
         import tutor_loop as _tl
+
+        turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
+        learner_id = learner_id or getattr(self, "learner_id", None)
+        if learner_id != getattr(self, "learner_id", learner_id):
+            raise PermissionError("learner identity does not match the bound state")
 
         # Part 13 Stages 1+2: open the speech pipeline BEFORE the turn runs, and
         # hand the tutor a sink it can push the answer's first sentence into the
@@ -391,7 +407,9 @@ class Brain:
                 result = self.tutor.turn(text, answer_budget=answer_budget,
                                          precomputed_analysis=precomputed_analysis,
                                          precomputed_grade=precomputed_grade,
-                                         stt_confidence=stt_confidence)
+                                         stt_confidence=stt_confidence,
+                                         turn_id=turn_id,
+                                         learner_id=learner_id)
             finally:
                 # The sink is thread-local and turn-scoped — clear it before any
                 # other turn can run on this thread.
@@ -409,6 +427,7 @@ class Brain:
                 t9 = getattr(self.tutor, "_last_t9_ms", None)
                 if t9 is not None:
                     gen["t9"] = t9
+                gen.update(result.get("layer_latency_ms") or {})
             except Exception:  # noqa: BLE001 — instrumentation must never cost a turn
                 gen = {}
             # Read the mode AFTER the turn: turn() can move it itself — a spoken
@@ -452,6 +471,7 @@ class Brain:
                        if result.get("visual") else None),
         }
         out = {
+            "turn_id": turn_id,
             "transcript": text,
             "answer": answer,
             "display": result.get("display") or [],
@@ -524,7 +544,8 @@ class Brain:
         except Exception as e:  # noqa: BLE001
             print(f"[server] durable state write failed (retried next turn): {e}")
 
-    def _maybe_speculate_grade(self, transcript: str, stt_confidence: float = 1.0):
+    def _maybe_speculate_grade(self, transcript: str, stt_confidence: float = 1.0,
+                               *, turn_id: str, learner_id: str):
         """Part 15 Phase B: submit the answer grader for the armed pending_check
         so it runs CONCURRENTLY with the perception call in before_turn().
 
@@ -554,16 +575,22 @@ class Brain:
             except Exception:  # noqa: BLE001 — pre-gate is optional, never fatal
                 pass
             import tutor_loop as _tl
+            from evidence import make_idempotency_key
+            grade_key = make_idempotency_key(
+                learner_id, turn_id,
+                str(pending.get("item_id") or pending.get("id") or ""), transcript)
             return _pool.submit(
                 _tl.judge_answer, q, exp, transcript, pending.get("rubric") or "",
                 stt_confidence=stt_confidence,
-                idempotency_key=pending.get("idempotency_key"))
+                idempotency_key=grade_key,
+                misconception_probe=pending.get("kind") == "misconception")
         except Exception as e:  # noqa: BLE001 — speculation must never break a turn
             print(f"[server] grade speculation skipped: {e}")
             return None
 
     def voice_turn(self, pcm: bytes, rate: int, emit=None,
-                   mode: str | None = None) -> dict:
+                   mode: str | None = None, *, turn_id: str | None = None,
+                   learner_id: str | None = None) -> dict:
         """One voice turn. With `emit` (a callable taking one JSON-able dict per
         response line), the filler part is flushed to the client as soon as
         STT + perception are done — BEFORE generation — so it plays while the
@@ -573,6 +600,8 @@ class Brain:
         `mode` is the touch-UI pedagogy selection (X-Wini-Mode); it is recorded
         on the session and echoed back, no behavior change (Part 12 §5.9)."""
         t0 = time.perf_counter()
+        turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
+        learner_id = learner_id or getattr(self, "learner_id", None)
         if hasattr(self.stt, "recognize_pcm_evidence"):
             stt_evidence = _bounded(
                 self.stt.recognize_pcm_evidence, STT_TIMEOUT_S, pcm, rate)
@@ -590,17 +619,26 @@ class Brain:
                 emit(out)
             return out
 
+        # P0 front door: safety/nonsense must settle before either speculative
+        # grading or pacing perception can call a model. TutorLoop repeats the
+        # pure gate as defense in depth when it consumes the turn.
+        from perception import gate as deterministic_gate
+        front_route = deterministic_gate(transcript)
+        trusted_input = stt_confidence >= STT_WRITE_CONFIDENCE_MIN
+
         # Part 15 Phase B: kick the grader off NOW, before perception, so the two
         # Gemini calls overlap. Joined just before text_turn below.
         grade_future = None
-        if PARALLEL_GRADER and getattr(self.tutor, "want_answer", True):
-            grade_future = self._maybe_speculate_grade(transcript, stt_confidence)
+        if (front_route is None and trusted_input and PARALLEL_GRADER
+                and getattr(self.tutor, "want_answer", True)):
+            grade_future = self._maybe_speculate_grade(
+                transcript, stt_confidence, turn_id=turn_id, learner_id=learner_id)
 
         # Pacing before_turn (analysis + answer budget) -> cognitive filler.
         # Best-effort: a failure here must never cost the turn itself.
         budget = precomputed = decision = None
         perception_ms = 0
-        if self.pacing is not None:
+        if front_route is None and trusted_input and self.pacing is not None:
             tp = time.perf_counter()
             # Part 13 diagnostics: split the perception counter into its parts
             # (Gemini round-trip vs MiniLM candidate hints vs §5.5 cross-check).
@@ -670,7 +708,8 @@ class Brain:
         out = self.text_turn(transcript, speak=True, answer_budget=budget,
                              precomputed_analysis=precomputed,
                              precomputed_grade=precomputed_grade, mode=mode,
-                             emit=emit, stt_confidence=stt_confidence)
+                             emit=emit, stt_confidence=stt_confidence,
+                             turn_id=turn_id, learner_id=learner_id)
         out["latency_ms"]["stt"] = stt_ms
         out["stt_confidence"] = round(stt_confidence, 4)
         out["latency_ms"]["perception"] = perception_ms
@@ -712,7 +751,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers",
-                         "Content-Type, X-Wini-Key, X-Sample-Rate, X-Wini-Mode")
+                         "Content-Type, X-Wini-Key, X-Sample-Rate, X-Wini-Mode, X-Wini-Turn-Id")
 
     def _json(self, code: int, payload: dict):
         body = json.dumps(payload).encode("utf-8")
@@ -833,8 +872,10 @@ class Handler(BaseHTTPRequestHandler):
                 if not text:
                     return self._json(400, {"error": "empty text"})
                 mode = req.get("mode") or self.headers.get("X-Wini-Mode")
+                turn_id = req.get("turn_id") or self.headers.get("X-Wini-Turn-Id")
                 return self._json(200, BRAIN.text_turn(
-                    text, speak=bool(req.get("speak")), mode=mode))
+                    text, speak=bool(req.get("speak")), mode=mode,
+                    turn_id=turn_id, learner_id=BRAIN.learner_id))
             if self.path == "/stream_turn":
                 # Streaming text turn: same JSON input as /turn, same NDJSON output
                 # as /voice_turn (filler / audio-chunks / turn_meta / final line).
@@ -845,6 +886,7 @@ class Handler(BaseHTTPRequestHandler):
                 if not text:
                     return self._json(400, {"error": "empty text"})
                 mode = req.get("mode") or self.headers.get("X-Wini-Mode")
+                turn_id = req.get("turn_id") or self.headers.get("X-Wini-Turn-Id")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/x-ndjson")
                 self._cors()
@@ -859,8 +901,9 @@ class Handler(BaseHTTPRequestHandler):
 
                 # Synthetic filler so the stream starts immediately
                 emit_st({"part": "filler", "transcript": text})
-                result = BRAIN.text_turn(text, speak=True, mode=mode,
-                                         emit=emit_st)
+                result = BRAIN.text_turn(
+                    text, speak=True, mode=mode, emit=emit_st,
+                    turn_id=turn_id, learner_id=BRAIN.learner_id)
                 emit_st(result)
                 return None
             if self.path == "/voice_turn":
@@ -869,6 +912,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._json(400, {"error": "empty audio body"})
                 rate = int(self.headers.get("X-Sample-Rate") or 16000)
                 mode = self.headers.get("X-Wini-Mode")
+                turn_id = self.headers.get("X-Wini-Turn-Id")
                 # NDJSON stream: the filler line is flushed mid-turn (masks
                 # generation latency on the client); the final line is the turn.
                 # HTTP/1.0 close-delimited body — no Content-Length needed.
@@ -888,7 +932,9 @@ class Handler(BaseHTTPRequestHandler):
                         self.wfile.write(line)
                         self.wfile.flush()
 
-                BRAIN.voice_turn(body, rate, emit=emit, mode=mode)
+                BRAIN.voice_turn(
+                    body, rate, emit=emit, mode=mode, turn_id=turn_id,
+                    learner_id=BRAIN.learner_id)
                 return None
             return self._json(404, {"error": "unknown route"})
         except Exception as e:  # noqa: BLE001  — a turn error must never kill the server

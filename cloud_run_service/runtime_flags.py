@@ -16,10 +16,6 @@ def env_flag(name: str, default: str = "0") -> bool:
 # The response layer is the shipped architecture; 0 is the documented rollback.
 RESPONSE_LAYER = env_flag("WINI_RESPONSE_LAYER", "1")
 
-# P0 evidence correctness foundation. 0 retains the legacy arming/writeback path.
-P0_EVIDENCE = env_flag("WINI_P0_EVIDENCE", "1")
-
-
 def confidence_floor(name: str, default: float) -> float:
     try:
         return max(0.0, min(1.0, float(os.getenv(name, str(default)))))

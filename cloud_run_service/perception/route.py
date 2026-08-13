@@ -32,6 +32,9 @@ class RouteResult:
     primary: str                                  # one of INTENTS
     also_learning: bool = False                   # a non-LEARNING turn that also carries a maths ask
     safety_alert: bool = False                    # deterministic-gate or model safety flag
+    safety_tier: int | None = None                # 1 concern, 2 protected, 3 urgent
+    safety_category: str | None = None             # redacted human-review category
+    uncertain: bool = False                       # fallback has no state-write authority
     answer_attempt: bool = False                  # attempts the open pending_check question
     concept_id: Optional[str] = None              # catalog id or None (INHERIT collapses to current)
     concept_confidence: float = 0.0

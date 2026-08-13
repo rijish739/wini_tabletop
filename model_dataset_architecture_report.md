@@ -1388,3 +1388,16 @@ existing trained models (classifier heads, resolver, HOPE detectors) are untouch
 
 Any future change to one document must be propagated to the others (this report, the
 architecture doc, the RAG upgrade plan, and the build plan that tracks execution status).
+
+### P0 evidence-integrity addendum (2026-08-12)
+
+P0 adds no trained model, training dataset, RL/bandit/BKT/IRT component, learning-style label,
+per-turn pedagogy evaluator, or default post-generation LLM judge. The normal model topology
+remains one perception call and one response-generation call. Existing rubric grading is used
+only when deterministic `math_grade` defers and can remain parallel with perception.
+
+The new evaluation artifacts are executable code, not training data: 50 human-checkable item
+verification judgments measured 50/50 agreement; the 306-row learning log regression harness
+reproduces the duplicate-reply, quadratic-contradiction, non-attempt, and legacy QUIZ failures.
+Deterministic safety/nonsense gates measured 20/20 and 9/9 recall respectively with zero
+learning false-gates. These measurements do not change any historical model metric.

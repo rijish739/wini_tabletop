@@ -118,13 +118,22 @@ def derive_state_deltas(
     if update["self_correction"] >= FLAG_THRESHOLD:
         flags.append("self_corrected")
 
+    signal_set = set(signals or [])
+    # Missing signals are not counter-evidence. Persist only observed fields so
+    # neutral defaults do not wash out a learner estimate on ordinary answer turns.
+    observed_global = {}
+    if signal_set & {"high_confidence", "low_confidence", "anxiety"}:
+        observed_global["confidence"] = update["confidence"]
+    if "curiosity" in signal_set:
+        observed_global["curiosity"] = update["curiosity"]
+    if signal_set & {"cognitive_overload", "confusion", "frustration", "anxiety"}:
+        observed_global["cognitive_load"] = update["cognitive_load"]
+    if signal_set & {"curiosity", "ready_for_next", "transfer_attempt",
+                     "disengagement", "frustration"}:
+        observed_global["engagement"] = update["engagement"]
+
     return {
-        "global": {
-            "confidence": update["confidence"],
-            "curiosity": update["curiosity"],
-            "cognitive_load": update["cognitive_load"],
-            "engagement": update["engagement"],
-        },
+        "global": observed_global,
         "concept_id": resolution.get("concept_id"),
         "concept_flags": flags if resolution.get("concept_id") else [],
         # Carried so apply_deltas can persist `last_signals` on the concept state,
@@ -147,10 +156,12 @@ def apply_deltas(state, deltas: Dict[str, Any], ema: float = EMA) -> Dict[str, f
     how many there are.
     """
     g = state.data.setdefault("global", {})
+    observations = state.data.setdefault("global_observations", {})
     new_values = {}
     for field, observed in deltas["global"].items():
         old = float(g.get(field, GLOBAL_FIELD_DEFAULTS[field]))
         g[field] = round((1.0 - ema) * old + ema * float(observed), 4)
+        observations[field] = int(observations.get(field, 0)) + 1
         new_values[field] = g[field]
     cid = deltas.get("concept_id")
     if cid:

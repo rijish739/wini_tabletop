@@ -78,6 +78,21 @@ def is_safety(text: str) -> bool:
     return bool(_SAFETY_RE.search(text or ""))
 
 
+def classify_safety(text: str) -> tuple[int, str] | None:
+    """Return a redaction-safe tier/category; never retain the matched phrase."""
+    value = text or ""
+    if not is_safety(value):
+        return None
+    if re.search(r"\b(?:kill(?:ing)? myself|suicid|slit my|end(?:ing)? my life|"
+                 r"want to die|i'?m in danger|bring a (?:knife|gun|weapon)|"
+                 r"kill (?:him|her|them|everyone))\b", value, re.I):
+        return 3, "urgent_danger"
+    if re.search(r"\b(?:abused|bad touch|wrong touch|touch(?:ed|es|ing)? me|"
+                 r"hit(?:s|ting)? me|beat(?:s|ing)? me|hurt(?:s|ing)? me)\b", value, re.I):
+        return 2, "protected_disclosure"
+    return 2, "safety_concern"
+
+
 def is_nonsense(text: str) -> bool:
     """True only for empty / pure-symbol / keyboard-mash input.
 
@@ -110,11 +125,14 @@ def gate(text: str) -> Optional[RouteResult]:
     """Run the deterministic gates in priority order. Returns a RouteResult if a
     gate fires (SAFETY wins over NONSENSE), else None to pass through."""
     if is_safety(text):
+        tier, category = classify_safety(text) or (2, "safety_concern")
         if _dbg:
             _dbg.emit(_dbg.L2, "gate_fired", gate="SAFETY", text_len=len(text or ""))
         return RouteResult(
             primary="SAFETY",
             safety_alert=True,
+            safety_tier=tier,
+            safety_category=category,
             source="gate",
             reason="deterministic SAFETY lexicon match",
         )

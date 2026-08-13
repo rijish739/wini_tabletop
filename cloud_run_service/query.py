@@ -152,7 +152,7 @@ class Snapshot:
                 if graph.nodes[m].get("type") != "misconception":
                     continue
                 st = learner.misconception_status(m)
-                if st in ("supported", "recurring"):
+                if st == "supported":
                     self.active_misconceptions[m] = st
 
     def summary(self) -> dict:

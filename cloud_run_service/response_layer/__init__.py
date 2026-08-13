@@ -65,6 +65,8 @@ __all__ = [
     "build_response_context",
     "TeachingScriptPlanner",
     "ScriptValidator",
+    "arm_from_script",
+    "void_pending_assessment",
 ]
 
 
@@ -83,4 +85,9 @@ def __getattr__(name: str):  # PEP 562 lazy re-export
         from .validator import ScriptValidator
 
         return ScriptValidator
+    if name in ("arm_from_script", "void_pending_assessment"):
+        from .arming import arm_from_script, void_pending_assessment
+
+        return {"arm_from_script": arm_from_script,
+                "void_pending_assessment": void_pending_assessment}[name]
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -1569,3 +1569,21 @@ about something not shown). This is the contract that prevents the failure mode 
 budget makes the model announce an example and then ask if it was understood without ever
 working it.
 
+### P0 evidence contract addendum (implemented 2026-08-12)
+
+`OutcomeEvent` is now the single versioned evidence model. It carries learner/turn/event/item/
+concept/KC identity; purpose, outcome, grader path/confidence and STT confidence; assistance,
+delay, action, barrier, mode, source and idempotency key. `evidence.record_outcome()` performs
+an idempotent append plus incremental projection; ledger replay from the recorded projection
+base reproduces concept and misconception state. Existing mastery is preserved as the base.
+
+Misconception status is exactly `candidate -> supported -> weakening -> resolved`. A first
+correct response creates no misconception, one result (including binary) cannot support one,
+and a wrong item strengthens only when the grading result is explicitly consistent with the
+named misconception. Every transition stores an evidence event reference; corrective content
+is retrieved only for `supported`. Hint requests are session observations until an accepted
+outcome projects their durable hint-dependency effect. Sparse cognitive EMAs now update and
+increment `global_observations` only when their source signal fires.
+
+Persisted state schema is version 2; ledger rows are schema version 1. Migration is additive
+and recoverable as documented in `P0_EVIDENCE_MIGRATION.md`.

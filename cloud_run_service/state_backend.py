@@ -61,6 +61,36 @@ def resolve_learner_id() -> str:
     return f"learner_{digest}"
 
 
+def resolve_runtime_learner_id() -> str:
+    """Resolve the learner bound to this in-process brain.
+
+    Multi-learner deployments must provide authenticated identity. The historical
+    local one-device deployment remains explicit through ``single_learner`` mode;
+    it never uses the ambiguous ``default`` key.
+    """
+    try:
+        return resolve_learner_id()
+    except RuntimeError:
+        identity_mode = os.getenv("WINI_IDENTITY_MODE", "single_learner").strip().lower()
+        if _backend_name() == "json" and identity_mode == "single_learner":
+            return "local_single_learner"
+        raise RuntimeError(
+            "WINI_IDENTITY_MODE requires authenticated device/session identity; "
+            "refusing to bind a shared default learner")
+
+
+def bind_state_identity(data: dict, learner_id: str) -> dict:
+    """Bind loaded state to one learner and reject cross-learner reuse."""
+    existing = str(data.get("learner_id") or "").strip()
+    if existing.lower() == "default":
+        existing = ""
+    if existing and existing != learner_id:
+        raise RuntimeError(
+            f"learner state identity mismatch: loaded={existing!r}, request={learner_id!r}")
+    data["learner_id"] = learner_id
+    return data
+
+
 def get_state_store() -> "Optional[FirestoreStateStore]":
     """Return the durable store, or None for the default JSON-file path.
 

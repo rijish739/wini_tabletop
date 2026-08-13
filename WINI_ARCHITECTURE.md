@@ -280,3 +280,26 @@ python F:/Projects/Pedagogical_study_pkg/scripts/run_llama_server.py
 ```
 
 See `CLAUDE.md` for the full command list and the hard project mandates.
+
+---
+
+## P0 Evidence Integrity implementation (2026-08-12)
+
+The active `cloud_run_service` runtime now implements the P0 integrity foundation from
+`WINI_LAYERED_ARCHITECTURE.md` in the existing process. `evidence.record_outcome()` is the
+sole durable evidence/projection boundary; `response_layer.arming.arm_from_script()` is the
+sole assessable `pending_check` writer; and generated answer keys become servable only through
+`items.verify()`. The learner-facing call graph remains perception -> deterministic/local
+processing -> response generation. Item generation and independent verification are off-path.
+
+The append-only, versioned ledger is idempotent and replayable; state-file persistence retains
+the existing fsync/temp/backup/atomic-replace belt. Grading is rubric-aware and shares one
+typed result across serial and parallel scheduling. Low-STT input preserves the pending hook
+and writes nothing. Misconceptions follow candidate -> supported -> weakening -> resolved,
+with evidence-referenced transitions and no one-item confirmation. Assessing output is checked
+post-stream for exact-question delivery, key leaks, unsupported numbers/corrections, and budget;
+a corrupted hook is voided rather than scored. See `P0_EVIDENCE_MIGRATION.md`.
+
+Measured locally: P0 tests 33/33; response-layer/Board Buddy suites 77 passed and 5 environment
+skips; generated-item golden agreement 50/50 (100%, required 98%); deterministic gate recall
+20/20 safety and 9/9 nonsense with zero learning false-gates. P1-P4 are not implemented.

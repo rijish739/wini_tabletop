@@ -1043,3 +1043,23 @@ concurrency=1) with learner state in Firestore. Traps found, so they aren't redi
 - **Streaming STT parity needs real-time pacing + a tail-guard.** Dumping all audio blocks
   instantly drops the final word and looks like a regression; pacing blocks at ~50 ms (as the
   device streams) plus keeping the last un-finalized interim gives 20/20 batch parity.
+
+---
+
+## 2026-08-12 — P0 Evidence Integrity implementation
+
+- Started from a clean connected worktree and the active `cloud_run_service` Docker/runtime;
+  did not clone, fetch, switch, commit, or modify production learner/RAG data.
+- The 306-row learning log exposed 3 duplicate `The answer is 5` grades (correct/correct/wrong),
+  3 quadratic contradiction rows that all set misconception `active`, and 30 legacy QUIZ rows.
+  The read-only P0 regression harness now dedupes the reply, does not strengthen the contradicted
+  misconception, preserves non-attempts, and confirms the unconditional QUIZ fallback is gone.
+- Generated item verification measured 50/50 agreement (100%, 98% gate). The prepared JSONL bank
+  is intentionally absent until an explicit off-path preparation job populates it; empty bank
+  means no assessment, not synchronous generation.
+- Performance gotcha found and fixed: a first ledger transaction snapshot copied the entire
+  growing ledger (append p50 13.66 ms at 1,000 rows). Scoped projection undo restored O(1)-style
+  behavior: p50 0.1031 ms, p95 0.2605 ms; duplicate lookup p95 0.0023 ms. Realization p95 was
+  0.0118 ms and runs after streaming, so measured added TTFA is 0 ms.
+- Identity/store failures now fail closed; multi-learner authentication remains an external
+  deployment integration. Full migration/rollback detail: `P0_EVIDENCE_MIGRATION.md`.

@@ -77,6 +77,7 @@ def test_outcomes_are_idempotent_and_single_writer_applied() -> None:
     assert first is not None
     assert emitter.record(scored) is None
     state = load_learner_state(None)
+    state.data["learner_id"] = "response-layer-test-learner"
     before = state.mastery("c1")
     applied, keys = apply_at_turn_close(state, emitter.drain())
     assert len(applied) == 1
@@ -102,4 +103,3 @@ def _run() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(_run())
-

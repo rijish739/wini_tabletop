@@ -404,7 +404,7 @@ class GeminiPerception:
             "intent": "LEARNING", "also_learning": False,
             "concept_id": INHERIT, "concept_confidence": 0.0, "secondary_concepts": [],
             "signal_scores": {}, "answer_attempt": False, "safety": False,
-            "_source": "fallback",
+            "_source": "fallback", "_uncertain": True,
         }
 
     # ------------------------------------------------------ classifier role
@@ -517,6 +517,7 @@ class GeminiPerception:
             secondary_concepts=list(p["secondary_concepts"]),
             signal_scores=dict(p["signal_scores"]),
             source=p.get("_source", "gemini"),
+            uncertain=bool(p.get("_uncertain", False)),
             reason="gemini perception" if p.get("_source") == "gemini" else "perception fallback (LEARNING/inherit)",
             raw=p,
         )

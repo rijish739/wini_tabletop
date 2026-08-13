@@ -30,6 +30,7 @@ import os
 import queue
 import threading
 import time
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -762,7 +763,8 @@ class BrainClient:
         raise TimeoutError(f"brain at {self.base} not ready after {timeout_s:.0f}s")
 
     def voice_turn(self, pcm: bytes, rate: int = RATE, on_filler=None,
-                   mode: str | None = None, on_audio=None, on_meta=None) -> dict:
+                   mode: str | None = None, on_audio=None, on_meta=None,
+                   turn_id: str | None = None) -> dict:
         """POST one utterance; parse the server's NDJSON stream.
 
         Line kinds, each handed to its callback the moment it arrives:
@@ -778,6 +780,7 @@ class BrainClient:
         """
         headers = self._headers({"Content-Type": "application/octet-stream",
                    "X-Sample-Rate": str(rate),
+                   "X-Wini-Turn-Id": turn_id or f"turn_{uuid.uuid4().hex}",
                    # No compression layer between us and the NDJSON lines: a
                    # decompressor is another place the stream can buffer.
                    "Accept-Encoding": "identity"})
@@ -814,8 +817,9 @@ class BrainClient:
         return result
 
     def text_turn(self, text: str, speak: bool = True,
-                  mode: str | None = None) -> dict:
-        payload = {"text": text, "speak": speak}
+                  mode: str | None = None, turn_id: str | None = None) -> dict:
+        payload = {"text": text, "speak": speak,
+                   "turn_id": turn_id or f"turn_{uuid.uuid4().hex}"}
         if mode:
             payload["mode"] = mode
         r = requests.post(f"{self.base}/turn", json=payload, timeout=120,

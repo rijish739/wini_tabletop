@@ -3,12 +3,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-from .contracts import AssessmentHookType, OutcomeEvent
+from .contracts import OutcomeEvent
 
 
 def _normalise(outcome: str | None) -> str | None:
     value = str(outcome or "").lower()
-    return {"incorrect": "wrong", "nonresponse": "wrong",
+    return {"incorrect": "wrong", "nonresponse": "not_an_answer",
             "correct": "correct", "partial": "partial", "wrong": "wrong"}.get(value)
 
 
@@ -35,11 +35,15 @@ class OutcomeEmitter:
             kc_id=interaction.get("target_concept"),
             item_id=interaction.get("item_id") or str(hook_id),
             assessment_purpose=interaction.get("assessment_purpose"),
+            grader_path="device_local",
+            grader_confidence=1.0,
+            stt_confidence=1.0,
             payload={
                 "hook_type": interaction.get("hook_type"),
                 "target_concept": interaction.get("target_concept"),
                 "target_misconception": interaction.get("target_misconception"),
                 "state_update_intent": interaction.get("state_update_intent"),
+                "mutation_kind": interaction.get("state_update_intent") or "practice",
                 "response": runner_event.get("response") or {},
             },
         )
@@ -73,22 +77,8 @@ def apply_at_turn_close(state, events: Iterable[OutcomeEvent],
         concept = payload.get("target_concept")
         misconception = payload.get("target_misconception")
         try:
-            if hasattr(state, "apply_outcome_event"):
-                result = state.apply_outcome_event(event)
-            elif outcome is None:
-                result = {"status": "recorded_only", "reason": "unscorable_outcome"}
-            elif payload.get("state_update_intent") == "bridge":
-                result = state.apply_bridge_result(
-                    concept or event.assessment_hook_id, outcome, misconception)
-            elif hook_type in (AssessmentHookType.MISCONCEPTION_PROBE.value,
-                               AssessmentHookType.DIAGNOSTIC_PROBE.value) and misconception:
-                result = state.apply_probe_result(misconception, outcome, concept)
-            elif concept:
-                result = state.apply_item_result(
-                    event.assessment_hook_id or event.beat_id, outcome, concept,
-                    kind="practice", hints_used=0)
-            else:
-                result = {"status": "recorded_only", "reason": "missing_target_concept"}
+            from evidence import record_outcome
+            result = record_outcome(state, event)
         except Exception as exc:  # bad telemetry must not corrupt learner state
             result = {"status": "rejected", "reason": str(exc)}
         applied.add(key)

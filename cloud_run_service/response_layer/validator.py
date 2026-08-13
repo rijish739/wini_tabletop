@@ -98,9 +98,10 @@ class ScriptValidator:
             # shape only; they are not assessing contracts. Fail closed.
             hook = beat.assessment_hook
             if hook is not None and not (
-                    hook.item_verified and hook.item_id and hook.question
+                    hook.verification_status in {"verified", "authored_verified"}
+                    and hook.verification_token and hook.item_id and hook.question
                     and (hook.expected_answer or hook.rubric)
-                    and hook.assessment_purpose):
+                    and hook.assessment_purpose and hook.state_update_intent):
                 assessment_hooks_ok = False
                 issues.append(
                     f"beat {beat.beat_id}: unverified assessment hook downgraded to non-assessing")

@@ -32,6 +32,7 @@ import os
 import re
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -55,10 +56,17 @@ from query import (
 )
 from runtime_flags import (
     GRADER_WRITE_CONFIDENCE_MIN,
-    P0_EVIDENCE,
     RESPONSE_LAYER,
     STT_WRITE_CONFIDENCE_MIN,
 )
+from evidence import GradeResult, grade_answer, make_idempotency_key, record_outcome
+from items import CandidateItem, default_bank, from_authored, verify as verify_item
+from response_layer.arming import (
+    arm_from_script as _arm_from_script_authoritative,
+    pending_is_assessable,
+    void_pending_assessment,
+)
+from response_layer.realization import check_realization
 
 try:
     import debug_logger as _dbg
@@ -943,7 +951,8 @@ def qwen_cohesion_check(evidence: list[dict], blocks_text: dict) -> list[str]:
 
 def judge_answer(question: str, expected: str, student_answer: str,
                  rubric: str = "", *, stt_confidence: float | None = None,
-                 idempotency_key: str | None = None) -> dict:
+                 idempotency_key: str | None = None,
+                 misconception_probe: bool = False) -> GradeResult:
     """Grade a check answer — hardened, deterministic-first (Part 12 §5.4).
 
     1. A deterministic numeric/expression/yes-no equivalence check (math_grade)
@@ -957,7 +966,12 @@ def judge_answer(question: str, expected: str, student_answer: str,
     Returns correct | partial | wrong | not_an_answer. Any failure degrades to
     not_an_answer so learner state is never moved by a broken grader.
     """
-    det = None
+    return grade_answer(
+        question, expected, student_answer, rubric, model_call=qwen_chat,
+        stt_confidence=stt_confidence, idempotency_key=idempotency_key,
+        misconception_probe=misconception_probe)
+
+    det = None  # pragma: no cover - retained temporarily as rollback reference
     try:
         import math_grade
         det = math_grade.grade(expected, student_answer)
@@ -1029,36 +1043,7 @@ def _plainify_math(s: str) -> str:
     return to_question(s)
 
 
-_VERIFIED_ITEM_CACHE_PATH = STORE / "verified_quiz_items.json"
-_VERIFIED_ITEM_CACHE: dict | None = None
 _ITEM_VERIFIER_VERSION = "p0-independent-v1"
-
-
-def _verified_item_cache() -> dict:
-    global _VERIFIED_ITEM_CACHE
-    if _VERIFIED_ITEM_CACHE is None:
-        try:
-            raw = json.loads(_VERIFIED_ITEM_CACHE_PATH.read_text(encoding="utf-8"))
-            _VERIFIED_ITEM_CACHE = {
-                k: v for k, v in (raw.items() if isinstance(raw, dict) else [])
-                if isinstance(v, dict) and v.get("item_verified") is True
-            }
-        except Exception:  # noqa: BLE001
-            _VERIFIED_ITEM_CACHE = {}
-    return _VERIFIED_ITEM_CACHE
-
-
-def _save_verified_item_cache() -> None:
-    cache = _verified_item_cache()
-    tmp = _VERIFIED_ITEM_CACHE_PATH.with_suffix(".json.tmp")
-    try:
-        tmp.write_text(json.dumps(cache, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, _VERIFIED_ITEM_CACHE_PATH)
-    except Exception:  # noqa: BLE001 - cache failure disables reuse, never verification
-        try:
-            tmp.unlink(missing_ok=True)
-        except Exception:
-            pass
 
 
 def _verify_generated_item(question: str, proposed_answer: str) -> dict | None:
@@ -1102,19 +1087,6 @@ def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = Non
     if clean_avoid:
         avoid_txt = ("Do NOT repeat or lightly reword any of these already-asked "
                      "questions:\n" + "\n".join(f"- {a}" for a in clean_avoid) + "\n")
-    cache_material = json.dumps({
-        "schema_id": schema.get("id") or schema.get("schema_id"),
-        "method_steps": schema.get("method_steps") or [],
-        "variables": schema.get("isomorphic_variables") or [],
-        "concept": concept_name,
-        "avoid": sorted(clean_avoid),
-        "verifier": _ITEM_VERIFIER_VERSION,
-    }, sort_keys=True, ensure_ascii=True)
-    cache_key = hashlib.sha256(cache_material.encode("utf-8")).hexdigest()
-    cached = _verified_item_cache().get(cache_key)
-    if cached and cached.get("item_verified") is True:
-        return dict(cached)
-
     prompt = (
         "You are setting ONE short quiz question for a Class 10 maths student.\n"
         f"CONCEPT: {concept_name}\n"
@@ -1146,20 +1118,20 @@ def generate_quiz_item(schema: dict, concept_name: str, avoid: list | None = Non
             verification = _verify_generated_item(q, a)
             if not verification:
                 return None
-            item_id = "verified_quiz::" + hashlib.sha256(
-                f"{q}\n{a}".encode("utf-8")).hexdigest()[:20]
-            item = {
-                "item_id": item_id, "question": q, "expected_answer": a,
-                "rubric": "", "assessment_purpose": "test",
-                "response_type": "short_exact", "reveal_policy": "after_attempt",
-                "item_verified": True,
-                "verification_provenance": "independent_model_agreement",
-                "verification_version": verification["version"],
-                "verifier_confidence": verification["confidence"],
-            }
-            _verified_item_cache()[cache_key] = item
-            _save_verified_item_cache()
-            return dict(item)
+            candidate = CandidateItem(
+                concept_id=str(schema.get("concept_id") or concept_name),
+                question=q, expected_answer=a, response_type="short_exact",
+                assessment_purpose="check_independent", reveal_policy="after_attempt",
+                generator_model=GEN_BACKEND, generator_version="candidate-v1",
+                schema_id=schema.get("id") or schema.get("schema_id"))
+            verified = verify_item(
+                candidate, independent_answer=verification["derived_answer"],
+                verifier_confidence=verification["confidence"],
+                verifier_provenance="independent_model_agreement",
+                bank=default_bank())
+            if verified is None:
+                return None
+            return verified.to_dict()
     except Exception:  # noqa: BLE001 — a broken generator ends the set, never crashes a turn
         return None
     return None
@@ -1194,6 +1166,12 @@ def _assessment_hook(candidate: dict, script_id: str, beat_id: str):
         item_verified=bool(candidate.get("item_verified")),
         verification_provenance=candidate.get("verification_provenance"),
         verification_version=candidate.get("verification_version"),
+        verification_status=candidate.get("verification_status") or "unverified",
+        verification_token=candidate.get("verification_token"),
+        item_source=candidate.get("item_source"),
+        binary_item=bool(candidate.get("binary_item", False)),
+        difficulty=candidate.get("difficulty"),
+        metadata=dict(candidate.get("metadata") or {}),
         hint_chain=list(candidate.get("hint_chain") or []),
     )
 
@@ -1231,35 +1209,8 @@ def assessment_script(candidate: dict, action: str, concept_id: str | None):
 
 
 def arm_from_script(script, session: dict) -> dict | None:
-    """The P0 path's sole writer of ``session['pending_check']``.
-
-    A script with zero, multiple, or incomplete verified hooks is non-assessing.
-    ``pending_check`` is the serialized AssessmentHook plus compatibility aliases,
-    so there is one outstanding-check representation rather than two contracts.
-    """
-    hooks = [(beat, beat.assessment_hook) for beat in (getattr(script, "beats", []) or [])
-             if beat.assessment_hook is not None]
-    valid = [(beat, hook) for beat, hook in hooks if (
-        hook.item_verified and hook.item_id and hook.question
-        and (hook.expected_answer or hook.rubric) and hook.assessment_purpose
-        and hook.reveal_policy
-    )]
-    if len(valid) != 1 or len(hooks) != 1:
-        return None
-    beat, hook = valid[0]
-    pending = hook.to_dict()
-    pending.update({
-        "kind": hook.state_update_intent or "practice",
-        "id": hook.item_id,
-        "concept_id": hook.target_concept,
-        "script_id": script.script_id,
-        "beat_id": beat.beat_id,
-        "attempt": 1,
-        "item_source": hook.verification_provenance or "authored_store",
-        "idempotency_key": f"{script.script_id}:{beat.beat_id}:1",
-    })
-    session["pending_check"] = pending
-    return pending
+    """Compatibility export for the response-layer authoritative boundary."""
+    return _arm_from_script_authoritative(script, session)
 
 
 def _normalise_assessment_text(value: str) -> str:
@@ -1272,7 +1223,7 @@ def _ensure_assessment_question(answer: str, question: str | None) -> str:
     question = (question or "").strip()
     if not question:
         return answer
-    if _normalise_assessment_text(question) in _normalise_assessment_text(answer):
+    if question in answer:
         return answer
     return f"{answer} {question}".strip()
 
@@ -1281,9 +1232,10 @@ def assessment_delivery_issue(answer: str, hook) -> str | None:
     """Return a deterministic reason to void, or None when delivery is intact."""
     if not hook or not hook.item_verified:
         return "unverified_item"
-    q_norm = _normalise_assessment_text(hook.question or "")
+    question = str(hook.question or "")
+    q_norm = _normalise_assessment_text(question)
     a_norm = _normalise_assessment_text(answer)
-    if not q_norm or q_norm not in a_norm:
+    if not question or question not in answer:
         return "verified_question_not_delivered"
     expected = str(hook.expected_answer or "").strip().lower()
     # Remove the question before key-leak inspection: the item itself may contain
@@ -1618,6 +1570,10 @@ class TutorLoop:
             return None
         seen = set(((self.state.concept_states.get(concept_id) or {})
                     .get("item_history") or {}).keys())
+        cached = default_bank().select(concept_id, "check_independent", seen)
+        if cached is not None:
+            return {**cached.to_dict(), "kind": "practice", "id": cached.item_id,
+                    "concept_id": concept_id}
         for s in self.graph.successors(concept_id):
             if self.graph.nodes[s].get("type") != "problem_schema":
                 continue
@@ -1626,28 +1582,22 @@ class TutorLoop:
                 expected = node.get("expected_answer")
                 q = node.get("question") or node.get("prompt") or node.get("text")
                 if expected and q and inst not in seen:
-                    return {"kind": "practice", "id": inst, "concept_id": concept_id,
-                            "question": q, "expected_answer": expected,
-                            "rubric": node.get("rubric") or node.get("why_wrong") or "",
-                            "assessment_purpose": "practice",
-                            "response_type": node.get("response_type") or "short_text",
-                            "reveal_policy": node.get("reveal_policy") or "after_attempt",
-                            "item_verified": True,
-                            "verification_provenance": (node.get("verification_provenance")
-                                                        or "authored_store"),
-                            "verification_version": node.get("verification_version") or "store-v1",
-                            "difficulty": node.get("difficulty"),
-                            "hint_chain": node.get("hint_chain")}
-        if P0_EVIDENCE:
-            for schema_id in self._concept_schema_ids(concept_id):
-                schema = dict(self.graph.nodes.get(schema_id, {}))
-                schema.setdefault("schema_id", schema_id)
-                item = generate_quiz_item(
-                    schema, self.concept_name(concept_id), avoid=sorted(seen))
-                if item and item.get("item_id") not in seen:
-                    return {**item, "kind": "practice", "id": item["item_id"],
-                            "concept_id": concept_id, "assessment_purpose": "practice",
-                            "difficulty": schema.get("difficulty"), "hint_chain": []}
+                    authored = from_authored({
+                        "id": inst, "concept_id": concept_id, "question": q,
+                        "expected_answer": expected,
+                        "rubric": node.get("rubric") or node.get("why_wrong") or "",
+                        "assessment_purpose": "check_independent",
+                        "response_type": node.get("response_type") or "short_text",
+                        "reveal_policy": node.get("reveal_policy") or "after_attempt",
+                        "hint_chain": node.get("hint_chain"),
+                        "item_source": "authored",
+                        "metadata": {"difficulty": node.get("difficulty"),
+                                     "representations": node.get("supports_representation") or []},
+                    })
+                    if authored:
+                        return {**authored.to_dict(), "kind": "practice",
+                                "id": authored.item_id, "concept_id": concept_id,
+                                "difficulty": node.get("difficulty")}
         return None
 
     def _concept_schema_ids(self, concept_id: str | None) -> list:
@@ -1689,8 +1639,10 @@ class TutorLoop:
                                        gate_threshold=MASTERY_GATE_DEFAULT)
         if step and step["phase"] == "serving":
             schema = self.graph.nodes.get(step["schema_id"], {})
-            asked = [it.get("question") for it in ts.get("items", [])]
-            item = generate_quiz_item(schema, self.concept_name(concept_id), avoid=asked)
+            asked_ids = {str(it.get("id")) for it in ts.get("items", []) if it.get("id")}
+            verified = default_bank().select(
+                concept_id, "check_independent", asked_ids) if concept_id else None
+            item = verified.to_dict() if verified is not None else None
             if not item:
                 # can't produce a gradeable item: end on what we have, or abandon.
                 if not ts["results"]:
@@ -1705,15 +1657,11 @@ class TutorLoop:
                     "id": iid, "schema_id": step["schema_id"],
                     "question": item["question"], "expected_answer": item["expected_answer"],
                     "difficulty": schema.get("difficulty")})
-                pending = {"kind": "test", "id": iid, "concept_id": concept_id,
-                           "question": item["question"], "expected_answer": item["expected_answer"],
-                           "rubric": item.get("rubric") or "",
-                           "assessment_purpose": "test",
-                           "response_type": item.get("response_type") or "short_exact",
-                           "reveal_policy": item.get("reveal_policy") or "after_attempt",
-                           "item_verified": bool(item.get("item_verified")),
-                           "verification_provenance": item.get("verification_provenance"),
-                           "verification_version": item.get("verification_version"),
+                pending = {**item, "kind": "test", "id": iid,
+                           "concept_id": concept_id,
+                           "assessment_purpose": item.get("assessment_purpose")
+                           or "check_independent",
+                           "reveal_policy": "never_during_test",
                            "difficulty": schema.get("difficulty"), "hint_chain": None}
                 return {"action": "TEST_QUESTION", "need": "schema", "why": step["why"],
                         "speak": self._test_question_line(step["i"], step["n"],
@@ -2594,8 +2542,10 @@ class TutorLoop:
         record = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "learner_id": self.state.data.get("learner_id"),
-            "utterance": text,
-            "safety_tier": "protected_supervision",
+            "utterance_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "utterance_length": len(text),
+            "safety_tier": int(getattr(route, "safety_tier", None) or 2),
+            "safety_category": getattr(route, "safety_category", None) or "safety_concern",
             "source": route.source,
             "handled": "scripted_reply+persisted_alert+supervisor_notify",
         }
@@ -2613,7 +2563,8 @@ class TutorLoop:
         Cloud deployment overrides this with a Firestore write -> push/email/dashboard."""
         line = "=" * 64
         print(f"\n{line}\n  [!] SAFETY ALERT — a supervising adult must be notified now.\n"
-              f"      utterance: {record.get('utterance')!r}\n{line}\n")
+              f"      tier={record.get('safety_tier')} "
+              f"category={record.get('safety_category')}\n{line}\n")
 
     def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
         log_row = {
@@ -2635,9 +2586,18 @@ class TutorLoop:
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None,
              precomputed_grade: dict | str | None = None,
-             stt_confidence: float | None = None, _allow_shift: bool = True) -> dict:
+             stt_confidence: float | None = None, turn_id: str | None = None,
+             learner_id: str | None = None, _allow_shift: bool = True) -> dict:
         self._response_script = None
         self._assessment_candidate = None
+        turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
+        learner_id = (learner_id or self.state.data.get("learner_id")
+                      or "local_single_learner")
+        bound_learner = str(self.state.data.get("learner_id") or "").strip()
+        if bound_learner.lower() == "default":
+            bound_learner = ""
+        if bound_learner and bound_learner != learner_id:
+            raise PermissionError("turn learner identity does not match bound state")
         stt_confidence = 1.0 if stt_confidence is None else max(
             0.0, min(1.0, float(stt_confidence)))
         # Part 15 Phase B: `precomputed_grade` is a grader outcome the server
@@ -2651,19 +2611,22 @@ class TutorLoop:
         # ledger — only the outermost caller reads it.
         if _allow_shift:
             gen_stats_reset()
+        session = self.state.data.setdefault("session", {})
+        # The deterministic gate is literally first: it precedes offer/session
+        # consumption, model routing, speculative results, and every learning write.
+        gate_route = _front_gate(text)
+        if gate_route is not None:
+            if gate_route.safety_alert:
+                gate_route.primary = "SAFETY"
+                self._log_safety(text, gate_route)
+            return self._handle_nonlearning(gate_route, text, answer_budget)
         # -1. Pending topic-shift confirmation from the previous turn: a bare
         # yes/no answers the "switch to X?" offer deterministically (no model
         # call); anything longer falls through with the offer cancelled.
-        session = self.state.data.setdefault("session", {})
-        if P0_EVIDENCE and stt_confidence < STT_WRITE_CONFIDENCE_MIN:
+        if stt_confidence < STT_WRITE_CONFIDENCE_MIN:
             # Safety still runs first and remains authoritative. Every other
             # low-confidence transcript is observational only: do not consume
             # offers, shift topics, grade, or apply cognitive deltas.
-            low_route = _front_gate(text)
-            if low_route is not None and low_route.safety_alert:
-                low_route.primary = "SAFETY"
-                self._log_safety(text, low_route)
-                return self._handle_nonlearning(low_route, text, answer_budget)
             pending = session.get("pending_check") or {}
             reply = "I may have heard that wrong. Please say that again"
             if pending.get("question"):
@@ -2732,9 +2695,9 @@ class TutorLoop:
         # authoritative. Only LEARNING enters the state-moving pipeline (§3). The
         # Gemini call is memoized by normalized text, so route() and the later
         # analyze() share ONE network round-trip.
-        route = _front_gate(text)
-        if route is None:
-            route = self.analyzer.classifier.route(text, self.state.data.setdefault("session", {}))
+        route = self.analyzer.classifier.route(
+            text, self.state.data.setdefault("session", {}))
+        perception_uncertain = bool(getattr(route, "uncertain", False))
         if route is not None:
             if route.safety_alert:
                 # The gate owns the safety decision; a model `safety` flag may only
@@ -2765,17 +2728,19 @@ class TutorLoop:
                 return self._handle_nonlearning(route, text, answer_budget)
             # Real learning turn: the child re-engaged with maths, so reset the
             # social/emotional steer-back streak (Fix C cooldown counter).
-            if not (P0_EVIDENCE and stt_confidence < STT_WRITE_CONFIDENCE_MIN):
+            if not (stt_confidence < STT_WRITE_CONFIDENCE_MIN):
                 session["steer_streak"] = 0
 
         # 1-2. cognitive analysis + state update (Parts 1+2+3)
+        from cognitive_analyzer.analyzer import apply_deltas
         if precomputed_analysis is None:
-            analysis = self.analyzer.analyze_and_apply(text, self.state, current_concept=self.current_concept)
+            analysis = self.analyzer.analyze(
+                text, current_concept=self.current_concept)
         else:
-            from cognitive_analyzer.analyzer import apply_deltas
-
             analysis = precomputed_analysis
-            analysis["new_global_state"] = apply_deltas(self.state, analysis["state_deltas"])
+        analysis["new_global_state"] = (
+            {} if perception_uncertain
+            else apply_deltas(self.state, analysis["state_deltas"]))
         concept = analysis["concept"]
         primary = concept["concept_id"]
         # 1a-shift. Topic-shift attempt the perception could NOT ground: a bare
@@ -2910,9 +2875,17 @@ class TutorLoop:
                     f"frozen test found ({resume['graded']}/{resume['n']} graded); offering resume",
                     session, answer_budget)
         pending = session.get("pending_check")
+        if pending and not pending_is_assessable(pending):
+            void_pending_assessment(
+                session, reason="legacy_or_unverified_pending_check",
+                item_id=pending.get("item_id") or pending.get("id"))
+            pending = None
         writeback = None
         practice_outcome, practice_hints = None, 0   # fed to the PRACTICE ladder (§4.3)
         if pending:
+            grade_key = make_idempotency_key(
+                learner_id, turn_id,
+                str(pending.get("item_id") or pending.get("id") or ""), text)
             wants_hint = "hint_requested" in analysis["state_deltas"]["concept_flags"] \
                 or "request_hint" in analysis["signals"]
             chain = pending.get("hint_chain") or []
@@ -2936,38 +2909,36 @@ class TutorLoop:
             # (ack, "I don't understand", a fresh request, a counter-question) must
             # never move mastery or force a misconception active — the weak local
             # judge otherwise returns "wrong" for plain confusion (see 1a).
-            if non_attempt or not self.want_answer:
+            if perception_uncertain:
+                grade_result = GradeResult(
+                    "not_an_answer", "uncertain_perception", 0.0, None,
+                    stt_confidence, grade_key)
+            elif non_attempt or not self.want_answer:
                 # A non-attempt never grades (§13) — and if the server speculatively
                 # graded this turn, its result is discarded here, exactly as the
                 # serial path would never have called judge_answer.
-                grade_result = {"outcome": "not_an_answer", "confidence": 1.0,
-                                "path": "non_attempt_gate",
-                                "misconception_consistent": False,
-                                "stt_confidence": stt_confidence,
-                                "idempotency_key": pending.get("idempotency_key")}
+                grade_result = GradeResult(
+                    "not_an_answer", "non_attempt_gate", 1.0, None,
+                    stt_confidence, grade_key)
             elif precomputed_grade is not None:
                 # Part 15 Phase B: the grader already ran in parallel with perception
                 # on the identical (question, expected, text) — reuse it, no re-call.
-                if isinstance(precomputed_grade, dict):
-                    grade_result = dict(precomputed_grade)
-                else:  # flag-off/backward-compatible server result
-                    grade_result = {"outcome": precomputed_grade, "confidence": 1.0,
-                                    "path": "legacy_precomputed",
-                                    "misconception_consistent": False}
-                if P0_EVIDENCE and grade_result.get("idempotency_key") != \
-                        pending.get("idempotency_key"):
+                grade_result = GradeResult.from_value(precomputed_grade)
+                if grade_result.idempotency_key != grade_key:
                     grade_result = judge_answer(
                         pending["question"], pending["expected_answer"], text,
                         pending.get("rubric") or "", stt_confidence=stt_confidence,
-                        idempotency_key=pending.get("idempotency_key"))
+                        idempotency_key=grade_key,
+                        misconception_probe=pending.get("kind") == "misconception")
             else:
                 grade_result = judge_answer(
                     pending["question"], pending["expected_answer"], text,
                     pending.get("rubric") or "", stt_confidence=stt_confidence,
-                    idempotency_key=pending.get("idempotency_key"))
-            outcome = grade_result.get("outcome")
-            grader_confidence = float(grade_result.get("confidence") or 0.0)
-            if P0_EVIDENCE and outcome in ("correct", "partial", "wrong") \
+                    idempotency_key=grade_key,
+                    misconception_probe=pending.get("kind") == "misconception")
+            outcome = grade_result.outcome
+            grader_confidence = grade_result.confidence
+            if outcome in ("correct", "partial", "wrong") \
                     and grader_confidence < GRADER_WRITE_CONFIDENCE_MIN:
                 return self._shift_reply(
                     text,
@@ -2976,55 +2947,59 @@ class TutorLoop:
                     f"grader confidence {grader_confidence:.3f} below write floor; check preserved",
                     session, answer_budget)
             if outcome in ("correct", "partial", "wrong"):
-                hints_used = (self.state.concept_states.get(pending["concept_id"]) or {}) \
-                    .get("hints_used_current", 0)
-                if P0_EVIDENCE:
+                hints_used = self.state.hint_chain_position(
+                    pending["concept_id"], pending.get("id"))
+                if True:  # the evidence boundary is mandatory; the flag only controls compatibility UX
                     from response_layer.contracts import OutcomeEvent
+                    delay = self.state._days_since_practice(pending.get("concept_id")) or 0.0
+                    metadata = dict(pending.get("metadata") or {})
                     event = OutcomeEvent(
                         script_id=pending["script_id"], beat_id=pending["beat_id"],
-                        attempt=int(pending.get("attempt") or 1),
+                        attempt=int(pending.get("attempt") or 1), turn_id=turn_id,
+                        idempotency_token=grade_key,
                         assessment_hook_id=pending.get("hook_id"), outcome=outcome,
-                        learner_id=self.state.data.get("learner_id"),
+                        learner_id=learner_id,
                         concept_id=pending.get("concept_id"),
-                        kc_id=pending.get("concept_id"), item_id=pending.get("item_id") or pending.get("id"),
+                        kc_id=pending.get("kc_id") or pending.get("concept_id"),
+                        item_id=pending.get("item_id") or pending.get("id"),
                         item_source=pending.get("item_source"),
                         assessment_purpose=pending.get("assessment_purpose"),
-                        grader_path=grade_result.get("path"),
+                        grader_path=grade_result.grader_path,
                         grader_confidence=grader_confidence,
                         stt_confidence=stt_confidence,
+                        consistent_with_misconception=grade_result.misconception_consistency,
+                        assistance_offered=int(hints_used),
+                        assistance_consumed=int(hints_used), delay_days=float(delay),
+                        action=pending.get("action") or "unknown",
+                        barrier=pending.get("barrier") or "unknown",
+                        mode=pending.get("mode") or "EXPLAIN",
                         payload={
                             "mutation_kind": pending.get("kind"),
                             "target_concept": pending.get("concept_id"),
                             "target_misconception": pending.get("target_misconception"),
-                            "difficulty": pending.get("difficulty"),
+                            "difficulty": pending.get("difficulty") or metadata.get("difficulty"),
                             "hints_used": hints_used,
-                            "misconception_consistent": bool(
-                                grade_result.get("misconception_consistent", False)),
-                            "assistance_consumed": hints_used,
+                            "binary_item": bool(pending.get("binary_item", False)),
+                            "representations": metadata.get("representations") or [],
                         })
-                    writeback = self.state.apply_outcome_event(event)
+                    writeback = record_outcome(self.state, event)
                     if pending.get("kind") in ("practice", "test", "parallel_retest"):
                         practice_outcome, practice_hints = outcome, int(hints_used)
-                elif pending["kind"] == "bridge":
-                    writeback = self.state.apply_bridge_result(pending["id"], outcome)
+                elif False and pending["kind"] == "bridge":
+                    raise AssertionError("legacy evidence writer disabled")
                 elif pending["kind"] in ("practice", "test", "parallel_retest"):
                     # Part 12: graded PRACTICE/TEST item -> the third evidence API.
                     # Mastery moves here (never misconception status). The outcome +
                     # hints drive the ladder movement below (§4.3).
-                    writeback = self.state.apply_item_result(
-                        pending["id"], outcome, pending["concept_id"],
-                        kind=pending["kind"], difficulty=pending.get("difficulty"),
-                        hints_used=hints_used)
+                    raise AssertionError("legacy evidence writer disabled")
                     practice_outcome, practice_hints = outcome, int(hints_used)
                 else:
-                    writeback = self.state.apply_probe_result(
-                        pending["id"], outcome, concept_id=pending["concept_id"], hints_used=hints_used)
-                writeback["graded_reply"] = text
+                    raise AssertionError("legacy evidence writer disabled")
                 # §9 representation coverage (audit A-5). Answering correctly on an
                 # item that carries a representation IS the learner "showing" that
                 # representation — stronger evidence than the acknowledgment path
                 # above, which was the only writer and effectively never fired.
-                if writeback.get("outcome") == "correct":
+                if False and writeback.get("outcome") == "correct":
                     _row = self.chunks_by_id.get(pending["id"]) or {}
                     _reps = (_row.get("representations")
                              or self.graph.nodes.get(pending["id"], {}).get(
@@ -3257,27 +3232,26 @@ class TutorLoop:
                 continue
             node = self.graph.nodes.get(e["id"], {})
             expected = node.get("expected_answer", "")
-            candidate = {
-                "kind": "bridge" if e["type"] == "bridge_diagnostic" else "misconception",
+            kind = "bridge" if e["type"] == "bridge_diagnostic" else "misconception"
+            authored = from_authored({
                 "id": e["id"], "concept_id": primary or e.get("target_concept"),
                 "question": q, "expected_answer": expected,
                 "rubric": node.get("rubric") or node.get("why_wrong") or "",
-                "assessment_purpose": "diagnostic",
+                "assessment_purpose": ("diagnose_barrier" if kind == "bridge"
+                                       else "diagnose_misconception"),
                 "response_type": node.get("response_type") or "short_text",
                 "reveal_policy": node.get("reveal_policy") or "after_attempt",
-                "item_verified": bool(expected),
-                "verification_provenance": (node.get("verification_provenance")
-                                            or ("authored_store" if expected else None)),
-                "verification_version": node.get("verification_version") or "store-v1",
                 "hint_chain": e.get("hint_chain") or node.get("hint_chain"),
-            }
-            if P0_EVIDENCE:
-                if candidate["item_verified"]:
-                    assessment_candidate = candidate
-                    break
-                continue
-            session["pending_check"] = candidate
-            break
+                "verification_provenance": node.get("verification_provenance") or "authored_store",
+                "verification_version": node.get("verification_version") or "store-v1",
+                "item_source": kind,
+                "metadata": {"representations": node.get("supports_representation") or []},
+            })
+            if authored:
+                assessment_candidate = {**authored.to_dict(), "kind": kind,
+                                        "id": authored.item_id,
+                                        "difficulty": node.get("difficulty")}
+                break
 
         # 4a-practice. Part 12 (§4.3/§5.2): a graded PRACTICE item arms pending_check
         # with kind="practice" (the ladder's COMPLETION/ISOMORPHIC/TRANSFER levels),
@@ -3289,25 +3263,21 @@ class TutorLoop:
                 and not session.get("pending_check"):
             pc = self._practice_gradeable(primary, session)
             if pc:
-                if P0_EVIDENCE:
-                    assessment_candidate = assessment_candidate or pc
-                else:
-                    session["pending_check"] = pc
+                assessment_candidate = assessment_candidate or pc
 
         # 4a-test. Part 12 (§4.4): a TEST item OWNS the pending_check slot. Unlike
         # PRACTICE, assessment is deliberate quizzing, so probe-before-correct does
         # NOT preempt it — the test question overrides any bridge/misconception arm.
         if mode == "TEST" and mode_item and mode_item.get("pending"):
-            if P0_EVIDENCE:
-                assessment_candidate = mode_item["pending"]
-            else:
-                session["pending_check"] = mode_item["pending"]
+            assessment_candidate = mode_item["pending"]
 
-        if P0_EVIDENCE and session.get("pending_check"):
+        if session.get("pending_check"):
             assessment_candidate = None
-        if P0_EVIDENCE and action in {
+        if perception_uncertain:
+            assessment_candidate = None
+        if action in {
                 "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
-                "TRANSFER_PROBLEM", "TEST_QUESTION", "QUIZ"} and not assessment_candidate:
+                "TRANSFER_PROBLEM", "TEST_QUESTION"} and not assessment_candidate:
             action, need = "EXPLAIN", "explain"
             why = f"{why}; P0 fail-closed: no verified item, so no assessing question"
 
@@ -3419,8 +3389,18 @@ class TutorLoop:
                 display, figure_on_screen, rl_visual = mode_cards + crop_items, \
                     bool(mode_cards or crop_items), None
 
+        # TEST owns assessment and must never render an instructional/corrective
+        # visual that could disclose the method or key. The stored question card is
+        # the only permitted display; speech-only remains the safe fallback.
+        if mode == "TEST" and action == "TEST_QUESTION":
+            display = mode_cards
+            figure_on_screen = bool(mode_cards)
+            rl_visual = {"type": "none", "allowed": False, "arm_scene": False,
+                         "reason": "test_non_disclosure"}
+
         # 5. response from manifest only (Qwen, local)
         answer = None
+        gen_budget = answer_budget
         # Board pre-warm handle (SYNC_VISUAL). Filled by the first-sentence hook
         # below when a visual is earned; consumed by the from-answer draw in 5c.
         _prewarm_box = {"future": None}
@@ -3753,22 +3733,78 @@ class TutorLoop:
         # is now prevented at the source instead: qwen_answer(board_pending=True) forbids
         # deictic references whenever the board is still pending (see §5 screen_cue).
 
+        # General deterministic realization audit. Audio may already have streamed,
+        # so this records corruption and protects evidence; it never rewrites the
+        # transcript or attempts to retract speech.
+        _grounded_text = " ".join(
+            str((self.chunks_by_id.get(e.get("id")) or {}).get("text")
+                or e.get("text") or e.get("question") or e.get("why_wrong") or "")
+            for e in evidence)
+        _correcting = any(
+            e.get("type") == "misconception" and
+            bool(e.get("why_wrong") or e.get("correct_idea")) for e in evidence)
+        _supported = all(
+            self.state.misconception_status(e.get("id")) == "supported"
+            for e in evidence if e.get("type") == "misconception" and
+            bool(e.get("why_wrong") or e.get("correct_idea")))
+        _general_realization = check_realization(
+            answer or "", grounding=grounding, grounded_text=_grounded_text,
+            learner_text=text, max_words=(gen_budget or {}).get("max_words"),
+            max_sentences=(gen_budget or {}).get("max_sentences"),
+            correcting_misconception=_correcting,
+            misconception_supported=_supported,
+            allowed_numbers=tuple(str(n) for n in (
+                (mode_item or {}).get("item_no"), (mode_item or {}).get("of")) if n is not None))
+        session["realization_validation"] = {
+            "flags": list(_general_realization.flags),
+            "latency_ms": round(_general_realization.elapsed_ms, 3),
+        }
+
         # P0 one-arming path. Arm only after the exact verified question survived
         # generation/streaming and the deterministic key-leak check. A corrupted
         # assessment is explicitly voided and can never reach next-turn grading.
-        if P0_EVIDENCE and assessment_candidate and not session.get("pending_check"):
+        if assessment_candidate and not session.get("pending_check"):
             script = self._response_script or assessment_script(
                 assessment_candidate, action, primary)
             hooks = [b.assessment_hook for b in script.beats if b.assessment_hook]
             issue = ("script_validation_failed"
                      if script.validation and not script.validation.get("ok", False)
-                     else (assessment_delivery_issue(answer or "", hooks[0])
-                           if len(hooks) == 1 else "assessment_hook_count"))
-            if issue:
-                session["voided_check"] = {
-                    "item_id": assessment_candidate.get("id"), "reason": issue,
-                    "script_id": getattr(script, "script_id", None),
+                     else (None if len(hooks) == 1 else "assessment_hook_count"))
+            realization = None
+            if issue is None:
+                grounded_text = " ".join(
+                    str((self.chunks_by_id.get(e.get("id")) or {}).get("text")
+                        or e.get("text") or e.get("question") or e.get("why_wrong") or "")
+                    for e in evidence)
+                correcting = any(
+                    e.get("type") == "misconception" and
+                    bool(e.get("why_wrong") or e.get("correct_idea")) for e in evidence)
+                supported = all(
+                    self.state.misconception_status(e.get("id")) == "supported"
+                    for e in evidence if e.get("type") == "misconception" and
+                    bool(e.get("why_wrong") or e.get("correct_idea")))
+                realization = check_realization(
+                    answer or "", hook=hooks[0], grounding=grounding,
+                    grounded_text=grounded_text, learner_text=text,
+                    max_words=(gen_budget or {}).get("max_words"),
+                    max_sentences=(gen_budget or {}).get("max_sentences"),
+                    correcting_misconception=correcting,
+                    misconception_supported=supported,
+                    allowed_numbers=tuple(str(n) for n in (
+                        (mode_item or {}).get("item_no"), (mode_item or {}).get("of"))
+                        if n is not None))
+                session["realization_validation"] = {
+                    "flags": list(realization.flags),
+                    "latency_ms": round(realization.elapsed_ms, 3),
                 }
+                if realization.assessment_corrupted:
+                    issue = realization.flags[0]
+            if issue:
+                void_pending_assessment(
+                    session, reason=issue,
+                    item_id=assessment_candidate.get("item_id")
+                    or assessment_candidate.get("id"))
+                session["voided_check"]["script_id"] = getattr(script, "script_id", None)
             else:
                 session.pop("voided_check", None)
                 arm_from_script(script, session)
@@ -3846,6 +3882,8 @@ class TutorLoop:
                 "writeback": writeback, "hope_update": hope_update,
                 "pending_check": session.get("pending_check", {}).get("id"),
                 "pending_hope": session.get("pending_hope", {}).get("signal"),
+                "layer_latency_ms": {"realization_validation":
+                    (session.get("realization_validation") or {}).get("latency_ms", 0.0)},
                 "answer_budget": answer_budget,
                 "pace": session.get("pace", {}),
                 "display": display,

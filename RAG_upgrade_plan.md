@@ -542,6 +542,22 @@ Requiring pilot learners (staged — defined now, measured when real users exist
 
 ---
 
+## P0 verified-item and evidence addendum (2026-08-12)
+
+The prior runtime-generation design is superseded for ordinary learner turns: synchronous
+generate-and-serve is removed. `items/` separates untrusted `CandidateItem` generation from
+independent `items.verify()` at temperature 0 and caches only `VerifiedItem` rows in an
+append-only fsynced JSONL bank. Runtime PRACTICE/TEST selects prepared verified items (preferring
+non-binary); if none exists it explains or exits safely without posing a graded-looking question.
+Pre-authored graph diagnostics use a separately marked `authored_verified` adapter.
+
+The RAG relevance floor remains `0.28` and its abstention branch is regression-tested. The
+retrieval layer exposes correction content only for `supported` misconceptions. No graph or
+production RAG data was destructively migrated. Measured verification agreement is 50/50
+(100%) on the human-checkable golden set; the required 98% gate is met for that fixture only.
+
+---
+
 ## Part 12 addendum (2026-07-15) — no quiz-bank builder; the store is unchanged
 
 Part 12 TEST mode needed gradeable quiz items. A store audit answered whether the existing
