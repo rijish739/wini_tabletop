@@ -5,6 +5,7 @@ import json
 import unittest
 
 from baseline_oracle.corpus import REQUIRED_BEHAVIOR_TAGS, FrozenCorpus
+from baseline_oracle.contracts import FailureSignal, ProvisionalEvent, TurnCase
 from baseline_oracle.runner import OracleRunner, RuntimeTurn
 
 
@@ -19,11 +20,11 @@ class _RuntimeAdapter:
     def startup(self) -> dict:
         return {"startup_ms": 12.0, "model_client_constructions": 0}
 
-    def run_turn(self, case, state, model_gateway, emit) -> RuntimeTurn:
-        perception = model_gateway.call(case["id"], "perception", {"text": case["turn_input"]["text"]})
-        emit({"kind": "speech_delta", "sequence": 0, "text": "Quadratics"})
-        emit({"kind": "turn_meta", "sequence": 1, "action": "EXPLAIN"})
-        emit({"kind": "turn_result", "sequence": 2, "committed": True})
+    def run_turn(self, case: TurnCase, state, model_gateway, emit) -> RuntimeTurn:
+        perception = model_gateway.call(case.case_id, "perception", {"text": case.turn_input["text"]})
+        emit(ProvisionalEvent("speech_delta", 0, {"text": "Quadratics"}))
+        emit(ProvisionalEvent("turn_meta", 1, {"action": "EXPLAIN"}))
+        emit(ProvisionalEvent("turn_result", 2, {"committed": True}))
         after = json.loads(json.dumps(state))
         after["session"]["last_action"] = "EXPLAIN"
         result = {"action": "EXPLAIN", "answer": perception["answer"]}
@@ -36,7 +37,10 @@ class _RuntimeAdapter:
             assessment_lifecycle={"armed": None, "voided": None},
             manifest={"evidence": [], "bridge_ids": []},
             realization_receipt={"speech": "realized", "visual": "not_requested"},
-            failure_signals=[],
+            failure_signals=[FailureSignal(
+                capability="presentation", phase="realization", severity="degraded",
+                recoverable=True, cause="fixture_degradation",
+            )],
             degradation_reasons=[],
             metrics={"non_model_ms": 1.2, "total_ms": 413.7, "presentation_selection_ms": 0.2},
         )
@@ -77,7 +81,27 @@ class OracleRunnerTests(unittest.TestCase):
         self.assertEqual(observation["state_before"]["session"], {})
         self.assertEqual(observation["state_after"]["session"]["last_action"], "EXPLAIN")
         self.assertIn("realization_receipt", observation)
+        self.assertEqual(observation["failure_signals"][0]["capability"], "presentation")
         self.assertEqual(run.startup["startup_ms"], 12.0)
+
+    def test_adapter_receives_a_deeply_immutable_turn_case(self) -> None:
+        class MutatingAdapter(_RuntimeAdapter):
+            def run_turn(self, case, state, model_gateway, emit):
+                case.turn_input["device_capabilities"]["display"] = False
+
+        corpus = FrozenCorpus.from_data(
+            states={"cold_start": {"learner_id": "fixture-learner", "session": {}}},
+            cases=[{
+                "id": "immutable-input",
+                "state": "cold_start",
+                "turn_input": {"text": "fixture", "device_capabilities": {"display": True}},
+                "tags": sorted(REQUIRED_BEHAVIOR_TAGS),
+            }],
+            recordings=[],
+        )
+
+        with self.assertRaises(TypeError):
+            OracleRunner(corpus).run(MutatingAdapter())
 
 
 if __name__ == "__main__":

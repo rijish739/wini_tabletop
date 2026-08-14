@@ -3,10 +3,32 @@
   "capture_limitations": [
     "canonical_runtime_missing_policy_logreg.npz",
     "canonical_runtime_missing_signal_heads.npz",
-    "canonical_runtime_missing_local_chunk_index"
+    "canonical_runtime_missing_local_chunk_index",
+    "model_boundary_replay_incomplete"
   ],
   "cases": 27,
   "differences": 0,
+  "model_replay_coverage": {
+    "expected_calls": 32,
+    "incomplete_cases": [
+      "active-follow-up",
+      "assessment-non-attempt",
+      "assessment-wrong",
+      "clarification",
+      "commit-failure",
+      "hint-request",
+      "mastery-transfer",
+      "migration-legacy-pending",
+      "misconception-probe",
+      "practice-next",
+      "presentation-degradation",
+      "retrieval-failure",
+      "speech-only",
+      "test-next",
+      "topic-shift"
+    ],
+    "recorded_calls": 7
+  },
   "observation_fields": [
     "assessment_lifecycle",
     "case_id",
@@ -36,5 +58,6 @@
     "total_latency_p95_ms": 0.0
   },
   "reference_name": "baseline-split-canonical-2026-08-14",
-  "status": "pass"
+  "self_check_status": "pass",
+  "status": "incomplete"
 }

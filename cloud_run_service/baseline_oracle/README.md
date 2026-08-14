@@ -18,7 +18,8 @@ python -m baseline_oracle report --json baseline_oracle\reference\baseline_repor
 python -m unittest discover -s baseline_oracle\tests -v
 ```
 
-`verify` without `--candidate` performs the frozen-reference integrity check. A
+`verify` without `--candidate` performs the frozen-reference integrity check and exits
+with status 2 while the canonical capture is incomplete. A
 candidate capture may be either a JSON observation list or the envelope written by
 `capture`.
 
@@ -48,7 +49,7 @@ runner owns observation capture and model-call accounting, keeping adapters smal
 The repository does not contain `policy_logreg.npz`, `signal_heads.npz`, or the local
 chunk-index binary. The pinned runtime imports successfully in an isolated environment,
 but unchanged `TutorLoop` construction fails while loading those artifacts. The frozen
-contract reference therefore records performance as unavailable; it does not invent
-latency measurements. In an artifact-complete deployment checkout, run `capture` with
-the canonical adapter and replace the constrained reference/report after review.
-
+contract characterization therefore records performance as unavailable and 7 of 32
+expected external calls as replayable; it does not invent missing recordings or latency
+measurements. In an artifact-complete deployment checkout, run `capture` with the
+canonical adapter and replace the constrained reference/report after review.

@@ -26,31 +26,41 @@ class ComparisonReport:
 
 
 def compare_observations(
-    reference: Mapping[str, Any], candidate: Mapping[str, Any]
+    reference: Mapping[str, Any], candidate: Mapping[str, Any],
+    *,
+    ignore_roots: frozenset[str] = frozenset(),
 ) -> ComparisonReport:
     differences: list[Difference] = []
-    _compare("", reference, candidate, differences)
+    _compare("", reference, candidate, differences, ignore_roots)
     return ComparisonReport(tuple(differences))
 
 
-def _compare(path: str, reference: Any, candidate: Any, out: list[Difference]) -> None:
+def _compare(
+    path: str,
+    reference: Any,
+    candidate: Any,
+    out: list[Difference],
+    ignore_roots: frozenset[str],
+) -> None:
     if isinstance(reference, Mapping) and isinstance(candidate, Mapping):
         keys = sorted(set(reference) | set(candidate))
         for key in keys:
             child = f"{path}.{key}" if path else str(key)
+            if not path and str(key) in ignore_roots:
+                continue
             if key not in reference:
                 out.append(Difference(child, None, candidate[key], "unexpected_field"))
             elif key not in candidate:
                 out.append(Difference(child, reference[key], None, "missing_field"))
             else:
-                _compare(child, reference[key], candidate[key], out)
+                _compare(child, reference[key], candidate[key], out, ignore_roots)
         return
 
     if _is_sequence(reference) and _is_sequence(candidate):
         if len(reference) != len(candidate):
             out.append(Difference(path, len(reference), len(candidate), "length_mismatch"))
         for index, (left, right) in enumerate(zip(reference, candidate)):
-            _compare(f"{path}[{index}]", left, right, out)
+            _compare(f"{path}[{index}]", left, right, out, ignore_roots)
         return
 
     left = normalize_at_path(path, reference)

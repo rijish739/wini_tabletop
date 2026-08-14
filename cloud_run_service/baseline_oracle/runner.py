@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import copy
 from dataclasses import dataclass
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Callable, Mapping, Protocol, Sequence
 
+from .contracts import FailureSignal, ProvisionalEvent, TurnCase
 from .corpus import FrozenCorpus
+from .observation import TurnObservation
 from .replay import ReplayModelGateway
 
 
@@ -20,7 +22,7 @@ class RuntimeTurn:
     assessment_lifecycle: Mapping[str, Any]
     manifest: Mapping[str, Any]
     realization_receipt: Mapping[str, Any]
-    failure_signals: Sequence[Mapping[str, Any]]
+    failure_signals: Sequence[FailureSignal]
     degradation_reasons: Sequence[str]
     metrics: Mapping[str, float | int]
 
@@ -32,10 +34,10 @@ class RuntimeAdapter(Protocol):
 
     def run_turn(
         self,
-        case: Mapping[str, Any],
-        state: Mapping[str, Any],
+        case: TurnCase,
+        state: dict[str, Any],
         model_gateway: ReplayModelGateway,
-        emit: Any,
+        emit: Callable[[ProvisionalEvent], None],
     ) -> RuntimeTurn: ...
 
 
@@ -56,30 +58,37 @@ class OracleRunner:
         gateway = ReplayModelGateway(self._corpus.recordings)
         observations: list[Mapping[str, Any]] = []
 
-        for case in self._corpus.cases:
-            state_before = copy.deepcopy(self._corpus.states[str(case["state"])])
+        for raw_case in self._corpus.cases:
+            case = TurnCase.from_mapping(raw_case)
+            state_before = copy.deepcopy(self._corpus.states[case.state_fixture])
             working_state = copy.deepcopy(state_before)
             stream_events: list[Mapping[str, Any]] = []
+
+            def emit(event: ProvisionalEvent) -> None:
+                if not isinstance(event, ProvisionalEvent):
+                    raise TypeError("runtime adapters must emit ProvisionalEvent values")
+                stream_events.append(event.to_dict())
+
             before_usage = gateway.usage
-            turn = adapter.run_turn(case, working_state, gateway, stream_events.append)
+            turn = adapter.run_turn(case, working_state, gateway, emit)
             after_usage = gateway.usage
-            observations.append({
-                "case_id": case["id"],
-                "tags": list(case.get("tags", [])),
-                "result": copy.deepcopy(dict(turn.result)),
-                "compatibility": copy.deepcopy(dict(turn.compatibility)),
-                "state_before": state_before,
-                "state_after": copy.deepcopy(dict(turn.state_after)),
-                "state_changes": copy.deepcopy(list(turn.state_changes)),
-                "evidence_events": copy.deepcopy(list(turn.evidence_events)),
-                "assessment_lifecycle": copy.deepcopy(dict(turn.assessment_lifecycle)),
-                "manifest": copy.deepcopy(dict(turn.manifest)),
-                "realization_receipt": copy.deepcopy(dict(turn.realization_receipt)),
-                "stream_events": copy.deepcopy(stream_events),
-                "failure_signals": copy.deepcopy(list(turn.failure_signals)),
-                "degradation_reasons": list(turn.degradation_reasons),
-                "metrics": dict(turn.metrics),
-                "model_usage": {
+            observations.append(TurnObservation(
+                case_id=case.case_id,
+                tags=list(case.tags),
+                result=copy.deepcopy(dict(turn.result)),
+                compatibility=copy.deepcopy(dict(turn.compatibility)),
+                state_before=state_before,
+                state_after=copy.deepcopy(dict(turn.state_after)),
+                state_changes=copy.deepcopy(list(turn.state_changes)),
+                evidence_events=copy.deepcopy(list(turn.evidence_events)),
+                assessment_lifecycle=copy.deepcopy(dict(turn.assessment_lifecycle)),
+                manifest=copy.deepcopy(dict(turn.manifest)),
+                realization_receipt=copy.deepcopy(dict(turn.realization_receipt)),
+                stream_events=copy.deepcopy(stream_events),
+                failure_signals=[signal.to_dict() for signal in turn.failure_signals],
+                degradation_reasons=list(turn.degradation_reasons),
+                metrics=dict(turn.metrics),
+                model_usage={
                     "model_calls": after_usage.model_calls - before_usage.model_calls,
                     "client_constructions": (
                         after_usage.client_constructions - before_usage.client_constructions
@@ -88,6 +97,6 @@ class OracleRunner:
                         after_usage.recorded_latency_ms - before_usage.recorded_latency_ms
                     ),
                 },
-            })
+            ).to_dict())
 
         return OracleRun(str(adapter.name), startup, tuple(observations))

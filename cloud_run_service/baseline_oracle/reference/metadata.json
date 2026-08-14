@@ -10,6 +10,7 @@
   "capture_limitations": [
     "canonical_runtime_missing_policy_logreg.npz",
     "canonical_runtime_missing_signal_heads.npz",
-    "canonical_runtime_missing_local_chunk_index"
+    "canonical_runtime_missing_local_chunk_index",
+    "model_boundary_replay_incomplete"
   ]
 }

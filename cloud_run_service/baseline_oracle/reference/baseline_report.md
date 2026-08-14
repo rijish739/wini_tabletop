@@ -1,22 +1,26 @@
 # Baseline Split equivalence reference
 
-- Status: **PASS**
+- Status: **INCOMPLETE**
+- Fixture self-check: **PASS**
 - Reference: `baseline-split-canonical-2026-08-14`
 - Canonical commit: `772c0b6`
 - Frozen cases: 27
 - Behavioral differences in self-check: 0
 - Performance measurement: `unavailable_missing_runtime_artifacts`
+- Model replay recordings: 7 of 32 expected calls
 
 The offline corpus, state fixtures, model-boundary recordings, observation projections,
 and normalization rules are internally valid and self-equivalent. The repository copy
 cannot execute an unchanged canonical Turn because required runtime artifacts are absent;
-no latency value has been guessed or copied from unrelated measurements.
+model replay is incomplete for 15 cases; no latency value
+has been guessed or copied from unrelated measurements.
 
 ## Capture limitations
 
 - `canonical_runtime_missing_policy_logreg.npz`
 - `canonical_runtime_missing_signal_heads.npz`
 - `canonical_runtime_missing_local_chunk_index`
+- `model_boundary_replay_incomplete`
 
 ## Observable surfaces
 

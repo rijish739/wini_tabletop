@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from .corpus import load_default_corpus
-from .reference import load_frozen_reference, verify_frozen_reference
+from .reference import verify_frozen_reference
 from .runner import OracleRunner
 from .verify import verify_candidate
 
@@ -37,10 +37,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "verify":
-        candidate = load_frozen_reference() if args.candidate is None else _load_capture(args.candidate)
-        result = verify_candidate(candidate)
+        if args.candidate is None:
+            result = verify_frozen_reference()
+        else:
+            capture = _load_capture(args.candidate)
+            result = verify_candidate(
+                capture["observations"], candidate_startup=capture["startup"]
+            )
         print(json.dumps(result, indent=2, sort_keys=True))
-        return 0 if result["status"] == "pass" else 1
+        return (0 if result["status"] == "pass"
+                else (2 if result["status"] in {"incomplete", "blocked"} else 1))
 
     if args.command == "report":
         result = verify_frozen_reference()
@@ -50,7 +56,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.markdown.write_text(_markdown_report(result), encoding="utf-8")
         print(json.dumps({"status": result["status"], "json": str(args.json),
                           "markdown": str(args.markdown)}, indent=2))
-        return 0 if result["status"] == "pass" else 1
+        return 0 if result["status"] == "pass" else (2 if result["status"] == "incomplete" else 1)
 
     adapter = _load_adapter(args.adapter)
     run = OracleRunner(load_default_corpus()).run(adapter)
@@ -63,9 +69,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def _load_capture(path: Path) -> Sequence[dict[str, Any]]:
+def _load_capture(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
-    return value["observations"] if isinstance(value, dict) else value
+    if isinstance(value, dict):
+        return {"observations": value["observations"], "startup": value.get("startup", {})}
+    return {"observations": value, "startup": {}}
 
 
 def _load_adapter(spec: str):
@@ -78,20 +86,24 @@ def _load_adapter(spec: str):
 
 def _markdown_report(report: dict[str, Any]) -> str:
     performance = report["performance"]
+    replay = report["model_replay_coverage"]
     limitations = "\n".join(f"- `{item}`" for item in report["capture_limitations"])
     return f"""# Baseline Split equivalence reference
 
 - Status: **{report['status'].upper()}**
+- Fixture self-check: **{report['self_check_status'].upper()}**
 - Reference: `{report['reference_name']}`
 - Canonical commit: `{report['canonical_commit']}`
 - Frozen cases: {report['cases']}
 - Behavioral differences in self-check: {report['differences']}
 - Performance measurement: `{performance['measurement_status']}`
+- Model replay recordings: {replay['recorded_calls']} of {replay['expected_calls']} expected calls
 
 The offline corpus, state fixtures, model-boundary recordings, observation projections,
 and normalization rules are internally valid and self-equivalent. The repository copy
 cannot execute an unchanged canonical Turn because required runtime artifacts are absent;
-no latency value has been guessed or copied from unrelated measurements.
+model replay is incomplete for {len(replay['incomplete_cases'])} cases; no latency value
+has been guessed or copied from unrelated measurements.
 
 ## Capture limitations
 
@@ -105,4 +117,3 @@ no latency value has been guessed or copied from unrelated measurements.
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
