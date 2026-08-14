@@ -23,8 +23,9 @@ the server, CLI, streaming, and scripted callers.
 
 The coordinator owns only the deterministic logical phase order and current-Turn
 recovery policy. It records explicit degradation, accepts retrieval/generation fallback
-only when the reported outcome remains valid, retries an idempotent failure at most once,
-and otherwise fails closed. `RuntimeSupervisor` aggregates typed failures across Turns and
+only when the reported outcome remains valid, and otherwise fails closed. A committed legacy
+Turn is never replayed for retry; bounded idempotent retry belongs at a future pre-commit
+operation port. `RuntimeSupervisor` aggregates typed failures across Turns and
 exposes `STARTING`, `READY`, `DEGRADED`, and `UNAVAILABLE`. Unclassified exceptions at
 the legacy seam become observable `FailureSignal` values and fail closed while the
 original exception type and message remain terminal for existing callers.

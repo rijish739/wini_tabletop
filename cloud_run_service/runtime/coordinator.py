@@ -29,7 +29,6 @@ LOGICAL_TURN_PHASES = tuple(TurnPhase)
 class RecoveryAction(str, Enum):
     DEGRADE = "degrade"
     SAFE_NON_ASSESSING_FALLBACK = "safe_non_assessing_fallback"
-    RETRY = "retry"
     FAIL_CLOSED = "fail_closed"
 
 
@@ -74,12 +73,6 @@ class RecoveryPolicy:
             )
         if failure.valid_outcome:
             return RecoveryAction.DEGRADE
-        if (
-            failure.recoverable
-            and failure.context.get("idempotent") is True
-            and int(failure.context.get("retry_attempt", 0)) < 1
-        ):
-            return RecoveryAction.RETRY
         return RecoveryAction.FAIL_CLOSED
 
 
@@ -139,19 +132,6 @@ class TurnCoordinator:
             self._recovery_policy.decide(failure)
             for failure in execution.result.failures
         )
-        if RecoveryAction.RETRY in recovery_actions:
-            execution = self._adapter.execute(turn_input)
-            self._validate_phase_trace(execution)
-            recovery_actions = tuple(
-                self._recovery_policy.decide(failure)
-                for failure in execution.result.failures
-            )
-            if RecoveryAction.RETRY in recovery_actions:
-                recovery_actions = tuple(
-                    RecoveryAction.FAIL_CLOSED
-                    if action is RecoveryAction.RETRY else action
-                    for action in recovery_actions
-                )
         self._supervisor.observe_turn(execution.result.failures)
         if RecoveryAction.FAIL_CLOSED in recovery_actions:
             failure = execution.result.failures[

@@ -1352,8 +1352,8 @@ The Runtime Supervisor aggregates typed failures into `STARTING`, `READY`, `DEGR
 `UNAVAILABLE`, with the state exposed by the server health response. Existing provisional
 speech/meta sinks and terminal exceptions are unchanged. Adapter counters expose one legacy
 execution and the number of unextracted phases per Turn. Verification counts are recorded in
-the work log after the final full-suite run. Measured verification passed 45/45 full-discovery
-tests, 33/33 P0 evidence/streaming invariants, 15/15 focused runtime tests, 16/16 frozen-oracle
+the work log after the final full-suite run. Measured verification passed 44/44 full-discovery
+tests, 33/33 P0 evidence/streaming invariants, 14/14 focused runtime tests, 16/16 frozen-oracle
 tests, the 27-case corpus validation, compilation, and diff checks. The frozen reference
 self-check remains zero-difference; its missing-artifact/incomplete-replay limitation is
 pre-existing and still prevents a complete verdict.

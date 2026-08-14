@@ -47,7 +47,7 @@ class RecoveryPolicyTests(unittest.TestCase):
                 "model_gateway", recoverable=True,
                 context={"idempotent": True, "retry_attempt": 0},
             )),
-            RecoveryAction.RETRY,
+            RecoveryAction.FAIL_CLOSED,
         )
         self.assertEqual(
             policy.decide(_failure("state_and_persistence", recoverable=True)),

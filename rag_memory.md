@@ -1097,9 +1097,10 @@ streaming sinks remain untouched, so provisional ordering and terminal errors ke
 behavior. `/health` now includes the runtime health state.
 
 Review also converted recovery metadata into behavior: degradation is recorded on the typed
-result, idempotent retry is bounded to one repeat, retrieval/generation fallback is accepted only
-with a valid outcome, and every remaining invalid outcome fails closed. Recovery-critical
-capability names are enum-backed.
+result, retrieval/generation fallback is accepted only with a valid outcome, and every remaining
+invalid outcome fails closed. A committed legacy Turn is never replayed for retry; bounded
+idempotent retry awaits a pre-commit operation port. Recovery-critical capability names are
+enum-backed.
 
 Review correction: the first bridge receipt only hashed working state and incorrectly inferred
 presentation delivery from intended output. The adapter now invokes the configured local/remote
@@ -1111,7 +1112,7 @@ back into itself was not valid equivalence evidence.
 The frozen corpus still has its pre-existing missing-artifact/incomplete-replay limitation; no
 model, prompt, dataset, retrieval, persistence technology, or network boundary changed.
 
-Measured verification: 45/45 full `unittest` discovery, 33/33 P0 evidence/streaming invariants,
-15/15 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
+Measured verification: 44/44 full `unittest` discovery, 33/33 P0 evidence/streaming invariants,
+14/14 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
 and compile/diff checks passed. The frozen reference self-check remains zero-difference, while
 its already-recorded missing artifacts and incomplete replay prevent a complete verdict.
