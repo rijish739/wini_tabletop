@@ -5,7 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from interaction_control import (
-    InteractionContinuity,
+    CapabilityTransition,
+    InteractionControl,
+    InteractionControlDependencies,
     InteractionDecision,
     InteractionDisposition,
 )
@@ -16,34 +18,58 @@ from runtime.supervisor import RuntimeHealth
 
 class CompatibilityFacadeTests(unittest.TestCase):
     def test_learning_and_nonlearning_routes_cross_the_same_compatibility_facade(self) -> None:
-        class RouteByText:
-            def control(self, request):
-                text = request.turn_input.interaction["text"]
-                if text == "hello":
-                    return ModuleOutcome(value=InteractionDecision(
-                        disposition=InteractionDisposition.COMPLETE,
-                        text=text,
-                        compatibility={
-                            "action": "SOCIAL",
-                            "answer": "Hello!",
-                            "display": [],
-                            "session_ended": False,
-                        },
-                    ))
-                return ModuleOutcome(value=InteractionDecision(
-                    disposition=InteractionDisposition.CONTINUE_LEARNING,
-                    text=text,
-                    analysis={
-                        "concept": {"concept_id": "fractions"},
-                        "signals": [],
-                        "state_deltas": {},
-                    },
-                    continuity=InteractionContinuity(
-                        turn_id=request.turn_input.turn_id,
-                        learner_text=text,
-                        prior_context=(),
-                    ),
-                ))
+        def route(text, session):
+            return SimpleNamespace(
+                primary="SOCIAL" if text == "hello" else "LEARNING",
+                reason="fixture route",
+                source="fixture",
+                concept_id=None,
+                concept_confidence=0.0,
+                safety_alert=False,
+                uncertain=False,
+                answer_attempt=False,
+            )
+
+        no_transition = lambda *args: CapabilityTransition()
+        control = InteractionControl(InteractionControlDependencies(
+            deterministic_route=lambda text: None,
+            perception_route=route,
+            analyze=lambda text, current: {
+                "normalized_text": text,
+                "concept": {
+                    "concept_id": "fractions",
+                    "concept_confidence": 1.0,
+                    "abstained": False,
+                },
+                "signals": [],
+                "state_deltas": {},
+            },
+            persona={
+                "identity": "Wini",
+                "style": "Warm",
+                "intents": {"SOCIAL": {"canned": ["Hello!"]}},
+            },
+            want_answer=False,
+            generation_backend="fixture",
+            generate_persona=lambda prompt: "",
+            concept_name=lambda concept_id: "Fractions",
+            topic_candidates=lambda text, limit: [],
+            chapter_for_concept=lambda concept_id: None,
+            extract_topic_request=lambda text: None,
+            is_bare_topic=lambda text: False,
+            wants_different_topic=lambda text: False,
+            concept_relates_to_topic=lambda new, old: False,
+            mode_cue=lambda text: None,
+            current_mode=lambda session: "EXPLAIN",
+            set_mode=no_transition,
+            consume_mode_offer=no_transition,
+            consume_test_resume=no_transition,
+            check_frozen_test=no_transition,
+            clear_pending_assessment=no_transition,
+            log_event=lambda event: None,
+            notify_safety=lambda record: None,
+            now=lambda: "2026-08-14T12:00:00",
+        ))
 
         learning_calls = []
 
@@ -61,7 +87,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             legacy_turn=legacy_learning,
             commit_state=lambda: None,
             state=state,
-            interaction_control=RouteByText(),
+            interaction_control=control,
         )
 
         social = facade.turn("hello", turn_id="turn-social", learner_id="learner-1")
@@ -77,6 +103,8 @@ class CompatibilityFacadeTests(unittest.TestCase):
         self.assertEqual(
             state.data["session"]["context"],
             [
+                {"role": "student", "text": "hello"},
+                {"role": "wini", "text": "Hello!"},
                 {"role": "student", "text": "teach me fractions"},
                 {"role": "wini", "text": "One half."},
             ],
