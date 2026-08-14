@@ -4,6 +4,12 @@ import unittest
 from dataclasses import replace
 from types import SimpleNamespace
 
+from interaction_control import (
+    InteractionControlRequest,
+    InteractionDecision,
+    InteractionDisposition,
+)
+
 from runtime.contracts import (
     RealizationReceipt,
     RealizationStatus,
@@ -13,6 +19,10 @@ from runtime.contracts import (
     DeviceCapabilities,
     FailureSeverity,
     FailureSignal,
+    ModuleOutcome,
+    StateChange,
+    StateOperation,
+    StateScope,
     TurnBudgets,
 )
 from runtime.coordinator import (
@@ -57,6 +67,68 @@ class _SuccessfulLegacyAdapter:
 
 
 class TurnCoordinatorTests(unittest.TestCase):
+    def test_completed_interaction_bypasses_legacy_learning_and_commits_changes(self) -> None:
+        class CompletedInteractionControl:
+            def control(self, request: InteractionControlRequest):
+                self.request = request
+                return ModuleOutcome(
+                    value=InteractionDecision(
+                        disposition=InteractionDisposition.COMPLETE,
+                        text="hello",
+                        compatibility={
+                            "action": "SOCIAL",
+                            "answer": "Hello!",
+                            "display": [],
+                            "session_ended": False,
+                        },
+                    ),
+                    state_changes=(StateChange(
+                        change_id="turn-social:interaction:context",
+                        owner="interaction_control",
+                        scope=StateScope.SESSION,
+                        path=("context",),
+                        operation=StateOperation.SET,
+                        value=[{"role": "student", "text": "hello"}],
+                    ),),
+                )
+
+        legacy_calls = []
+        commits = []
+        state = SimpleNamespace(data={"learner_id": "learner-1", "session": {}})
+        control = CompletedInteractionControl()
+        supervisor = RuntimeSupervisor()
+        supervisor.ready()
+        coordinator = TurnCoordinator(
+            adapter=LegacyTurnAdapter(
+                legacy_turn=lambda *args, **kwargs: legacy_calls.append(args) or {},
+                commit_state=lambda: commits.append("committed"),
+                state=state,
+            ),
+            interaction_control=control,
+            supervisor=supervisor,
+        )
+        turn_input = TurnInput(
+            turn_id="turn-social",
+            learner_id="learner-1",
+            interaction={"text": "hello"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+        )
+
+        coordinated = coordinator.run(turn_input)
+
+        self.assertEqual(coordinated.serialize_compatibility()["answer"], "Hello!")
+        self.assertEqual(legacy_calls, [])
+        self.assertEqual(commits, ["committed"])
+        self.assertEqual(
+            state.data["session"]["context"],
+            [{"role": "student", "text": "hello"}],
+        )
+        self.assertEqual(
+            coordinated.result.commit.applied_change_ids,
+            ("turn-social:interaction:context",),
+        )
+
     def test_returns_committed_result_with_exact_compatibility_serialization(self) -> None:
         supervisor = RuntimeSupervisor()
         supervisor.ready()

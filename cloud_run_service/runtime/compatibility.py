@@ -20,6 +20,7 @@ class TutorLoopCompatibilityFacade:
         legacy_turn: Callable[..., Mapping[str, Any]],
         commit_state: Callable[[], None],
         state: Any,
+        interaction_control: Any | None = None,
     ) -> None:
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
@@ -28,6 +29,7 @@ class TutorLoopCompatibilityFacade:
                 commit_state=commit_state,
                 state=state,
             ),
+            interaction_control=interaction_control,
             supervisor=self._supervisor,
         )
         self._state = state

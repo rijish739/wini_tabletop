@@ -1,0 +1,1 @@
+"""Interaction Control interface tests."""

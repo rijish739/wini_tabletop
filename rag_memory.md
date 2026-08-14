@@ -1116,3 +1116,18 @@ Measured verification: 44/44 full `unittest` discovery, 33/33 P0 evidence/stream
 14/14 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
 and compile/diff checks passed. The frozen reference self-check remains zero-difference, while
 its already-recorded missing artifacts and incomplete replay prevent a complete verdict.
+## 2026-08-14 — Interaction Control extraction
+
+- Added the deep `interaction_control` Module with one coordinator/test Interface.
+- Moved admission, deterministic routing, non-learning reply selection, topic
+  continuity/redirection, mode-stop precedence, leave/termination, safety notification,
+  and continuity-change proposal behind that Interface.
+- Kept learning behavior behind the temporary adapter and preserved the external Turn
+  dictionary through the compatibility façade.
+- Verification: 11 module tests and 16 runtime tests pass. Full discovery: 57/62 pass;
+  five collection imports require unavailable `numpy`. Frozen oracle self-check: 27
+  cases, zero differences, known incomplete runtime-artifact/replay status unchanged.
+- Gotcha: importing the full canonical `TutorLoop` cannot be used as a local smoke test
+  in the provided interpreters because both the system and bundled Python environments
+  lack required runtime packages (`numpy`, and the bundled runtime also lacks
+  `requests`).

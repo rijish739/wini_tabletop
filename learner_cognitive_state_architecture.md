@@ -1611,3 +1611,13 @@ the starting working state and terminates the Turn.
 This is a measurable migration bridge, not a second state writer or final Feature Module.
 Coordinator recovery fails closed for identity, state, safety-integrity, assessment-integrity,
 and commit failures; it cannot manufacture mastery or evidence outcomes.
+## Interaction Control extraction checkpoint (2026-08-14)
+
+Interaction-continuity semantics now have one owner behind
+`InteractionControlInterface.control()`. The Module reads an immutable session snapshot
+and proposes typed changes for active-topic continuity, pending topic redirection,
+recent conversation, leave/pause/end state, steer cooldown, and the session safety
+alert. It does not receive the mutable learner-state object. Mode/test-plan changes and
+pending-assessment changes keep their existing semantic owners even when Interaction
+Control requests them during a mode stop or topic redirect. No learner cognitive schema,
+evidence rule, dataset, or measured model value changed at this checkpoint.

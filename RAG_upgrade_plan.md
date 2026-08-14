@@ -584,3 +584,11 @@ retrieval ranking, cohesion, provenance, relevance floors, prompts, and stores i
 temporary legacy adapter. No RAG data or index was rebuilt. The coordinator records grounded
 retrieval as a logical phase and reserves safe non-assessing fallback policy for a later typed
 Retrieval outcome; it does not implement retrieval policy itself.
+## Runtime Interaction Control checkpoint (2026-08-14)
+
+The first Turn phase now crosses the typed Interaction Control Interface before the
+remaining migration adapter. This extraction changes no RAG store schema, retrieval
+manifest, embedding artifact, ranking rule, or dataset input. The compatibility façade
+continues to carry learning Turns into the legacy retrieval path after admission, while
+completed non-learning Turns bypass retrieval as before. No store number was changed or
+re-measured because the store contract is unaffected.

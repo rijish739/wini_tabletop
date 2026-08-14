@@ -1414,3 +1414,12 @@ in-process adapter. It adds no model call, client construction, prompt, schema, 
 training/evaluation row, label, retrieval index, or network boundary. Immutable Turn Input
 wrapping and typed result serialization are architecture-only work; every model boundary and
 all reported dataset/model measurements remain unchanged.
+## Interaction Control extraction checkpoint (2026-08-14)
+
+Session admission, non-learning routing, topic continuity/redirection, mode-stop
+interaction, conversation continuity, and termination now sit behind one typed Feature
+Module Interface. Existing deterministic gates, Gemini perception routing port, persona
+generation port, and scripted safety/farewell behavior are reused without changing a
+prompt-of-record, model choice, dataset, split, label, artifact, or reported evaluation
+number. Learning decisions continue into the migration adapter with the already-derived
+analysis observation.

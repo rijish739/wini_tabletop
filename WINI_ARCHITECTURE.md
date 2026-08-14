@@ -320,3 +320,10 @@ reports the current runtime state. Unclassified exceptions become typed Failure 
 the adapter boundary and remain terminal with their original exception type. Existing
 thread-local speech/meta sinks stay inside the legacy path, preserving provisional ordering.
 The adapter reports its use and all still-unextracted phases so removal progress is measurable.
+## Modular runtime checkpoint (2026-08-14)
+
+`TutorLoop.turn()` remains the stable external façade. Its Turn Coordinator now invokes
+the extracted Interaction Control Feature Module for admission, non-learning routes,
+topic/conversation continuity, redirection, mode-stop interaction, and termination.
+Completed interactions commit directly; admitted learning interactions continue through
+the temporary legacy adapter while later Feature Modules are extracted.

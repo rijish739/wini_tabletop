@@ -2601,9 +2601,76 @@ class TutorLoop:
                     getattr(self.state, "save", lambda: None),
                 ),
                 state=self.state,
+                interaction_control=self._build_interaction_control(),
             )
             self._typed_turn_facade = facade
         return facade
+
+    def _build_interaction_control(self):
+        """Bind legacy internal ports to the extracted Interaction Control Interface."""
+        from cognitive_classifier.cues import (
+            extract_topic_request,
+            is_bare_topic,
+            wants_different_topic,
+        )
+        from interaction_control import InteractionControl, InteractionControlDependencies
+        from runtime_flags import STT_WRITE_CONFIDENCE_MIN
+        from session_modes import mode_cues
+
+        def log_event(event):
+            with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as handle:
+                handle.write(json.dumps(dict(event), ensure_ascii=False) + "\n")
+
+        def notify_safety(record):
+            try:
+                with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as handle:
+                    handle.write(json.dumps(dict(record), ensure_ascii=False) + "\n")
+            except Exception:
+                pass
+            self._notify_supervisor(dict(record))
+
+        def generate_persona(prompt):
+            reply = qwen_chat(prompt, temperature=0.5, max_tokens=90, small=True)
+            return _truncate_to_spoken_budget(reply, 45, 2)
+
+        candidates = getattr(self.analyzer.classifier, "topic_candidates", None)
+        return InteractionControl(InteractionControlDependencies(
+            deterministic_route=_front_gate,
+            perception_route=lambda text, session: self.analyzer.classifier.route(
+                text, session
+            ),
+            analyze=lambda text, current: self.analyzer.analyze(
+                text, current_concept=current
+            ),
+            persona=self.persona,
+            want_answer=self.want_answer,
+            generation_backend=GEN_BACKEND,
+            generate_persona=generate_persona,
+            concept_name=self.concept_name,
+            topic_candidates=(
+                (lambda text, limit: candidates(text, limit))
+                if callable(candidates)
+                else (lambda text, limit: [])
+            ),
+            chapter_for_concept=lambda concept_id: (
+                self.concepts_by_id.get(concept_id, {}).get("chapter_doc")
+                if concept_id
+                else None
+            ),
+            extract_topic_request=extract_topic_request,
+            is_bare_topic=is_bare_topic,
+            wants_different_topic=wants_different_topic,
+            concept_relates_to_topic=self._concept_relates_to_topic,
+            mode_cue=mode_cues,
+            current_mode=self.modes.current_mode,
+            set_mode=self.modes.set_mode,
+            consume_mode_offer=self.modes.consume_offer,
+            consume_test_resume=self.modes.consume_test_resume,
+            log_event=log_event,
+            notify_safety=notify_safety,
+            now=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"),
+            stt_write_confidence_min=STT_WRITE_CONFIDENCE_MIN,
+        ))
 
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None,
@@ -2626,7 +2693,10 @@ class TutorLoop:
                      precomputed_analysis: dict | None = None,
                      precomputed_grade: dict | str | None = None,
                      stt_confidence: float | None = None, turn_id: str | None = None,
-                     learner_id: str | None = None, _allow_shift: bool = True) -> dict:
+                     learner_id: str | None = None, _allow_shift: bool = True,
+                     _interaction_controlled: bool = False,
+                     _perception_uncertain: bool = False,
+                     _interaction_answer_attempt: bool = False) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
@@ -2653,7 +2723,7 @@ class TutorLoop:
         session = self.state.data.setdefault("session", {})
         # The deterministic gate is literally first: it precedes offer/session
         # consumption, model routing, speculative results, and every learning write.
-        gate_route = _front_gate(text)
+        gate_route = None if _interaction_controlled else _front_gate(text)
         if gate_route is not None:
             if gate_route.safety_alert:
                 gate_route.primary = "SAFETY"
@@ -2662,7 +2732,7 @@ class TutorLoop:
         # -1. Pending topic-shift confirmation from the previous turn: a bare
         # yes/no answers the "switch to X?" offer deterministically (no model
         # call); anything longer falls through with the offer cancelled.
-        if stt_confidence < STT_WRITE_CONFIDENCE_MIN:
+        if not _interaction_controlled and stt_confidence < STT_WRITE_CONFIDENCE_MIN:
             # Safety still runs first and remains authoritative. Every other
             # low-confidence transcript is observational only: do not consume
             # offers, shift topics, grade, or apply cognitive deltas.
@@ -2689,7 +2759,7 @@ class TutorLoop:
                 "display": [], "session_ended": False, "answer": reply,
                 "answer_source": "scripted", "gen_backend": None,
             }
-        if session.get("pending_shift"):
+        if not _interaction_controlled and session.get("pending_shift"):
             out = self._consume_pending_shift(session, text, answer_budget)
             if out is not None:
                 return out
@@ -2698,7 +2768,7 @@ class TutorLoop:
         # a few problems together?"). Accepted -> switch mode (the new mode's item
         # controller serves the first item below, Stages 2/3); declined -> a short
         # deterministic line; ambiguous -> offer cancelled, normal pipeline continues.
-        if session.get("pending_mode_offer"):
+        if not _interaction_controlled and session.get("pending_mode_offer"):
             decision = self.modes.consume_offer(session, text)
             if decision is not None and decision[0] == "declined":
                 return self._shift_reply(
@@ -2710,7 +2780,7 @@ class TutorLoop:
         # a test interrupted by a session end; a bare yes resumes it (test_state
         # is intact — _drive_test continues from the next ungraded item), a bare
         # no abandons it, anything else cancels and takes the normal pipeline.
-        if session.get("pending_test_resume"):
+        if not _interaction_controlled and session.get("pending_test_resume"):
             decision = self.modes.consume_test_resume(session, text)
             if decision is not None and decision[0] == "resume":
                 ts = session.get("test_state") or {}
@@ -2734,9 +2804,13 @@ class TutorLoop:
         # authoritative. Only LEARNING enters the state-moving pipeline (§3). The
         # Gemini call is memoized by normalized text, so route() and the later
         # analyze() share ONE network round-trip.
-        route = self.analyzer.classifier.route(
+        route = None if _interaction_controlled else self.analyzer.classifier.route(
             text, self.state.data.setdefault("session", {}))
-        perception_uncertain = bool(getattr(route, "uncertain", False))
+        perception_uncertain = (
+            bool(_perception_uncertain)
+            if _interaction_controlled
+            else bool(getattr(route, "uncertain", False))
+        )
         if route is not None:
             if route.safety_alert:
                 # The gate owns the safety decision; a model `safety` flag may only
@@ -2789,7 +2863,7 @@ class TutorLoop:
         # 2026-07-03 regression: "Natural numbers." abstained -> silently continued
         # quadratics; "I asked about natural numbers, you are explaining me
         # quadratic equation" resolved to the negated quadratic concept.
-        if _allow_shift:
+        if _allow_shift and not _interaction_controlled:
             shifted = self._maybe_topic_shift(text, analysis, session, answer_budget)
             if shifted is not None:
                 return shifted
@@ -2863,7 +2937,8 @@ class TutorLoop:
         # §7.4: Gemini's answer_attempt is the primary signal when perception is
         # authoritative, with the classifier signal + surface cue as fallback. This
         # attacks the logged regression where "i can not understand" was graded wrong.
-        answer_try = bool(route and route.answer_attempt) \
+        answer_try = bool(_interaction_answer_attempt) \
+            or bool(route and route.answer_attempt) \
             or ("answer_attempt" in _sig) or is_answer_attempt(text)
         # The student brought an instance of their own to be worked out (§6.1
         # deterministic cue, audit A-2/D-1). A reply of "x = 42" to OUR pending

@@ -30,8 +30,13 @@ exposes `STARTING`, `READY`, `DEGRADED`, and `UNAVAILABLE`. Unclassified excepti
 the legacy seam become observable `FailureSignal` values and fail closed while the
 original exception type and message remain terminal for existing callers.
 
+`InteractionControlInterface` now owns the first logical phase. The coordinator invokes
+it with an immutable state snapshot, applies its typed proposed changes through the
+temporary migration adapter, and either completes the non-learning Turn or passes an
+admitted learning decision to the remaining legacy behavior.
+
 `LegacyTurnAdapter` is intentionally named as a temporary adapter, not a Feature Module.
-It still executes all unextracted feature policy, leaves existing provisional streaming
+It executes the seven still-unextracted phases, leaves existing provisional streaming
 mechanics untouched, and reports `legacy_adapter_turns` plus
 `legacy_adapter_unextracted_phases`. It invokes the existing local/durable whole-state
 persistence boundary before producing a `legacy_commit_*` receipt; a failed commit restores

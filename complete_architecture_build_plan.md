@@ -1357,3 +1357,17 @@ tests, 33/33 P0 evidence/streaming invariants, 14/14 focused runtime tests, 16/1
 tests, the 27-case corpus validation, compilation, and diff checks. The frozen reference
 self-check remains zero-difference; its missing-artifact/incomplete-replay limitation is
 pre-existing and still prevents a complete verdict.
+## Baseline Split checkpoint: Interaction Control (2026-08-14)
+
+Implemented the first extracted Feature Module behind
+`InteractionControlInterface.control()`. The Turn Coordinator now invokes the Interface;
+completed non-learning interactions skip the legacy learning implementation, and admitted
+learning interactions continue through the temporary adapter. The Module returns typed
+outcomes, state changes, and fail-closed identity signals without mutable-state access.
+
+Measured verification: 11 Interaction Control Interface tests pass; 16 runtime tests
+pass, including learning and non-learning routes through the compatibility façade; the
+full standard-library discovery runs 62 tests, with 57 passing and five import errors
+solely because `numpy` is absent from the available interpreter. The frozen oracle
+self-check reports 27 cases and zero differences; its pre-existing artifact/model-replay
+status remains incomplete.
