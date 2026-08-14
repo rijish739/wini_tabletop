@@ -14,6 +14,26 @@ to their Feature Modules and must not be added here.
 `RealizationReceipt`. Output produced earlier in the lifecycle is represented by
 `ProvisionalOutput` and cannot claim committed learning progress.
 
+## Coordinator activation checkpoint
+
+`TutorLoop.turn()` is now the caller-stable compatibility façade. It constructs an
+immutable `TurnInput`, invokes `TurnCoordinator`, and thaws the committed
+`TurnResult.compatibility` mapping back to the exact dictionary/list shapes expected by
+the server, CLI, streaming, and scripted callers.
+
+The coordinator owns only the deterministic logical phase order and current-Turn
+recovery classification. `RuntimeSupervisor` aggregates typed failures across Turns and
+exposes `STARTING`, `READY`, `DEGRADED`, and `UNAVAILABLE`. Unclassified exceptions at
+the legacy seam become observable `FailureSignal` values and fail closed while the
+original exception type and message remain terminal for existing callers.
+
+`LegacyTurnAdapter` is intentionally named as a temporary adapter, not a Feature Module.
+It still executes all unextracted feature policy, leaves existing provisional streaming
+mechanics untouched, and reports `legacy_adapter_turns` plus
+`legacy_adapter_unextracted_phases`. Its `legacy_commit_*` receipt records the state
+version produced by the legacy Turn; future extraction checkpoints replace this bridge
+with State and Persistence's authoritative transaction one phase at a time.
+
 Run from `cloud_run_service`:
 
 ```powershell

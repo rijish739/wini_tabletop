@@ -2583,11 +2583,45 @@ class TutorLoop:
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
+    @property
+    def runtime_health(self):
+        """Observable Runtime Supervisor health for operators and health endpoints."""
+        return self._turn_compatibility_facade().runtime_health
+
+    def _turn_compatibility_facade(self):
+        facade = getattr(self, "_typed_turn_facade", None)
+        if facade is None:
+            from runtime.compatibility import TutorLoopCompatibilityFacade
+
+            facade = TutorLoopCompatibilityFacade(
+                legacy_turn=self._legacy_turn,
+                state=self.state,
+            )
+            self._typed_turn_facade = facade
+        return facade
+
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None,
              precomputed_grade: dict | str | None = None,
              stt_confidence: float | None = None, turn_id: str | None = None,
              learner_id: str | None = None, _allow_shift: bool = True) -> dict:
+        """Compatibility façade over the typed Turn Coordinator."""
+        return self._turn_compatibility_facade().turn(
+            text,
+            answer_budget=answer_budget,
+            precomputed_analysis=precomputed_analysis,
+            precomputed_grade=precomputed_grade,
+            stt_confidence=stt_confidence,
+            turn_id=turn_id,
+            learner_id=learner_id,
+            _allow_shift=_allow_shift,
+        )
+
+    def _legacy_turn(self, text: str, answer_budget: dict | None = None,
+                     precomputed_analysis: dict | None = None,
+                     precomputed_grade: dict | str | None = None,
+                     stt_confidence: float | None = None, turn_id: str | None = None,
+                     learner_id: str | None = None, _allow_shift: bool = True) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"

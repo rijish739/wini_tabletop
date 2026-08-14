@@ -17,6 +17,17 @@ from .contracts import (
     TurnInput,
     TurnResult,
 )
+from .coordinator import (
+    LOGICAL_TURN_PHASES,
+    CoordinatedTurn,
+    LegacyExecution,
+    RecoveryAction,
+    RecoveryPolicy,
+    TurnCoordinator,
+    TurnPhase,
+)
+from .supervisor import RuntimeHealth, RuntimeHealthSnapshot, RuntimeSupervisor
+from .compatibility import TutorLoopCompatibilityFacade
 
 __all__ = [
     "DeviceCapabilities",
@@ -34,4 +45,15 @@ __all__ = [
     "TurnContext",
     "TurnInput",
     "TurnResult",
+    "LOGICAL_TURN_PHASES",
+    "CoordinatedTurn",
+    "LegacyExecution",
+    "RecoveryAction",
+    "RecoveryPolicy",
+    "TurnCoordinator",
+    "TurnPhase",
+    "RuntimeHealth",
+    "RuntimeHealthSnapshot",
+    "RuntimeSupervisor",
+    "TutorLoopCompatibilityFacade",
 ]

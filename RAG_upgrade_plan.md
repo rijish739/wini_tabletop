@@ -578,3 +578,9 @@ write. `state_change_index` records idempotency keys for non-evidence append cha
 the existing `evidence_index` and append-only evidence ledger remain authoritative for
 learning evidence. Retrieval storage, ranking, datasets, and build artifacts are
 unchanged.
+
+Issue 14 routes the canonical Turn entrypoint through the typed coordinator but keeps all
+retrieval ranking, cohesion, provenance, relevance floors, prompts, and stores in the explicit
+temporary legacy adapter. No RAG data or index was rebuilt. The coordinator records grounded
+retrieval as a logical phase and reserves safe non-assessing fallback policy for a later typed
+Retrieval outcome; it does not implement retrieval policy itself.

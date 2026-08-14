@@ -1600,3 +1600,12 @@ remain writable only through the authoritative idempotent evidence writer. Gener
 append changes persist their idempotency keys in `state_change_index`; the index is
 lifecycle metadata and carries no cognitive or pedagogical meaning. A projected state
 is published only after one successful whole-state `TurnCommit`.
+
+# Baseline Split coordinator activation (2026-08-14)
+
+The canonical compatibility façade now routes all Turns through the typed coordinator. During
+this checkpoint, learner and session policy and mutations remain inside the explicitly named
+legacy adapter; the adapter records the resulting state version in a `legacy_commit_*` receipt.
+This is a measurable migration bridge, not a second state writer or final Feature Module.
+Coordinator recovery fails closed for identity, state, safety-integrity, assessment-integrity,
+and commit failures; it cannot manufacture mastery or evidence outcomes.

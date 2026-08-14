@@ -1081,3 +1081,25 @@ Verification measured 18 new tests, 34 full-discovery tests, 33 existing P0 inva
 tests, and 16 oracle tests passing. The frozen oracle self-check has zero differences;
 its pre-existing incomplete artifact/replay status still blocks a full equivalence
 verdict.
+
+# 2026-08-14 — Issue 14 typed coordinator activation
+
+Routed the canonical `TutorLoop.turn()` compatibility façade through a typed Turn Coordinator.
+The façade now builds immutable identity/interaction/device/budget/precomputed-observation input,
+then thaws only the committed compatibility result back to the legacy dictionary/list contract.
+The original Turn body is `_legacy_turn` behind `LegacyTurnAdapter`, explicitly measured as one
+temporary adapter execution with every logical phase still unextracted.
+
+Added coordinator-owned recovery classification and Runtime Supervisor health. Unclassified
+legacy exceptions become observable typed Failure Signals, fail closed, and re-raise the same
+exception type/message; repeated invalid Turns transition `DEGRADED` to `UNAVAILABLE`. Existing
+streaming sinks remain untouched, so provisional ordering and terminal errors keep their prior
+behavior. `/health` now includes the runtime health state.
+
+The frozen corpus still has its pre-existing missing-artifact/incomplete-replay limitation; no
+model, prompt, dataset, retrieval, persistence technology, or network boundary changed.
+
+Measured verification: 41/41 full `unittest` discovery, 33/33 P0 evidence/streaming invariants,
+11/11 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
+and compile/diff checks passed. The frozen reference self-check remains zero-difference, while
+its already-recorded missing artifacts and incomplete replay prevent a complete verdict.

@@ -1338,3 +1338,18 @@ Measured verification: 18 new interface tests passed, full `unittest` discovery 
 oracle tests passed. Oracle corpus validation passed and the frozen reference reported
 zero differences. A complete oracle verdict remains unavailable because the frozen
 baseline documents missing runtime artifacts and incomplete model replay coverage.
+
+# Baseline Split checkpoint — coordinator routing (2026-08-14)
+
+Issue 14 is active: every canonical `TutorLoop.turn()` call now constructs a typed immutable
+Turn Input, traverses the Turn Coordinator, receives a committed typed Turn Result from the
+explicit temporary legacy adapter, and serializes the established compatibility dictionary.
+The full feature implementation remains in `_legacy_turn` for sequential extraction; the
+coordinator contains phase order and failure/recovery policy only.
+
+The Runtime Supervisor aggregates typed failures into `STARTING`, `READY`, `DEGRADED`, and
+`UNAVAILABLE`, with the state exposed by the server health response. Existing provisional
+speech/meta sinks and terminal exceptions are unchanged. Adapter counters expose one legacy
+execution and the number of unextracted phases per Turn. Verification counts are recorded in
+the work log after the final full-suite run; the frozen oracle's missing-artifact limitation
+remains pre-existing and unchanged.

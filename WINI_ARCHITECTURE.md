@@ -307,8 +307,16 @@ skips; generated-item golden agreement 50/50 (100%, required 98%); deterministic
 
 The canonical cloud runtime now contains additive `runtime` lifecycle contracts and a
 `state_and_persistence` transaction seam. They are foundations for the incremental
-Feature Module extraction and are not yet activated by `TutorLoop`. Current callers
-and Turn behavior remain unchanged; issue 14 owns coordinator routing. The seam keeps
+Feature Module extraction. `TutorLoop.turn()` now activates the typed Turn Coordinator
+through an explicit temporary legacy adapter while preserving its caller dictionary. The seam keeps
 feature schemas outside lifecycle contracts, exposes immutable capability-scoped state
 views, applies evidence only through the existing authoritative writer, and yields a
 `TurnCommit` only after one whole-state persistence write succeeds.
+
+Issue 14 establishes the deterministic logical phase order and coordinator-owned recovery
+classification without moving tutoring policy out of the legacy implementation prematurely.
+The Runtime Supervisor exposes `STARTING`, `READY`, `DEGRADED`, and `UNAVAILABLE`; `/health`
+reports the current runtime state. Unclassified exceptions become typed Failure Signals at
+the adapter boundary and remain terminal with their original exception type. Existing
+thread-local speech/meta sinks stay inside the legacy path, preserving provisional ordering.
+The adapter reports its use and all still-unextracted phases so removal progress is measurable.

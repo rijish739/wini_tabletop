@@ -772,8 +772,17 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
+            if not BRAIN.ready:
+                runtime_health = "UNAVAILABLE" if BRAIN.error else "STARTING"
+            elif BRAIN.tutor is not None:
+                runtime_health = BRAIN.tutor.runtime_health.health.value
+            elif BRAIN.error:
+                runtime_health = "DEGRADED"
+            else:
+                runtime_health = "READY"
             return self._json(200, {"ok": True, "ready": BRAIN.ready,
                                     "error": BRAIN.error,
+                                    "runtime_health": runtime_health,
                                     "gen_backend": getattr(BRAIN, "gen_backend", None)})
 
         # ── Debug routes (developer-only, no auth gate — same as /health) ──────

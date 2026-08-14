@@ -1408,3 +1408,9 @@ dataset, label space, split, model artifact, prompt, model client, inference pat
 measured model result. Evidence-derived learning fields remain protected behind the
 existing evidence writer, so the dataset/model architecture and all reported counts
 remain unchanged.
+
+Issue 14 activates coordinator routing with the complete existing Turn behind a temporary
+in-process adapter. It adds no model call, client construction, prompt, schema, model artifact,
+training/evaluation row, label, retrieval index, or network boundary. Immutable Turn Input
+wrapping and typed result serialization are architecture-only work; every model boundary and
+all reported dataset/model measurements remain unchanged.
