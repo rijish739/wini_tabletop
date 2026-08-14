@@ -1096,11 +1096,17 @@ exception type/message; repeated invalid Turns transition `DEGRADED` to `UNAVAIL
 streaming sinks remain untouched, so provisional ordering and terminal errors keep their prior
 behavior. `/health` now includes the runtime health state.
 
+Review also converted recovery metadata into behavior: degradation is recorded on the typed
+result, idempotent retry is bounded to one repeat, retrieval/generation fallback is accepted only
+with a valid outcome, and every remaining invalid outcome fails closed. Recovery-critical
+capability names are enum-backed.
+
 Review correction: the first bridge receipt only hashed working state and incorrectly inferred
 presentation delivery from intended output. The adapter now invokes the configured local/remote
 commit boundary before issuing its receipt, restores working/local state on commit failure, and
 records downstream presentation as unobserved `PARTIAL` with no fabricated delivered modality.
-The 27 frozen compatibility projections now run through the façade/coordinator unchanged.
+The initial frozen-projection loop was removed during review because feeding expected output
+back into itself was not valid equivalence evidence.
 
 The frozen corpus still has its pre-existing missing-artifact/incomplete-replay limitation; no
 model, prompt, dataset, retrieval, persistence technology, or network boundary changed.

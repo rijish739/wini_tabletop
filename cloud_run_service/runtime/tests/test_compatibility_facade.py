@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-import copy
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
 from runtime.compatibility import TutorLoopCompatibilityFacade
 from runtime.supervisor import RuntimeHealth
-from baseline_oracle.reference import load_frozen_reference
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
@@ -53,25 +51,6 @@ class CompatibilityFacadeTests(unittest.TestCase):
         self.assertEqual(received["precomputed_grade"], "correct")
         self.assertEqual(commits, ["committed"])
         self.assertEqual(facade.runtime_health.health, RuntimeHealth.READY)
-
-    def test_full_frozen_compatibility_corpus_survives_facade_and_coordinator(self) -> None:
-        for observation in load_frozen_reference():
-            expected = copy.deepcopy(observation["compatibility"])
-            learner_id = str(observation["state_before"].get("learner_id") or "fixture")
-            state = SimpleNamespace(data=copy.deepcopy(observation["state_after"]))
-            facade = TutorLoopCompatibilityFacade(
-                legacy_turn=lambda *args, _expected=expected, **kwargs: _expected,
-                commit_state=lambda: None,
-                state=state,
-            )
-
-            actual = facade.turn(
-                expected["transcript"],
-                turn_id=expected["turn_id"],
-                learner_id=learner_id,
-            )
-
-            self.assertEqual(actual, expected, observation["case_id"])
 
     def test_canonical_tutor_loop_entrypoint_is_only_a_compatibility_facade(self) -> None:
         source = (Path(__file__).parents[2] / "tutor_loop.py").read_text(encoding="utf-8")

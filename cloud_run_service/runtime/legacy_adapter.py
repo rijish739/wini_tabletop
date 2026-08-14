@@ -133,7 +133,7 @@ class LegacyTurnAdapter:
         )
         return LegacyExecution(
             result=result,
-            completed_phases=LOGICAL_TURN_PHASES,
+            phase_trace=LOGICAL_TURN_PHASES,
             measurements={
                 "legacy_adapter_turns": 1,
                 "legacy_adapter_unextracted_phases": len(LOGICAL_TURN_PHASES),

@@ -22,7 +22,9 @@ immutable `TurnInput`, invokes `TurnCoordinator`, and thaws the committed
 the server, CLI, streaming, and scripted callers.
 
 The coordinator owns only the deterministic logical phase order and current-Turn
-recovery classification. `RuntimeSupervisor` aggregates typed failures across Turns and
+recovery policy. It records explicit degradation, accepts retrieval/generation fallback
+only when the reported outcome remains valid, retries an idempotent failure at most once,
+and otherwise fails closed. `RuntimeSupervisor` aggregates typed failures across Turns and
 exposes `STARTING`, `READY`, `DEGRADED`, and `UNAVAILABLE`. Unclassified exceptions at
 the legacy seam become observable `FailureSignal` values and fail closed while the
 original exception type and message remain terminal for existing callers.
@@ -38,7 +40,9 @@ bridge with State and Persistence's authoritative transaction one phase at a tim
 The `TutorLoop` seam cannot observe downstream TTS or device delivery. Its temporary
 `RealizationReceipt` therefore records intended modalities with `PARTIAL` status and an empty
 delivered set instead of treating intended `answer`/`display` fields as proof of realization.
-The server's existing provisional stream and device behavior remain caller-visible as before.
+The adapter's phase trace records that this limitation was reported; it does not claim those
+modalities were completed. The server's existing provisional stream and device behavior remain
+caller-visible as before.
 
 Run from `cloud_run_service`:
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any, Mapping, Protocol
 
@@ -27,37 +27,53 @@ LOGICAL_TURN_PHASES = tuple(TurnPhase)
 
 
 class RecoveryAction(str, Enum):
-    CONTINUE = "continue"
     DEGRADE = "degrade"
     SAFE_NON_ASSESSING_FALLBACK = "safe_non_assessing_fallback"
     RETRY = "retry"
     FAIL_CLOSED = "fail_closed"
 
 
+class RecoveryCapability(str, Enum):
+    IDENTITY = "identity"
+    SAFETY_INTEGRITY = "safety_integrity"
+    STATE_AND_PERSISTENCE = "state_and_persistence"
+    ASSESSMENT_EVIDENCE = "assessment_evidence"
+    RETRIEVAL = "retrieval"
+    RESPONSE_GENERATION = "response_generation"
+
+
 class RecoveryPolicy:
     """Feature-neutral current-Turn decisions over reported failure facts."""
 
     _FAIL_CLOSED_CAPABILITIES = frozenset({
-        "identity",
-        "safety_integrity",
-        "state_and_persistence",
-        "assessment_evidence",
+        RecoveryCapability.IDENTITY,
+        RecoveryCapability.SAFETY_INTEGRITY,
+        RecoveryCapability.STATE_AND_PERSISTENCE,
+        RecoveryCapability.ASSESSMENT_EVIDENCE,
     })
     _SAFE_FALLBACK_CAPABILITIES = frozenset({
-        "retrieval",
-        "response_generation",
+        RecoveryCapability.RETRIEVAL,
+        RecoveryCapability.RESPONSE_GENERATION,
     })
 
     def decide(self, failure: FailureSignal) -> RecoveryAction:
+        try:
+            capability = RecoveryCapability(failure.capability)
+        except ValueError:
+            capability = None
         if (
             failure.severity is FailureSeverity.FATAL
-            or failure.capability in self._FAIL_CLOSED_CAPABILITIES
+            or capability in self._FAIL_CLOSED_CAPABILITIES
         ):
             return RecoveryAction.FAIL_CLOSED
+        if capability in self._SAFE_FALLBACK_CAPABILITIES:
+            return (
+                RecoveryAction.SAFE_NON_ASSESSING_FALLBACK
+                if failure.valid_outcome
+                else RecoveryAction.FAIL_CLOSED
+            )
         if failure.valid_outcome:
             return RecoveryAction.DEGRADE
-        if failure.capability in self._SAFE_FALLBACK_CAPABILITIES and failure.recoverable:
-            return RecoveryAction.SAFE_NON_ASSESSING_FALLBACK
         if (
             failure.recoverable
             and failure.context.get("idempotent") is True
@@ -72,7 +88,7 @@ class LegacyExecution:
     """Measurable result from the temporary, explicitly removable legacy seam."""
 
     result: TurnResult
-    completed_phases: tuple[TurnPhase, ...]
+    phase_trace: tuple[TurnPhase, ...]
     measurements: Mapping[str, int | float] = field(default_factory=dict)
 
 
@@ -118,13 +134,25 @@ class TurnCoordinator:
                     "temporary legacy failures may only use fail-closed recovery"
                 ) from failure
             raise failure.original.with_traceback(failure.original.__traceback__)
-        if execution.completed_phases != LOGICAL_TURN_PHASES:
-            raise RuntimeError("Turn adapter did not complete the logical phase sequence")
-        self._supervisor.observe_turn(execution.result.failures)
+        self._validate_phase_trace(execution)
         recovery_actions = tuple(
             self._recovery_policy.decide(failure)
             for failure in execution.result.failures
         )
+        if RecoveryAction.RETRY in recovery_actions:
+            execution = self._adapter.execute(turn_input)
+            self._validate_phase_trace(execution)
+            recovery_actions = tuple(
+                self._recovery_policy.decide(failure)
+                for failure in execution.result.failures
+            )
+            if RecoveryAction.RETRY in recovery_actions:
+                recovery_actions = tuple(
+                    RecoveryAction.FAIL_CLOSED
+                    if action is RecoveryAction.RETRY else action
+                    for action in recovery_actions
+                )
+        self._supervisor.observe_turn(execution.result.failures)
         if RecoveryAction.FAIL_CLOSED in recovery_actions:
             failure = execution.result.failures[
                 recovery_actions.index(RecoveryAction.FAIL_CLOSED)
@@ -132,9 +160,29 @@ class TurnCoordinator:
             raise RuntimeError(
                 f"Turn failed closed: {failure.capability}/{failure.cause}"
             )
+        result = execution.result
+        explicit_degradations = tuple(
+            failure.cause
+            for failure, action in zip(result.failures, recovery_actions)
+            if action in {
+                RecoveryAction.DEGRADE,
+                RecoveryAction.SAFE_NON_ASSESSING_FALLBACK,
+            }
+            and failure.cause not in result.degradation_reasons
+        )
+        if explicit_degradations:
+            result = replace(
+                result,
+                degradation_reasons=result.degradation_reasons + explicit_degradations,
+            )
         return CoordinatedTurn(
-            result=execution.result,
-            phases=execution.completed_phases,
+            result=result,
+            phases=execution.phase_trace,
             measurements=dict(execution.measurements),
             recovery_actions=recovery_actions,
         )
+
+    @staticmethod
+    def _validate_phase_trace(execution: LegacyExecution) -> None:
+        if execution.phase_trace != LOGICAL_TURN_PHASES:
+            raise RuntimeError("Turn adapter did not traverse the logical phase sequence")

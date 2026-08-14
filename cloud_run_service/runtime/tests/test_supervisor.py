@@ -35,8 +35,12 @@ class RecoveryPolicyTests(unittest.TestCase):
             RecoveryAction.DEGRADE,
         )
         self.assertEqual(
-            policy.decide(_failure("retrieval", recoverable=True)),
+            policy.decide(_failure("retrieval", valid_outcome=True, recoverable=True)),
             RecoveryAction.SAFE_NON_ASSESSING_FALLBACK,
+        )
+        self.assertEqual(
+            policy.decide(_failure("retrieval", recoverable=True)),
+            RecoveryAction.FAIL_CLOSED,
         )
         self.assertEqual(
             policy.decide(_failure(

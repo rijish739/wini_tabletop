@@ -51,7 +51,7 @@ class _SuccessfulLegacyAdapter:
                     state_version="state-v1",
                 ),
             ),
-            completed_phases=LOGICAL_TURN_PHASES,
+            phase_trace=LOGICAL_TURN_PHASES,
             measurements={"legacy_adapter_turns": 1},
         )
 
@@ -117,7 +117,50 @@ class TurnCoordinatorTests(unittest.TestCase):
         coordinated = coordinator.run(turn_input)
 
         self.assertEqual(coordinated.recovery_actions, (RecoveryAction.DEGRADE,))
+        self.assertIn("display_unavailable", coordinated.result.degradation_reasons)
         self.assertEqual(supervisor.snapshot().health, RuntimeHealth.DEGRADED)
+
+    def test_retries_one_idempotent_failure_and_uses_the_retry_result(self) -> None:
+        class RetryOnceAdapter(_SuccessfulLegacyAdapter):
+            def __init__(self):
+                self.calls = 0
+
+            def execute(self, turn_input):
+                self.calls += 1
+                execution = super().execute(turn_input)
+                if self.calls == 1:
+                    signal = FailureSignal(
+                        capability="model_gateway",
+                        phase="generation",
+                        severity=FailureSeverity.ERROR,
+                        recoverable=True,
+                        cause="transient_timeout",
+                        valid_outcome=False,
+                        context={"idempotent": True, "retry_attempt": 0},
+                    )
+                    return replace(
+                        execution,
+                        result=replace(execution.result, failures=(signal,)),
+                    )
+                return execution
+
+        adapter = RetryOnceAdapter()
+        supervisor = RuntimeSupervisor()
+        supervisor.ready()
+        coordinator = TurnCoordinator(adapter=adapter, supervisor=supervisor)
+        turn_input = TurnInput(
+            turn_id="turn-retry",
+            learner_id="learner-1",
+            interaction={"text": "Explain"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+        )
+
+        coordinated = coordinator.run(turn_input)
+
+        self.assertEqual(adapter.calls, 2)
+        self.assertEqual(coordinated.recovery_actions, ())
+        self.assertEqual(supervisor.snapshot().health, RuntimeHealth.READY)
 
     def test_legacy_adapter_does_not_invent_presentation_delivery(self) -> None:
         state = SimpleNamespace(data={"learner_id": "learner-1", "session": {}})

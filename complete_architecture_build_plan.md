@@ -1331,7 +1331,8 @@ baseline gates above still hold.
 Issue 13 is implemented as an additive checkpoint: immutable lifecycle contracts,
 capability-scoped state views, a validated working projection, authoritative evidence
 application, and one optimistic whole-state commit through production and deterministic
-adapters. It is not yet routed from `TutorLoop`; activation belongs to issue 14.
+adapters. Issue 14 now activates this foundation from `TutorLoop` through the temporary
+legacy adapter; later checkpoints replace that bridge phase by phase.
 
 Measured verification: 18 new interface tests passed, full `unittest` discovery passed
 34 tests, the existing P0 evidence/state runner passed 33 tests, and all 16 frozen
@@ -1339,7 +1340,7 @@ oracle tests passed. Oracle corpus validation passed and the frozen reference re
 zero differences. A complete oracle verdict remains unavailable because the frozen
 baseline documents missing runtime artifacts and incomplete model replay coverage.
 
-# Baseline Split checkpoint — coordinator routing (2026-08-14)
+## Coordinator routing (issue 14)
 
 Issue 14 is active: every canonical `TutorLoop.turn()` call now constructs a typed immutable
 Turn Input, traverses the Turn Coordinator, receives a committed typed Turn Result from the
