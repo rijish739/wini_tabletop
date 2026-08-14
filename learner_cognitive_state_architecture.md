@@ -1587,3 +1587,16 @@ increment `global_observations` only when their source signal fires.
 
 Persisted state schema is version 2; ledger rows are schema version 1. Migration is additive
 and recoverable as documented in `P0_EVIDENCE_MIGRATION.md`.
+# Baseline Split transactional state seam (2026-08-14)
+
+Issue 13 adds an inactive, behavior-preserving State and Persistence seam alongside
+the canonical runtime. Learner and Session State are copied into a per-Turn working
+projection after additive migration and learner-identity binding. Capabilities receive
+separate immutable, path-scoped `LearnerStateView` and `SessionStateView` values and
+may propose only owned typed `StateChange` values.
+
+Evidence-derived `concept_states`, `misconception_states`, and evidence-ledger fields
+remain writable only through the authoritative idempotent evidence writer. Generic
+append changes persist their idempotency keys in `state_change_index`; the index is
+lifecycle metadata and carries no cognitive or pedagogical meaning. A projected state
+is published only after one successful whole-state `TurnCommit`.

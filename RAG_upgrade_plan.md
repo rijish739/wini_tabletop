@@ -569,3 +569,12 @@ away)** and **the store build pipeline is unchanged** — no new nodes, no re-in
 are instead generated at serve time from a concept's `problem_schema` nodes (see the build
 plan §14 and `PART12_PEDAGOGY_MODES_PLAN.md` §4.4). Consequently the plan's §7.4 `verify_store`
 "≥5 test-eligible items per concept" metric is **N/A / not added** — there is no bank to verify.
+# Baseline Split persistence note (2026-08-14)
+
+The issue 13 transaction seam reuses the executed store design: the entire migrated
+learner document is the persistence unit. The production adapter performs either the
+existing atomic local JSON save or one Firestore document save, never a mid-Turn field
+write. `state_change_index` records idempotency keys for non-evidence append changes;
+the existing `evidence_index` and append-only evidence ledger remain authoritative for
+learning evidence. Retrieval storage, ranking, datasets, and build artifacts are
+unchanged.

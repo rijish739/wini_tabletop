@@ -1401,3 +1401,10 @@ verification judgments measured 50/50 agreement; the 306-row learning log regres
 reproduces the duplicate-reply, quadratic-contradiction, non-attempt, and legacy QUIZ failures.
 Deterministic safety/nonsense gates measured 20/20 and 9/9 recall respectively with zero
 learning false-gates. These measurements do not change any historical model metric.
+# Baseline Split contract impact (2026-08-14)
+
+Issue 13 adds lifecycle contracts and a transactional state seam only. It changes no
+dataset, label space, split, model artifact, prompt, model client, inference path, or
+measured model result. Evidence-derived learning fields remain protected behind the
+existing evidence writer, so the dataset/model architecture and all reported counts
+remain unchanged.

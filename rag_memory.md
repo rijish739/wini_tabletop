@@ -1063,3 +1063,21 @@ concurrency=1) with learner state in Firestore. Traps found, so they aren't redi
   0.0118 ms and runs after streaming, so measured added TTFA is 0 ms.
 - Identity/store failures now fail closed; multi-learner authentication remains an external
   deployment integration. Full migration/rollback detail: `P0_EVIDENCE_MIGRATION.md`.
+# 2026-08-14 — Issue 13 lifecycle/state foundation
+
+Added feature-neutral Turn lifecycle contracts and an inactive State and Persistence
+module beside the canonical runtime. The module migrates and identity-binds a copied
+starting state, supplies immutable capability-scoped Learner/Session views, validates
+exclusive ownership and overlapping changes, routes evidence through `record_outcome`,
+and commits with optimistic whole-state versioning. The local adapter reuses atomic
+`LearnerState.save`; the durable adapter performs one existing store save; deterministic
+success/failure behavior is available without cloud access.
+
+Gotcha: validate Turn identity before persistence so receipt construction cannot fail
+after a successful write. Non-evidence append changes need durable idempotency too;
+their keys live in `state_change_index`, separate from the evidence index.
+
+Verification measured 18 new tests, 34 full-discovery tests, 33 existing P0 invariant
+tests, and 16 oracle tests passing. The frozen oracle self-check has zero differences;
+its pre-existing incomplete artifact/replay status still blocks a full equivalence
+verdict.

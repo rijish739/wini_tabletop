@@ -303,3 +303,12 @@ a corrupted hook is voided rather than scored. See `P0_EVIDENCE_MIGRATION.md`.
 Measured locally: P0 tests 33/33; response-layer/Board Buddy suites 77 passed and 5 environment
 skips; generated-item golden agreement 50/50 (100%, required 98%); deterministic gate recall
 20/20 safety and 9/9 nonsense with zero learning false-gates. P1-P4 are not implemented.
+# Baseline Split foundation (2026-08-14)
+
+The canonical cloud runtime now contains additive `runtime` lifecycle contracts and a
+`state_and_persistence` transaction seam. They are foundations for the incremental
+Feature Module extraction and are not yet activated by `TutorLoop`. Current callers
+and Turn behavior remain unchanged; issue 14 owns coordinator routing. The seam keeps
+feature schemas outside lifecycle contracts, exposes immutable capability-scoped state
+views, applies evidence only through the existing authoritative writer, and yields a
+`TurnCommit` only after one whole-state persistence write succeeds.

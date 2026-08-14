@@ -1326,3 +1326,15 @@ baseline gates above still hold.
   diff checks pass. Model-free P0 microbench: realization p95 0.0118 ms, incremental ledger append
   p95 0.2605 ms, duplicate lookup p95 0.0023 ms; zero added TTFA/model calls by placement.
 - Migration and rollback: `P0_EVIDENCE_MIGRATION.md`. P1-P4 intentionally remain unstarted.
+# Baseline Split checkpoint — lifecycle contracts and state (2026-08-14)
+
+Issue 13 is implemented as an additive checkpoint: immutable lifecycle contracts,
+capability-scoped state views, a validated working projection, authoritative evidence
+application, and one optimistic whole-state commit through production and deterministic
+adapters. It is not yet routed from `TutorLoop`; activation belongs to issue 14.
+
+Measured verification: 18 new interface tests passed, full `unittest` discovery passed
+34 tests, the existing P0 evidence/state runner passed 33 tests, and all 16 frozen
+oracle tests passed. Oracle corpus validation passed and the frozen reference reported
+zero differences. A complete oracle verdict remains unavailable because the frozen
+baseline documents missing runtime artifacts and incomplete model replay coverage.
