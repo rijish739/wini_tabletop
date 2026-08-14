@@ -135,12 +135,12 @@ class TurnCoordinator:
                 self._adapter.interaction_request(turn_input)
             )
             if interaction.failures:
-                self._supervisor.observe_turn(interaction.failures)
                 actions = tuple(
                     self._recovery_policy.decide(failure)
                     for failure in interaction.failures
                 )
                 if not interaction.valid or RecoveryAction.FAIL_CLOSED in actions:
+                    self._supervisor.observe_turn(interaction.failures)
                     failure = interaction.failures[0]
                     if failure.capability == RecoveryCapability.IDENTITY.value:
                         raise PermissionError(failure.cause)

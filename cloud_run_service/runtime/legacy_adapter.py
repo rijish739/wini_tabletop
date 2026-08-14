@@ -12,6 +12,7 @@ from .contracts import (
     FailureSignal,
     RealizationReceipt,
     RealizationStatus,
+    StateChange,
     StateOperation,
     StateScope,
     TurnCommit,
@@ -74,7 +75,9 @@ class LegacyTurnAdapter:
             state_changes = (
                 () if interaction_outcome is None else interaction_outcome.state_changes
             )
-            self._apply_state_changes(state_changes)
+            state_changes = self._apply_state_changes(
+                turn_input.learner_id, state_changes
+            )
             decision = (
                 None if interaction_outcome is None else interaction_outcome.value
             )
@@ -101,6 +104,27 @@ class LegacyTurnAdapter:
                     kwargs["_perception_uncertain"] = decision.perception_uncertain
                     kwargs["_interaction_answer_attempt"] = decision.answer_attempt
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
+                if decision is not None and decision.remember_exchange:
+                    context = list(
+                        self._state.data.setdefault("session", {}).get("context") or []
+                    )
+                    context.append({"role": "student", "text": controlled_text[:250]})
+                    answer = str(compatibility.get("answer") or "")
+                    if answer:
+                        context.append({"role": "wini", "text": answer[:250]})
+                    continuity_change = StateChange(
+                        change_id=(
+                            f"{turn_input.turn_id}:interaction:session:context:response"
+                        ),
+                        owner="interaction_control",
+                        scope=StateScope.SESSION,
+                        path=("context",),
+                        operation=StateOperation.SET,
+                        value=context[-8:],
+                    )
+                    state_changes += self._apply_state_changes(
+                        turn_input.learner_id, (continuity_change,)
+                    )
         except Exception as exc:
             self._restore(starting_state)
             signal = FailureSignal(
@@ -164,6 +188,9 @@ class LegacyTurnAdapter:
                 },
             ),
             commit=commit,
+            failures=(
+                () if interaction_outcome is None else interaction_outcome.failures
+            ),
         )
         return LegacyExecution(
             result=result,
@@ -175,23 +202,54 @@ class LegacyTurnAdapter:
             },
         )
 
-    def _apply_state_changes(self, changes) -> None:
-        for change in changes:
-            root = (
-                self._state.data
-                if change.scope is StateScope.LEARNER
-                else self._state.data.setdefault("session", {})
-            )
-            parent = root
-            for part in change.path[:-1]:
-                parent = parent.setdefault(part, {})
-            key = change.path[-1]
-            if change.operation is StateOperation.SET:
-                parent[key] = deep_thaw(change.value)
-            elif change.operation is StateOperation.DELETE:
-                parent.pop(key, None)
-            else:
-                parent.setdefault(key, []).append(deep_thaw(change.value))
+    def _apply_state_changes(self, learner_id: str, changes):
+        if not changes:
+            return ()
+        from state_and_persistence import (
+            CapabilityStateAccess,
+            WorkingStateProjection,
+        )
+
+        access = {
+            "interaction_control": CapabilityStateAccess(
+                learner_write=(("safety_alerts",),),
+                session_write=tuple(
+                    (path,) for path in (
+                        "current_concept",
+                        "pending_shift",
+                        "context",
+                        "status",
+                        "leave_requests",
+                        "break_requested",
+                        "steer_streak",
+                        "safety_alert",
+                    )
+                ),
+            ),
+            "assessment_evidence": CapabilityStateAccess(
+                session_write=(("pending_check",), ("pending_hope",)),
+            ),
+            "pedagogy": CapabilityStateAccess(
+                session_write=tuple(
+                    (path,) for path in (
+                        "mode",
+                        "test_state",
+                        "practice_plan",
+                        "practice_state",
+                        "pending_mode_offer",
+                        "pending_test_resume",
+                    )
+                ),
+            ),
+        }
+        projection = WorkingStateProjection(
+            learner_id=learner_id,
+            state=self._state.data,
+            access=access,
+        )
+        applied = tuple(change for change in changes if projection.apply(change))
+        self._state.data = projection.projected_state()
+        return applied
 
     def _restore(self, starting_state: Mapping[str, Any]) -> bool:
         self._state.data = copy.deepcopy(dict(starting_state))

@@ -1124,7 +1124,7 @@ its already-recorded missing artifacts and incomplete replay prevent a complete 
   and continuity-change proposal behind that Interface.
 - Kept learning behavior behind the temporary adapter and preserved the external Turn
   dictionary through the compatibility façade.
-- Verification: 11 module tests and 16 runtime tests pass. Full discovery: 57/62 pass;
+- Verification: 14 module tests and 16 runtime tests pass. Full discovery: 60/65 pass;
   five collection imports require unavailable `numpy`. Frozen oracle self-check: 27
   cases, zero differences, known incomplete runtime-artifact/replay status unchanged.
 - Gotcha: importing the full canonical `TutorLoop` cannot be used as a local smoke test

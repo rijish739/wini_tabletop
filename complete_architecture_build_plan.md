@@ -1365,9 +1365,9 @@ completed non-learning interactions skip the legacy learning implementation, and
 learning interactions continue through the temporary adapter. The Module returns typed
 outcomes, state changes, and fail-closed identity signals without mutable-state access.
 
-Measured verification: 11 Interaction Control Interface tests pass; 16 runtime tests
+Measured verification: 14 Interaction Control Interface tests pass; 16 runtime tests
 pass, including learning and non-learning routes through the compatibility façade; the
-full standard-library discovery runs 62 tests, with 57 passing and five import errors
+full standard-library discovery runs 65 tests, with 60 passing and five import errors
 solely because `numpy` is absent from the available interpreter. The frozen oracle
 self-check reports 27 cases and zero differences; its pre-existing artifact/model-replay
 status remains incomplete.

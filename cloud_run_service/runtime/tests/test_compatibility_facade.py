@@ -65,6 +65,13 @@ class CompatibilityFacadeTests(unittest.TestCase):
         self.assertEqual(len(learning_calls), 1)
         self.assertEqual(learning_calls[0][0], "teach me fractions")
         self.assertTrue(learning_calls[0][1]["_interaction_controlled"])
+        self.assertEqual(
+            state.data["session"]["context"],
+            [
+                {"role": "student", "text": "teach me fractions"},
+                {"role": "wini", "text": "One half."},
+            ],
+        )
 
     def test_tutor_loop_turn_routes_through_coordinator_and_preserves_dictionary(self) -> None:
         state = SimpleNamespace(

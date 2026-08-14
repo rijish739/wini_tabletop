@@ -45,6 +45,7 @@ class InteractionDecision:
     analysis: Mapping[str, Any] | None = None
     perception_uncertain: bool = False
     answer_attempt: bool = False
+    remember_exchange: bool = True
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "disposition", InteractionDisposition(self.disposition))
@@ -95,6 +96,7 @@ class InteractionControlDependencies:
     set_mode: Callable[[dict[str, Any], str], None]
     consume_mode_offer: Callable[[dict[str, Any], str], Any]
     consume_test_resume: Callable[[dict[str, Any], str], Any]
+    check_frozen_test: Callable[[dict[str, Any]], Mapping[str, Any] | None]
     log_event: Callable[[Mapping[str, Any]], None]
     notify_safety: Callable[[Mapping[str, Any]], None]
     now: Callable[[], str]
@@ -174,7 +176,7 @@ class InteractionControl:
             if bool(getattr(route, "safety_alert", False)):
                 route.primary = "SAFETY"
                 self._record_safety(request.turn_input, text, route, session)
-            compatibility = self._complete_nonlearning(
+            compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
             return ModuleOutcome(
@@ -186,6 +188,7 @@ class InteractionControl:
                 state_changes=self._state_changes(
                     request.turn_input, starting_session, session
                 ),
+                failures=failures,
             )
 
         trusted = deep_thaw(request.turn_input.trusted_observations)
@@ -274,7 +277,7 @@ class InteractionControl:
                 ),
             )
         if route is not None and str(route.primary) != "LEARNING":
-            compatibility = self._complete_nonlearning(
+            compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
             return ModuleOutcome(
@@ -286,11 +289,29 @@ class InteractionControl:
                 state_changes=self._state_changes(
                     request.turn_input, starting_session, session
                 ),
+                failures=failures,
+            )
+        resumed = self._resume_session(session)
+        if resumed is not None:
+            return ModuleOutcome(
+                value=InteractionDecision(
+                    disposition=InteractionDisposition.COMPLETE,
+                    text=text,
+                    compatibility=self._shift_result(
+                        request.turn_input, text, session, **resumed
+                    ),
+                ),
+                state_changes=self._state_changes(
+                    request.turn_input, starting_session, session
+                ),
             )
         if route is not None:
             session["steer_streak"] = 0
-        analysis = self._dependencies.analyze(
-            text, session.get("current_concept")
+        precomputed_analysis = trusted.get("precomputed_analysis")
+        analysis = (
+            precomputed_analysis
+            if precomputed_analysis is not None
+            else self._dependencies.analyze(text, session.get("current_concept"))
         )
         allow_shift = bool(interaction.get("allow_topic_shift", True))
         if allow_shift:
@@ -340,6 +361,32 @@ class InteractionControl:
                 request.turn_input, starting_session, session
             ),
         )
+
+    def _resume_session(
+        self, session: dict[str, Any]
+    ) -> dict[str, str] | None:
+        if session.get("status") not in {"paused", "ended"} and not session.get(
+            "break_requested"
+        ):
+            return None
+        session["status"] = "active"
+        session.pop("break_requested", None)
+        session.pop("leave_requests", None)
+        resume = self._dependencies.check_frozen_test(session)
+        if not resume:
+            return None
+        return {
+            "reply": (
+                "Welcome back! You were in the middle of a test — "
+                f"question {resume['graded'] + 1} of {resume['n']}. "
+                "Want to continue it?"
+            ),
+            "action": "TEST_RESUME_OFFER",
+            "reason": (
+                f"frozen test found ({resume['graded']}/{resume['n']} graded); "
+                "offering resume"
+            ),
+        }
 
     def _consume_pending_mode_control(
         self, text: str, session: dict[str, Any]
@@ -702,11 +749,11 @@ class InteractionControl:
         route: Any,
         text: str,
         session: dict[str, Any],
-    ) -> dict[str, Any]:
+    ) -> tuple[dict[str, Any], tuple[FailureSignal, ...]]:
         intent = str(route.primary)
         if intent == "SESSION_CONTROL":
             self._apply_session_control(session, text)
-        reply, reply_source = self._nonlearning_reply(route, text, session)
+        reply, reply_source, failures = self._nonlearning_reply(route, text, session)
         context = list(session.get("context") or [])
         context.append({"role": "student", "text": text[:250]})
         if reply:
@@ -766,16 +813,16 @@ class InteractionControl:
             "answer": reply,
             "answer_source": reply_source,
         })
-        return result
+        return result, failures
 
     def _nonlearning_reply(
         self, route: Any, text: str, session: dict[str, Any]
-    ) -> tuple[str, str]:
+    ) -> tuple[str, str, tuple[FailureSignal, ...]]:
         spec = (
             self._dependencies.persona.get("intents", {}).get(str(route.primary), {})
         )
         if "scripted" in spec:
-            return str(spec["scripted"]), "scripted"
+            return str(spec["scripted"]), "scripted", ()
         canned_values = spec.get("canned") or []
         canned = ""
         if canned_values:
@@ -783,20 +830,34 @@ class InteractionControl:
                 "{concept}", self._friendly_concept(session)
             )
         if str(route.primary) == "SESSION_CONTROL" and session.get("status") == "ended":
-            return str(spec.get("farewell") or canned), "farewell"
+            return str(spec.get("farewell") or canned), "farewell", ()
         if not self._dependencies.want_answer:
-            return canned, "canned"
+            return canned, "canned", ()
         try:
             generated = self._dependencies.generate_persona(
                 self._persona_prompt(route, text, session, spec)
             )
-        except Exception:
-            generated = ""
-        return (
-            (generated, self._dependencies.generation_backend)
-            if generated
-            else (canned, "canned")
-        )
+        except Exception as exc:
+            return canned, "canned", (FailureSignal(
+                capability="interaction_control",
+                phase="non_learning_routing",
+                severity=FailureSeverity.DEGRADED,
+                recoverable=True,
+                cause=f"{type(exc).__name__}: {exc}",
+                valid_outcome=True,
+                context={"intent": str(route.primary)},
+            ),)
+        if generated:
+            return generated, self._dependencies.generation_backend, ()
+        return canned, "canned", (FailureSignal(
+            capability="interaction_control",
+            phase="non_learning_routing",
+            severity=FailureSeverity.DEGRADED,
+            recoverable=True,
+            cause="empty persona generation",
+            valid_outcome=True,
+            context={"intent": str(route.primary)},
+        ),)
 
     @staticmethod
     def _apply_session_control(session: dict[str, Any], text: str) -> None:

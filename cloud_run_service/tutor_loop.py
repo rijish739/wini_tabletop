@@ -2104,158 +2104,6 @@ class TutorLoop:
             self.state.save()
         return results
 
-    # ------------------------------------------------------------------
-    # Front door: non-learning intents (Part 11 §4.3 / §7.3)
-    # ------------------------------------------------------------------
-    def _handle_nonlearning(self, route, text: str, answer_budget: dict | None = None) -> dict:
-        """Handle a non-LEARNING intent WITHOUT moving cognitive state (§3/§7.3).
-
-        Contract: never call analyze_and_apply; never arm/grade pending_check or
-        pending_hope; PRESERVE an open pending_check so the next learning turn
-        returns to the question; no retrieval; persona/scripted reply; still log to
-        learning_log.jsonl with the resolved intent; same result-dict shape as
-        turn() with display: [].
-        """
-        session = self.state.data.setdefault("session", {})
-        intent = route.primary
-        # SESSION_CONTROL sets lightweight session flags (autonomy support) while
-        # preserving pending_check + all learner cognitive state (§4.3).
-        if intent == "SESSION_CONTROL":
-            self._apply_session_control(session, text)
-
-        reply, reply_source = self._nonlearning_reply(route, text, session)
-
-        # transient session memory only — no cognitive-state channel is touched
-        ctx = session.setdefault("context", [])
-        ctx.append({"role": "student", "text": text[:250]})
-        if reply:
-            ctx.append({"role": "wini", "text": reply[:250]})
-        session["context"] = ctx[-8:]
-
-        self._log_nonlearning(text, route, reply, reply_source)
-        if self.state.path:
-            self.state.save()
-
-        pc = session.get("pending_check") or {}
-        ph = session.get("pending_hope") or {}
-        return {
-            "action": intent, "action_reason": route.reason, "need": "none",
-            "shadow": None,
-            "concept": {"concept_id": route.concept_id,
-                        "concept_confidence": route.concept_confidence,
-                        "abstained": route.concept_id is None},
-            "signals": [], "cognitive_update": {}, "n_evidence": 0, "bridge_ids": [],
-            "writeback": None, "hope_update": None,
-            "pending_check": pc.get("id"), "pending_hope": ph.get("signal"),
-            "answer_budget": answer_budget, "pace": session.get("pace", {}),
-            "display": [], "answer": reply,
-            "intent": intent, "route_source": route.source,
-            "answer_source": reply_source,
-            "gen_backend": GEN_BACKEND if reply_source not in ("scripted", "farewell", "canned") else None,
-            # runners speak the farewell, then stop taking turns (§4.3 hard stop)
-            "session_ended": session.get("status") == "ended",
-        }
-
-    def _apply_session_control(self, session: dict, text: str) -> None:
-        """A few lightweight flags, not a state machine (§4.3). pending_check and all
-        learner cognitive state are left untouched; a later LEARNING turn resumes.
-
-        End-of-session hard rule (gemini_tutor_issues.md #1/#5): every SESSION_CONTROL
-        turn counts as a leave request. An explicit goodbye ends the session at once;
-        a second leave request in a row ends it too — the tutor never gets a third
-        chance to squeeze in "one small sum". The counter resets when a LEARNING turn
-        actually resumes (see turn() resume block)."""
-        import re as _re
-        low = (text or "").lower()
-        ended = _re.search(
-            r"\b(bye|goodbye|good ?night|see you|that'?s all|i'?m done|we'?re done|"
-            r"stop for (today|now)|end (the )?(session|lesson)|finish for|"
-            r"i (want|have|need) to go(?! (over|through|back|on))|let me go|going now)\b", low)
-        session["leave_requests"] = int(session.get("leave_requests", 0)) + 1
-        session["status"] = "ended" if (ended or session["leave_requests"] >= 2) else "paused"
-        session["break_requested"] = True
-
-    def _nonlearning_reply(self, route, text: str, session: dict) -> tuple[str, str]:
-        """Scripted for SAFETY/NONSENSE (fixed, human-reviewed, never model); persona
-        for the rest (LLM via the shared seam when generating, else canned).
-
-        Returns (reply, source) where source is "scripted" | "farewell" | "canned"
-        | the generation backend name — so logs can prove where a reply came from
-        (the 2026-07-03 transcript could not be attributed to qwen vs gemini)."""
-        intent = route.primary
-        spec = self.persona.get("intents", {}).get(intent, {})
-        if "scripted" in spec:                    # SAFETY, NONSENSE
-            return spec["scripted"], "scripted"
-        # Session END is deterministic: a scripted warm farewell, never the LLM —
-        # the model must get zero chance to append "just one quick question"
-        # (gemini_tutor_issues.md #1: retention attempts after an explicit bye).
-        if intent == "SESSION_CONTROL" and session.get("status") == "ended":
-            fw = spec.get("farewell") or self._fill_persona(spec.get("canned", []), session)
-            return fw, "farewell"
-        canned = self._fill_persona(spec.get("canned", []), session)
-        if not self.want_answer:
-            return canned, "canned"
-        try:
-            prompt = self._persona_prompt(route, text, session, spec)
-            reply = qwen_chat(prompt, temperature=0.5, max_tokens=90, small=True)  # persona (Part 15 C)
-            reply = _truncate_to_spoken_budget(reply, 45, 2)
-            return (reply, GEN_BACKEND) if reply else (canned, "canned")
-        except Exception:  # noqa: BLE001 — generation down -> canned persona line
-            return canned, "canned"
-
-    def _persona_prompt(self, route, text: str, session: dict, spec: dict) -> str:
-        p = self.persona
-        concept = self._friendly_concept(session)
-        instruction = spec.get("instruction", "Reply warmly and gently steer back to maths.")
-        # SESSION_CONTROL (pause path — end is scripted upstream): the child asked to
-        # stop, so the prompt must not invite a steer-back; every other persona intent
-        # keeps the gentle redirect to the current topic.
-        if route.primary == "SESSION_CONTROL":
-            steer = ("Do NOT ask any question and do NOT mention a sum or problem to try. "
-                     "Accept the pause warmly in one sentence.")
-        elif route.primary in ("SOCIAL", "EMOTIONAL"):
-            # Fix C — steer-back cooldown (2026-07-26). Dragging every social/emotional
-            # turn straight back to the same concept reads as obsessive ("why are you so
-            # stubborn on quadratic equation?"). After STEER_COOLDOWN_AFTER consecutive
-            # social/emotional steers, give ONE turn of breathing room: respond warmly
-            # with no maths redirect, then reset the streak. The counter resets to 0 on
-            # any real learning turn (see turn()).
-            streak = int(session.get("steer_streak", 0))
-            if streak >= self.STEER_COOLDOWN_AFTER:
-                steer = ("Do NOT mention maths, a topic, a sum, or a problem to try. Just "
-                         "respond warmly to what the child said, in one short sentence.")
-                session["steer_streak"] = 0
-            else:
-                session["steer_streak"] = streak + 1
-                steer = f"If you steer back to maths, the current topic is: {concept}."
-        else:
-            steer = f"If you steer back to maths, the current topic is: {concept}."
-        # Recent conversation so the reply can refer to what just happened ("I was
-        # right!" -> confirm WHAT was right) instead of asking about it
-        # (gemini_tutor_issues.md #2).
-        ctx = session.get("context", [])[-6:]
-        hist = ""
-        if ctx:
-            hist = "RECENT CONVERSATION (use it; never ask about something it already tells you):\n" + \
-                "\n".join(f"{h['role'].upper()}: {h['text']}" for h in ctx) + "\n\n"
-        return (
-            f"{p.get('identity', '')}\n{p.get('style', '')}\n"
-            f"Situation: {instruction}\n"
-            f"{steer}\n\n"
-            f"{hist}CHILD SAID: {text}\n\nWINI (one or two short spoken sentences):"
-        )
-
-    def _fill_persona(self, canned: list, session: dict) -> str:
-        if not canned:
-            return ""
-        return str(canned[0]).replace("{concept}", self._friendly_concept(session))
-
-    def _friendly_concept(self, session: dict) -> str:
-        cid = session.get("current_concept")
-        if cid:
-            return self.concept_name(cid)
-        return "our maths"
-
     def concept_name(self, cid: str | None) -> str:
         """Human-speakable name for a catalog concept id (never speak raw ids)."""
         if not cid:
@@ -2265,251 +2113,10 @@ class TutorLoop:
         name = card.get("name") or card.get("display_name") or node.get("name")
         return str(name) if name else cid.split("__")[-1].replace("_", " ")
 
-    # Canonical NCERT Class-10 chapter titles keyed by the store's chapter_doc id.
-    # Used only to name alternatives in the "let's do something else" menu, so the
-    # child hears a real, groundable topic they can then ask for. The two appendix
-    # docs (jemh1a1/jemh1a2 — Proofs, Mathematical Modelling) are deliberately left
-    # out of the menu; they are not core lesson chapters.
-    CHAPTER_TITLES = {
-        "jemh101": "Real Numbers", "jemh102": "Polynomials",
-        "jemh103": "Linear Equations", "jemh104": "Quadratic Equations",
-        "jemh105": "Arithmetic Progressions", "jemh106": "Triangles",
-        "jemh107": "Coordinate Geometry", "jemh108": "Trigonometry",
-        "jemh109": "Applications of Trigonometry", "jemh110": "Circles",
-        "jemh111": "Areas Related to Circles", "jemh112": "Surface Areas and Volumes",
-        "jemh113": "Statistics", "jemh114": "Probability",
-    }
-
-    def _current_chapter_doc(self, session: dict) -> str | None:
-        cid = session.get("current_concept")
-        card = self.concepts_by_id.get(cid) or {}
-        return card.get("chapter_doc")
-
-    def _other_topics_menu(self, session: dict, k: int = 4) -> list[str]:
-        """A short spread of OTHER chapter titles to offer when the child wants to
-        leave the current topic. Excludes the current chapter; spreads across the
-        book (not four adjacent chapters) so the menu feels like real variety."""
-        cur = self._current_chapter_doc(session)
-        titles = [(doc, t) for doc, t in self.CHAPTER_TITLES.items() if doc != cur]
-        if not titles:
-            return []
-        k = max(1, min(k, len(titles)))
-        step = max(1, len(titles) // k)
-        picked = [titles[i][1] for i in range(0, len(titles), step)][:k]
-        return picked
-
-    # ------------------------------------------------------------------
-    # Topic shift (deterministic; 2026-07-03 transcript fixes)
-    # ------------------------------------------------------------------
-    # MiniLM anchor-similarity thresholds for grounding a requested topic:
-    # >= HI: switch directly (the request was explicit); >= LO: offer the match
-    # and ask; below LO: the topic is off-catalog — say so honestly and offer
-    # the nearest chapter topic instead of silently continuing the old one.
-    # Calibrated 2026-07-03 on the shipped anchors: clean topic names score
-    # 0.45-0.69 ("triangles" .507, "trigonometry" .548, "quadratic equations"
-    # .686), vague-but-real "natural numbers" .313, noise ("pizza", "how are
-    # you", "cricket score") <= .14.
-    SHIFT_TAU_HI = 0.45
-    SHIFT_TAU_LO = 0.25
-
-    # Fix C (2026-07-26): after this many consecutive SOCIAL/EMOTIONAL turns that
-    # were steered back to maths, the next such turn drops the redirect for one turn
-    # of breathing room. Counter lives in session["steer_streak"], reset on any
-    # learning turn.
-    STEER_COOLDOWN_AFTER = 2
-
-    def _maybe_topic_shift(self, text: str, analysis: dict, session: dict,
-                           answer_budget: dict | None) -> dict | None:
-        """Detect and handle a topic-shift attempt the perception could not ground.
-
-        Returns a completed turn result (confirm question / direct switch) or None
-        to continue the normal pipeline. Never blocks the pipeline on failure —
-        every fallible step degrades to `return None`.
-        """
-        from cognitive_classifier.cues import extract_topic_request, is_bare_topic
-        from session_modes import mode_cues
-
-        # An ACTIVE test blocks every topic shift (test_results.md Bug 2, 2026-07-17):
-        # shifting current_concept + popping pending_check mid-set corrupts state —
-        # _drive_test re-locks the concept to the set's own and serves a question for
-        # the OLD concept, while current_concept now points at the requested one, so
-        # the next answer is graded against the wrong concept. Mirrors resolve_mode's
-        # "active test blocks mode changes except STOP" invariant (§4.4); the test
-        # simply continues on the student's next turn.
-        ts = session.get("test_state")
-        if ts is not None and ts.get("phase") != "done":
-            return None
-
-        # A mode request ("let's practice", "test me", "stop the test") is Part 12
-        # outer-loop control, NOT a topic switch — the "let's do X" topic pattern
-        # otherwise grabs "practice"/"test" as a bogus topic (found on-brain
-        # 2026-07-14). Let step 3a's mode resolution handle these.
-        if mode_cues(text) is not None:
-            return None
-
-        concept = analysis["concept"]
-        primary = concept["concept_id"]
-        current = session.get("current_concept")
-        span = extract_topic_request(text)
-        # A bare label ("Natural numbers.") only counts when no GRADED question is
-        # open — a bare phrase can be a legitimate answer to a diagnostic. An open
-        # pace-only micro-check does NOT block it: micro checks never grade, and the
-        # 2026-07-03 shift happened exactly while one was open; worst case the
-        # confirm question below lets the student say no.
-        graded_pending = bool(session.get("pending_check") or session.get("pending_hope"))
-        bare = is_bare_topic(analysis["normalized_text"]) and not graded_pending
-        if not span and not bare:
-            return None
-        # When perception confidently resolved a DIFFERENT catalog concept the
-        # normal pipeline already shifts (current_concept := primary) — no friction.
-        if primary and not concept["abstained"] and primary != current \
-                and concept["concept_confidence"] >= 0.6:
-            return None
-        target_text = span or analysis["normalized_text"]
-        cands = getattr(self.analyzer.classifier, "topic_candidates", None)
-        cands = cands(target_text, 3) if callable(cands) else []
-        if not cands:
-            return None            # no resolver artifacts — never block the turn
-        cid, name, sim = cands[0]
-        if cid == current and sim >= self.SHIFT_TAU_LO:
-            return None            # they asked for what we are already doing
-        cur_name = self._friendly_concept(session)
-        if span and sim >= self.SHIFT_TAU_HI:
-            # explicit request, confidently grounded -> switch NOW (asking again
-            # after "I asked about X" is exactly the friction that annoyed the kid)
-            session["current_concept"] = cid
-            session.pop("pending_check", None)
-            session.pop("pending_hope", None)
-            self._log_shift(text, "TOPIC_SHIFT", f"explicit request grounded to {cid} (sim {sim:.2f})")
-            return self.turn(f"I want to learn about {name}", answer_budget=answer_budget,
-                             _allow_shift=False)
-        if sim >= self.SHIFT_TAU_LO:
-            reply = (f"We're doing {cur_name} right now. Do you want to switch to "
-                     f"{name}? Say yes or no.")
-        else:
-            asked = span or target_text
-            reply = (f"Hmm, '{asked}' isn't one of our Class 10 topics. The closest I "
-                     f"have is {name} — want to try that? Or say no to continue {cur_name}.")
-        session["pending_shift"] = {"concept_id": cid, "name": name}
-        return self._shift_reply(text, reply, "TOPIC_SHIFT_CONFIRM",
-                                 f"shift request; top match {cid} (sim {sim:.2f})",
-                                 session, answer_budget)
-
-    def _maybe_decline_topic(self, text: str, session: dict,
-                             answer_budget: dict | None) -> dict | None:
-        """Handle 'leave this topic, but I'm not naming a new one' (2026-07-26 fix).
-
-        The child says "explain something different" / "I don't want to learn this" /
-        "I'm bored of this". Previously this fell through to the normal pipeline,
-        which routed it to EXPLAIN and — because the refused concept was often named
-        in the very sentence ("I don't want to learn quadratic equation") — the
-        concept layer re-locked onto it and served MORE of the same. Here we instead
-        offer a menu of OTHER chapters and, crucially, do NOT re-ground on the
-        current concept. Returns a completed menu turn, or None to fall through.
-
-        Never fires when: it's a mode/test-control cue (those own their own exit), a
-        test is active (the set owns the topic), or the child DID name a concrete,
-        groundable, different catalog topic (the normal shift path switches cleanly)."""
-        from cognitive_classifier.cues import wants_different_topic, extract_topic_request
-        from session_modes import mode_cues
-
-        if not wants_different_topic(text):
-            return None
-        # Defer only to genuine mode CONTROL (leave/start a test or practice). A bare
-        # "EXPLAIN" cue does NOT block us: "I don't want to learn X" matches the
-        # explain-request lexicon yet is exactly the decline we must handle here.
-        if mode_cues(text) in ("STOP", "TEST", "PRACTICE"):
-            return None
-        ts = session.get("test_state")
-        if ts is not None and ts.get("phase") not in (None, "done"):
-            return None
-        # If they named a specific different topic, let _maybe_topic_shift / the
-        # normal concept resolution do the switch — don't intercept with a menu.
-        span = extract_topic_request(text)
-        if span:
-            cands = getattr(self.analyzer.classifier, "topic_candidates", None)
-            cands = cands(span, 3) if callable(cands) else []
-            if cands:
-                cid, _name, sim = cands[0]
-                if cid != session.get("current_concept") and sim >= self.SHIFT_TAU_HI:
-                    return None
-        menu = self._other_topics_menu(session, 4)
-        if not menu:
-            return None
-        listed = (", ".join(menu[:-1]) + ", or " + menu[-1]) if len(menu) > 1 else menu[0]
-        cur_name = self._friendly_concept(session)
-        reply = (f"Sure — we don't have to stay on {cur_name}. "
-                 f"We could do {listed}. Which one would you like?")
-        # Do NOT touch current_concept here: we asked the child to choose, and their
-        # next turn ("Triangles") takes the normal shift path. Clearing pending_check
-        # so the refused topic's open question isn't graded against a stale answer.
-        session.pop("pending_check", None)
-        session.pop("pending_hope", None)
-        session["steer_streak"] = 0
-        return self._shift_reply(text, reply, "TOPIC_MENU",
-                                 "decline-of-topic, no alternative named; offered chapter menu",
-                                 session, answer_budget)
-
-    def _maybe_stop_mode(self, text: str, session: dict,
-                         answer_budget: dict | None) -> dict | None:
-        """Deterministic 'leave TEST/PRACTICE, keep learning' exit (§5.1 STOP).
-
-        Honours the STOP_TEST cue over a Gemini SESSION_CONTROL misroute: drops the
-        active set/plan (set_mode -> EXPLAIN clears test_state + practice_plan) and
-        the open check so the stopped question is never graded, then returns a warm
-        scripted line. Returns None when it is not a STOP cue or there is nothing to
-        stop (already plain EXPLAIN with no frozen test) — the caller then continues
-        the normal SESSION_CONTROL handling."""
-        from session_modes import mode_cues
-        if mode_cues(text) != "STOP":
-            return None
-        prev = self.modes.current_mode(session)
-        if prev == "EXPLAIN" and not session.get("test_state"):
-            return None
-        self.modes.set_mode(session, "EXPLAIN")   # drops test_state + practice_plan
-        session.pop("pending_check", None)
-        session.pop("pending_hope", None)
-        reply = ("Okay, we'll stop the questions for now. Let's keep learning — "
-                 "ask me anything about maths.")
-        return self._shift_reply(text, reply, "MODE_STOP",
-                                 f"stop cue: {prev} -> EXPLAIN (keep learning)",
-                                 session, answer_budget)
-
-    def _consume_pending_shift(self, session: dict, text: str,
-                               answer_budget: dict | None) -> dict | None:
-        """Resolve last turn's 'switch to X?' offer. Bare yes -> execute the switch
-        and open the new topic; bare no -> continue the current one; anything else
-        -> cancel the offer and let the utterance take the normal path."""
-        import re as _re
-        low = (text or "").strip().lower()
-        words = low.split()
-        target = session.pop("pending_shift", None) or {}
-        if not target.get("concept_id"):
-            return None
-        if _re.match(r"^(yes|yeah|ya|yep|ok(ay)?|sure|haan|ha)\b", low) and len(words) <= 3:
-            session["current_concept"] = target["concept_id"]
-            session.pop("pending_check", None)
-            session.pop("pending_hope", None)
-            self._log_shift(text, "TOPIC_SHIFT", f"confirmed switch to {target['concept_id']}")
-            return self.turn(f"I want to learn about {target['name']}",
-                             answer_budget=answer_budget, _allow_shift=False)
-        if _re.match(r"^(no|nope|nah|not now)\b", low) and len(words) <= 3:
-            reply = f"No problem — let's continue with {self._friendly_concept(session)}."
-            return self._shift_reply(text, reply, "TOPIC_SHIFT_DECLINED",
-                                     "shift offer declined; continuing current topic",
-                                     session, answer_budget)
-        return None    # neither: offer cancelled, normal pipeline handles the text
-
     def _shift_reply(self, text: str, reply: str, action: str, reason: str,
                      session: dict, answer_budget: dict | None) -> dict:
-        """Deterministic (no-LLM) shift turn: context + log + save + result shape."""
-        ctx = session.setdefault("context", [])
-        ctx.append({"role": "student", "text": text[:250]})
-        ctx.append({"role": "wini", "text": reply[:250]})
-        session["context"] = ctx[-8:]
+        """Return an unextracted deterministic reply; the adapter records continuity."""
         self._log_shift(text, action, reason, reply)
-        if self.state.path:
-            self.state.save()
         pc = session.get("pending_check") or {}
         return {
             "action": action, "action_reason": reason, "need": "none", "shadow": None,
@@ -2532,32 +2139,6 @@ class TutorLoop:
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
-    def _log_safety(self, text: str, route) -> None:
-        """Persist a safety_alert record + notify the supervising adult (§4.3 Q2).
-
-        The alert is NOT cognitive state; it is a supervision record. In cloud this
-        is a flagged Firestore write that fires a push/email/dashboard alert; on the
-        quick-test rig it is an append-only log + an unmissable console signal.
-        """
-        record = {
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
-            "learner_id": self.state.data.get("learner_id"),
-            "utterance_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
-            "utterance_length": len(text),
-            "safety_tier": int(getattr(route, "safety_tier", None) or 2),
-            "safety_category": getattr(route, "safety_category", None) or "safety_concern",
-            "source": route.source,
-            "handled": "scripted_reply+persisted_alert+supervisor_notify",
-        }
-        self.state.data.setdefault("safety_alerts", []).append(record)
-        self.state.data.setdefault("session", {})["safety_alert"] = record
-        try:
-            with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
-                f.write(json.dumps(record, ensure_ascii=False) + "\n")
-        except Exception:  # noqa: BLE001 — logging must never break the safety reply
-            pass
-        self._notify_supervisor(record)
-
     def _notify_supervisor(self, record: dict) -> None:
         """Active supervisor notification over the most reliable channel available.
         Cloud deployment overrides this with a Firestore write -> push/email/dashboard."""
@@ -2565,28 +2146,6 @@ class TutorLoop:
         print(f"\n{line}\n  [!] SAFETY ALERT — a supervising adult must be notified now.\n"
               f"      tier={record.get('safety_tier')} "
               f"category={record.get('safety_category')}\n{line}\n")
-
-    def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
-        log_row = {
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
-            "question": ("[REDACTED_SAFETY_UTTERANCE]" if route.safety_alert else text),
-            "log_tier": ("general_redacted" if route.safety_alert else "general"),
-            "action": route.primary, "action_reason": route.reason,
-            "need": "none", "intent": route.primary, "route_source": route.source,
-            "safety_alert": bool(route.safety_alert),
-            "concept": {"concept_id": route.concept_id,
-                        "concept_confidence": route.concept_confidence,
-                        "abstained": route.concept_id is None},
-            "signals": [], "answer": reply,
-            "answer_source": reply_source,
-        }
-        with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
-
-    @property
-    def runtime_health(self):
-        """Observable Runtime Supervisor health for operators and health endpoints."""
-        return self._turn_compatibility_facade().runtime_health
 
     def _turn_compatibility_facade(self):
         facade = getattr(self, "_typed_turn_facade", None)
@@ -2666,6 +2225,7 @@ class TutorLoop:
             set_mode=self.modes.set_mode,
             consume_mode_offer=self.modes.consume_offer,
             consume_test_resume=self.modes.consume_test_resume,
+            check_frozen_test=self.modes.check_frozen_test,
             log_event=log_event,
             notify_safety=notify_safety,
             now=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -2720,181 +2280,20 @@ class TutorLoop:
         # ledger — only the outermost caller reads it.
         if _allow_shift:
             gen_stats_reset()
+        if not _interaction_controlled or precomputed_analysis is None:
+            raise RuntimeError(
+                "legacy learning behavior requires an Interaction Control decision"
+            )
         session = self.state.data.setdefault("session", {})
-        # The deterministic gate is literally first: it precedes offer/session
-        # consumption, model routing, speculative results, and every learning write.
-        gate_route = None if _interaction_controlled else _front_gate(text)
-        if gate_route is not None:
-            if gate_route.safety_alert:
-                gate_route.primary = "SAFETY"
-                self._log_safety(text, gate_route)
-            return self._handle_nonlearning(gate_route, text, answer_budget)
-        # -1. Pending topic-shift confirmation from the previous turn: a bare
-        # yes/no answers the "switch to X?" offer deterministically (no model
-        # call); anything longer falls through with the offer cancelled.
-        if not _interaction_controlled and stt_confidence < STT_WRITE_CONFIDENCE_MIN:
-            # Safety still runs first and remains authoritative. Every other
-            # low-confidence transcript is observational only: do not consume
-            # offers, shift topics, grade, or apply cognitive deltas.
-            pending = session.get("pending_check") or {}
-            reply = "I may have heard that wrong. Please say that again"
-            if pending.get("question"):
-                reply += f" for this question: {pending['question']}"
-            else:
-                reply += "."
-            self._log_shift(
-                text, "CONFIRM_LOW_CONFIDENCE",
-                f"STT confidence {stt_confidence:.3f} below write floor; no learning write",
-                reply)
-            return {
-                "action": "CONFIRM_LOW_CONFIDENCE",
-                "action_reason": "low STT confidence; no learning write",
-                "need": "none", "shadow": None,
-                "concept": {"concept_id": session.get("current_concept"),
-                            "concept_confidence": 0.0, "abstained": True},
-                "signals": [], "cognitive_update": {}, "n_evidence": 0,
-                "bridge_ids": [], "writeback": None, "hope_update": None,
-                "pending_check": pending.get("id"), "pending_hope": None,
-                "answer_budget": answer_budget, "pace": session.get("pace", {}),
-                "display": [], "session_ended": False, "answer": reply,
-                "answer_source": "scripted", "gen_backend": None,
-            }
-        if not _interaction_controlled and session.get("pending_shift"):
-            out = self._consume_pending_shift(session, text, answer_budget)
-            if out is not None:
-                return out
-
-        # -0.5 Part 12: a bare yes/no answering last turn's mode offer ("want to try
-        # a few problems together?"). Accepted -> switch mode (the new mode's item
-        # controller serves the first item below, Stages 2/3); declined -> a short
-        # deterministic line; ambiguous -> offer cancelled, normal pipeline continues.
-        if not _interaction_controlled and session.get("pending_mode_offer"):
-            decision = self.modes.consume_offer(session, text)
-            if decision is not None and decision[0] == "declined":
-                return self._shift_reply(
-                    text, "No problem — let's keep learning.", "MODE_OFFER_DECLINED",
-                    "practice offer declined; staying in EXPLAIN", session, answer_budget)
-            # accepted -> fall through so this turn runs in the newly-set mode
-
-        # -0.4 Part 12: frozen-test resume (§4.4.4). Last turn offered to pick up
-        # a test interrupted by a session end; a bare yes resumes it (test_state
-        # is intact — _drive_test continues from the next ungraded item), a bare
-        # no abandons it, anything else cancels and takes the normal pipeline.
-        if not _interaction_controlled and session.get("pending_test_resume"):
-            decision = self.modes.consume_test_resume(session, text)
-            if decision is not None and decision[0] == "resume":
-                ts = session.get("test_state") or {}
-                graded, n = len(ts.get("results", [])), int(ts.get("n", 5))
-                reply = f"Let's pick up where we left off — question {graded + 1} of {n}."
-                pending_q = (session.get("pending_check") or {}).get("question")
-                if pending_q:
-                    reply += f" Here it is again: {pending_q}"
-                return self._shift_reply(
-                    text, reply, "TEST_RESUME",
-                    f"frozen test resumed by student ({graded}/{n} graded)",
-                    session, answer_budget)
-            if decision is not None and decision[0] == "abandon":
-                return self._shift_reply(
-                    text, "No problem — let's keep learning.", "TEST_RESUME_DECLINED",
-                    "frozen test abandoned by student", session, answer_budget)
-            # ambiguous -> offer cancelled (set dropped); normal pipeline continues
-
-        # 0. Front door (Part 11 §7.2): deterministic gates FIRST (model-free,
-        # regardless of backend), then the Gemini intent route when perception is
-        # authoritative. Only LEARNING enters the state-moving pipeline (§3). The
-        # Gemini call is memoized by normalized text, so route() and the later
-        # analyze() share ONE network round-trip.
-        route = None if _interaction_controlled else self.analyzer.classifier.route(
-            text, self.state.data.setdefault("session", {}))
-        perception_uncertain = (
-            bool(_perception_uncertain)
-            if _interaction_controlled
-            else bool(getattr(route, "uncertain", False))
-        )
-        if route is not None:
-            if route.safety_alert:
-                # The gate owns the safety decision; a model `safety` flag may only
-                # ADD recall, never remove it (§4.2). Escalate to the scripted path.
-                route.primary = "SAFETY"
-                self._log_safety(text, route)
-            # A deterministic STOP-mode cue ("stop the test", "no more questions",
-            # "i don't want to practice") outranks a Gemini SESSION_CONTROL guess
-            # when a TEST/PRACTICE is active: it means "leave this mode, keep
-            # learning" (-> EXPLAIN), NOT "end the session". Without this the router
-            # read "stop the test" as session-control and froze the set as a paused
-            # session instead of returning to EXPLAIN (test_results.md Bug 4, live
-            # 2026-07-17). Safety is settled above and is never overridden here.
-            if route.primary == "SESSION_CONTROL" and not route.safety_alert:
-                stop_exit = self._maybe_stop_mode(text, session, answer_budget)
-                if stop_exit is not None:
-                    return stop_exit
-            # "Leave this topic, but I'm not naming a new one" (2026-07-26 fix). Runs
-            # on EITHER route (a decline can classify LEARNING *or* SESSION_CONTROL/
-            # SOCIAL) and BEFORE the concept re-locks, so a refusal that names the
-            # refused topic ("I don't want to learn quadratic equation") can no longer
-            # be re-grounded onto it. Offers a chapter menu instead.
-            if _allow_shift:
-                declined = self._maybe_decline_topic(text, session, answer_budget)
-                if declined is not None:
-                    return declined
-            if route.primary != "LEARNING":
-                return self._handle_nonlearning(route, text, answer_budget)
-            # Real learning turn: the child re-engaged with maths, so reset the
-            # social/emotional steer-back streak (Fix C cooldown counter).
-            if not (stt_confidence < STT_WRITE_CONFIDENCE_MIN):
-                session["steer_streak"] = 0
-
-        # 1-2. cognitive analysis + state update (Parts 1+2+3)
+        route = None
+        perception_uncertain = bool(_perception_uncertain)
         from cognitive_analyzer.analyzer import apply_deltas
-        if precomputed_analysis is None:
-            analysis = self.analyzer.analyze(
-                text, current_concept=self.current_concept)
-        else:
-            analysis = precomputed_analysis
+        analysis = precomputed_analysis
         analysis["new_global_state"] = (
             {} if perception_uncertain
             else apply_deltas(self.state, analysis["state_deltas"]))
         concept = analysis["concept"]
         primary = concept["concept_id"]
-        # 1a-shift. Topic-shift attempt the perception could NOT ground: a bare
-        # topic label or an explicit "i asked about X / teach me X" whose resolved
-        # concept is INHERIT or the (possibly negated) current concept. Runs BEFORE
-        # current_concept is overwritten so the comparison is against the OLD topic.
-        # 2026-07-03 regression: "Natural numbers." abstained -> silently continued
-        # quadratics; "I asked about natural numbers, you are explaining me
-        # quadratic equation" resolved to the negated quadratic concept.
-        if _allow_shift and not _interaction_controlled:
-            shifted = self._maybe_topic_shift(text, analysis, session, answer_budget)
-            if shifted is not None:
-                return shifted
-        # Context-drift guard: a short anaphoric follow-up ("solve THIS with graph")
-        # means "the thing we're discussing" — a literal cross-topic match (e.g. the
-        # linear-equations "graphical method" concept for "...with graph") must not
-        # hijack the concept under discussion. Suppress the drift ONLY when the new
-        # concept is graph-UNRELATED to the current topic (shares no edge with its
-        # chapter): jemh102 zero-geometry (5 edges into quadratics) is kept; jemh103
-        # graphical-method (0 edges) is not. Never fires without an open current topic.
-        _old_cc = self.current_concept
-        if (_old_cc and primary and primary != _old_cc
-                and self._is_anaphoric_followup(text)
-                and not self._concept_relates_to_topic(primary, _old_cc)):
-            print(f"[tutor] context-drift guard: '{text[:40]}' resolved to {primary}, "
-                  f"unrelated to current topic {_old_cc}; staying on it")
-            primary = _old_cc
-            concept = dict(concept)
-            concept["concept_id"] = _old_cc
-            analysis["concept"] = concept
-        # During an ACTIVE test the concept is LOCKED to the set (_drive_test uses
-        # ts["concept_id"]). A short test answer ("48", "two zeroes") often re-
-        # classifies to a different concept; letting that drift current_concept
-        # leaves the post-test resume pointing at the wrong topic and grades the
-        # session against a concept the child never chose (test_results.md Bug 2
-        # tail). The test owns the concept until it is done.
-        _ts = session.get("test_state")
-        _test_locked = _ts is not None and _ts.get("phase") not in (None, "done")
-        if primary and not _test_locked:
-            self.state.data.setdefault("session", {})["current_concept"] = primary
-
         # 1a. Is this reply an ATTEMPT at the question we asked, or a non-attempt
         # (acknowledgment, "I don't understand", a fresh request, a counter-
         # question)? Computed once and reused by the diagnostic grader (1b),
@@ -2970,24 +2369,6 @@ class TutorLoop:
         # a hint request escalates the hint chain (never past it, rule 10); any
         # other reply is graded by Qwen and written back via the evidence APIs.
         session = self.state.data.setdefault("session", {})
-        # A LEARNING turn resumes a session paused/ended by SESSION_CONTROL. The
-        # preserved pending_check is graded normally below, so the question the child
-        # left open is picked back up automatically (§4.3 resume contract).
-        if session.get("status") in ("paused", "ended") or session.get("break_requested"):
-            session["status"] = "active"
-            session.pop("break_requested", None)
-            session.pop("leave_requests", None)  # the child chose to come back
-            # A test frozen by the interrupted session (§4.4.4): offer to resume
-            # BEFORE anything else moves state — next turn's bare yes/no decides.
-            resume = self.modes.check_frozen_test(session)
-            if resume:
-                reply = (f"Welcome back! You were in the middle of a test — "
-                         f"question {resume['graded'] + 1} of {resume['n']}. "
-                         f"Want to continue it?")
-                return self._shift_reply(
-                    text, reply, "TEST_RESUME_OFFER",
-                    f"frozen test found ({resume['graded']}/{resume['n']} graded); offering resume",
-                    session, answer_budget)
         pending = session.get("pending_check")
         if pending and not pending_is_assessable(pending):
             void_pending_assessment(
@@ -3941,14 +3322,8 @@ class TutorLoop:
             except Exception as _me:  # noqa: BLE001
                 print(f"[tutor] early meta sink error: {_me}")
 
-        # 6. session memory (section 12.3 transient context) + bookkeeping for
-
-        # the next turn's acknowledgment handling
-        ctx = session.setdefault("context", [])
-        ctx.append({"role": "student", "text": text[:250]})
-        if answer:
-            ctx.append({"role": "wini", "text": answer[:250]})
-        session["context"] = ctx[-8:]
+        # 6. bookkeeping for the next turn's acknowledgment handling. Interaction
+        # Control directs conversation-continuity recording through the adapter.
         session["last_action"] = action
         session["last_repr_targets"] = sorted({
             rep for e in evidence

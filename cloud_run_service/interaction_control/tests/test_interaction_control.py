@@ -74,6 +74,7 @@ def _dependencies(**overrides) -> InteractionControlDependencies:
         "set_mode": lambda session, mode: session.update({"mode": mode}),
         "consume_mode_offer": lambda session, text: None,
         "consume_test_resume": lambda session, text: None,
+        "check_frozen_test": lambda session: None,
         "log_event": lambda event: None,
         "notify_safety": lambda record: None,
         "now": lambda: "2026-08-14T12:00:00",
@@ -97,6 +98,63 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(outcome.failures[0].severity, FailureSeverity.ERROR)
         self.assertFalse(outcome.failures[0].valid_outcome)
         self.assertIn("TimeoutError: gate unavailable", outcome.failures[0].cause)
+
+    def test_learning_reuses_trusted_precomputed_analysis(self) -> None:
+        analyze_calls = []
+        trusted_analysis = {
+            "normalized_text": "teach me fractions",
+            "concept": {
+                "concept_id": "fractions",
+                "concept_confidence": 0.99,
+                "abstained": False,
+            },
+            "signals": ["steady"],
+            "state_deltas": {},
+        }
+        turn_input = TurnInput(
+            turn_id="turn-precomputed",
+            learner_id="learner-15",
+            interaction={"text": "teach me fractions"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+            trusted_observations={"precomputed_analysis": trusted_analysis},
+        )
+        dependencies = _dependencies(
+            analyze=lambda text, current: analyze_calls.append(text),
+        )
+
+        outcome = InteractionControl(dependencies).control(
+            InteractionControlRequest(turn_input=turn_input, session={})
+        )
+
+        self.assertEqual(outcome.value.analysis["concept"]["concept_id"], "fractions")
+        self.assertEqual(analyze_calls, [])
+
+    def test_persona_generation_fallback_reports_typed_degradation(self) -> None:
+        def generation_fails(prompt):
+            raise TimeoutError("persona model timed out")
+
+        dependencies = _dependencies(
+            perception_route=lambda text, session: _Route("SOCIAL"),
+            want_answer=True,
+            generate_persona=generation_fails,
+            persona={
+                "identity": "Wini",
+                "style": "Warm",
+                "intents": {"SOCIAL": {"canned": ["Hello!"]}},
+            },
+        )
+
+        outcome = InteractionControl(dependencies).control(
+            InteractionControlRequest(turn_input=_turn("hello"), session={})
+        )
+
+        self.assertTrue(outcome.valid)
+        self.assertEqual(outcome.value.compatibility["answer"], "Hello!")
+        self.assertEqual(len(outcome.failures), 1)
+        self.assertEqual(outcome.failures[0].capability, "interaction_control")
+        self.assertEqual(outcome.failures[0].severity, FailureSeverity.DEGRADED)
+        self.assertTrue(outcome.failures[0].valid_outcome)
 
     def test_low_confidence_input_is_observational_and_skips_perception(self) -> None:
         perception_calls = []
@@ -446,6 +504,24 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(perception_calls, [])
         changed = {change.path: change for change in outcome.state_changes}
         self.assertEqual(changed[("pending_mode_offer",)].owner, "pedagogy")
+
+    def test_learning_resumes_paused_session_through_continuity_changes(self) -> None:
+        outcome = InteractionControl(_dependencies()).control(
+            InteractionControlRequest(
+                turn_input=_turn("continue fractions"),
+                session={
+                    "status": "paused",
+                    "break_requested": True,
+                    "leave_requests": 1,
+                    "current_concept": "fractions",
+                },
+            )
+        )
+
+        changed = {change.path: change for change in outcome.state_changes}
+        self.assertEqual(changed[("status",)].value, "active")
+        self.assertEqual(changed[("break_requested",)].operation, StateOperation.DELETE)
+        self.assertEqual(changed[("leave_requests",)].operation, StateOperation.DELETE)
 
 
 if __name__ == "__main__":
