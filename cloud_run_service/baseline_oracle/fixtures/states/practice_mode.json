@@ -1,0 +1,12 @@
+{
+  "name": "practice_mode",
+  "kind": "mode",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.58, "curiosity": 0.55, "cognitive_load": 0.4, "engagement": 0.72},
+    "concept_states": {"jemh104__solving_by_factorization": {"mastery": 0.51, "flags": [], "last_signals": []}},
+    "misconception_states": {}, "evidence_ledger": [],
+    "session": {"status": "active", "mode": "PRACTICE", "current_concept": "jemh104__solving_by_factorization", "practice_state": {"level": 1, "correct_streak": 0}, "served_items": [], "bridges_served": [], "context": []}
+  }
+}

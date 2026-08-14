@@ -1,0 +1,20 @@
+{
+  "name": "pending_assessment",
+  "kind": "pending_assessment",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.6, "curiosity": 0.55, "cognitive_load": 0.4, "engagement": 0.7},
+    "concept_states": {"jemh104__quadratic_equation_definition": {"mastery": 0.5, "flags": [], "last_signals": []}},
+    "misconception_states": {}, "evidence_ledger": [],
+    "session": {
+      "status": "active", "mode": "EXPLAIN", "current_concept": "jemh104__quadratic_equation_definition", "served_items": [], "bridges_served": [], "context": [],
+      "pending_check": {
+        "id": "fixture-item-quadratic-degree", "item_id": "fixture-item-quadratic-degree", "kind": "practice", "concept_id": "jemh104__quadratic_equation_definition",
+        "question": "What is the highest power in a quadratic equation?", "expected_answer": "2", "rubric": "The answer must identify the highest power as 2.",
+        "verification_status": "authored_verified", "verification_token": "fixture-token-quadratic-degree", "assessment_purpose": "check_understanding", "reveal_policy": "after_attempt",
+        "script_id": "fixture-script-001", "beat_id": "fixture-beat-002", "attempt": 1, "action": "CHECK_UNDERSTANDING", "mode": "EXPLAIN"
+      }
+    }
+  }
+}

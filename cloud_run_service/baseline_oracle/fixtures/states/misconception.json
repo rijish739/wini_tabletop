@@ -1,0 +1,13 @@
+{
+  "name": "misconception",
+  "kind": "misconception",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.42, "curiosity": 0.5, "cognitive_load": 0.68, "engagement": 0.6},
+    "concept_states": {"jemh104__roots_of_quadratic_equation": {"mastery": 0.35, "flags": ["misconception_active"], "last_signals": ["confusion"]}},
+    "misconception_states": {"fixture-misconception-roots": {"status": "suspected", "confidence": 0.72, "probe_count": 0}},
+    "evidence_ledger": [],
+    "session": {"status": "active", "mode": "EXPLAIN", "current_concept": "jemh104__roots_of_quadratic_equation", "served_items": [], "bridges_served": [], "context": []}
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "active_session",
+  "kind": "active_session",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.55, "curiosity": 0.62, "cognitive_load": 0.42, "engagement": 0.7},
+    "concept_states": {"jemh104__quadratic_equation_definition": {"mastery": 0.45, "flags": [], "last_signals": ["question"]}},
+    "misconception_states": {},
+    "evidence_ledger": [],
+    "session": {
+      "status": "active", "mode": "EXPLAIN", "current_concept": "jemh104__quadratic_equation_definition",
+      "served_items": ["jemh104::page_001::summary"], "bridges_served": [],
+      "context": [{"role": "student", "text": "What is a quadratic equation?"}, {"role": "wini", "text": "It is an equation whose highest power is two."}]
+    }
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "name": "termination",
+  "kind": "termination",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.5, "curiosity": 0.5, "cognitive_load": 0.5, "engagement": 0.5},
+    "concept_states": {}, "misconception_states": {}, "evidence_ledger": [],
+    "session": {"status": "active", "mode": "EXPLAIN", "leave_requests": 1, "served_items": [], "bridges_served": [], "context": []}
+  }
+}

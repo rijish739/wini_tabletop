@@ -1,0 +1,12 @@
+{
+  "name": "migration",
+  "kind": "migration",
+  "state": {
+    "schema_version": 1,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.5, "curiosity": 0.5, "cognitive_load": 0.5, "engagement": 0.5},
+    "concept_states": {"jemh104__quadratic_equation_definition": {"mastery": 0.4, "flags": []}},
+    "misconception_states": {},
+    "session": {"current_concept": "jemh104__quadratic_equation_definition", "pending_check": {"id": "legacy-unverified-item", "question": "What is the degree?", "expected_answer": "2"}, "served_items": [], "context": []}
+  }
+}

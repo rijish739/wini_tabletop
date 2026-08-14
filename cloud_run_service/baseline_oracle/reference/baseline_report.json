@@ -1,0 +1,40 @@
+{
+  "canonical_commit": "772c0b6",
+  "capture_limitations": [
+    "canonical_runtime_missing_policy_logreg.npz",
+    "canonical_runtime_missing_signal_heads.npz",
+    "canonical_runtime_missing_local_chunk_index"
+  ],
+  "cases": 27,
+  "differences": 0,
+  "observation_fields": [
+    "assessment_lifecycle",
+    "case_id",
+    "compatibility",
+    "degradation_reasons",
+    "evidence_events",
+    "failure_signals",
+    "manifest",
+    "metrics",
+    "model_usage",
+    "realization_receipt",
+    "result",
+    "state_after",
+    "state_before",
+    "state_changes",
+    "stream_events",
+    "tags"
+  ],
+  "performance": {
+    "measurement_status": "unavailable_missing_runtime_artifacts",
+    "model_client_constructions": 0,
+    "non_model_p95_ms": 0.0,
+    "presentation_selection_p95_ms": 1.8,
+    "startup_ms": 0.0,
+    "steady_state_model_calls_max": 3,
+    "time_to_first_audio_p95_ms": 0.0,
+    "total_latency_p95_ms": 0.0
+  },
+  "reference_name": "baseline-split-canonical-2026-08-14",
+  "status": "pass"
+}

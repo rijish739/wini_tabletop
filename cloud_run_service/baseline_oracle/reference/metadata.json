@@ -1,0 +1,15 @@
+{
+  "reference_name": "baseline-split-canonical-2026-08-14",
+  "canonical_commit": "772c0b6",
+  "captured_at": "2026-08-14T00:00:00+05:30",
+  "capture_mode": "offline_contract_characterization",
+  "network_calls": 0,
+  "billed_model_calls": 0,
+  "normalization_rules": ["answer typography: curly quotes to ASCII quotes", "answer whitespace: collapse runs and trim"],
+  "normalization_forbidden_surfaces": ["numbers", "state", "state_changes", "evidence", "assessment", "manifest", "realization", "stream_order", "failure_signals", "degradation_reasons", "presentation_decisions"],
+  "capture_limitations": [
+    "canonical_runtime_missing_policy_logreg.npz",
+    "canonical_runtime_missing_signal_heads.npz",
+    "canonical_runtime_missing_local_chunk_index"
+  ]
+}

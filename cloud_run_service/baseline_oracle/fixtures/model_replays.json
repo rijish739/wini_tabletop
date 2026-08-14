@@ -1,0 +1,44 @@
+[
+  {
+    "case_id": "cold-learning-intro", "boundary": "perception", "call_index": 0,
+    "request_sha256": "5852a4fe349c8d061c03da7345b0df72ebdab17fb58e8da263b1087e9bd9c751",
+    "response": {"intent": "LEARNING", "primary_concept": "jemh104__quadratic_equation_definition", "concept_confidence": 0.97, "signals": ["learning_start"], "answer_attempt": false},
+    "finish_state": "STOP", "latency_ms": 421.0, "schema": "perception-v2", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "cold-learning-intro", "boundary": "generation", "call_index": 0,
+    "request_sha256": "01ca270659b503cb25e5ac98c7d548569a5cdb4b13be99baef76475ca0bf8180",
+    "response": "A quadratic equation has a highest power of 2. For example, x squared plus 3x plus 2 equals 0 is quadratic.",
+    "finish_state": "STOP", "latency_ms": 638.0, "schema": "text-v1", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "assessment-correct", "boundary": "grading", "call_index": 0,
+    "request_sha256": "3ba7b5acd0eb392b7420e1b6b4d38412ae5dc2d7f4842e6ffe0941b099e45145",
+    "response": {"outcome": "correct", "confidence": 0.99, "misconception_consistency": null},
+    "finish_state": "STOP", "latency_ms": 285.0, "schema": "grade-v1", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "visual-request", "boundary": "perception", "call_index": 0,
+    "request_sha256": "448392370d206f041cba81babcedd1a298d1f3b1431e4c65d019b7d92511fb9a",
+    "response": {"intent": "LEARNING", "primary_concept": "jemh104__quadratic_equation_definition", "concept_confidence": 0.94, "signals": ["request_representation"], "answer_attempt": false},
+    "finish_state": "STOP", "latency_ms": 398.0, "schema": "perception-v2", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "visual-request", "boundary": "generation", "call_index": 0,
+    "request_sha256": "8d411b9869601c9ec13d357c9f78a812e12351076f53322d97524a8706aa54af",
+    "response": "A parabola is a U-shaped curve.",
+    "finish_state": "STOP", "latency_ms": 602.0, "schema": "text-v1", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "visual-request", "boundary": "scene_author", "call_index": 0,
+    "request_sha256": "fcca6b88e989686e743a79a18e15681a3cc75afce36fc871a9bbeab6b95a3a09",
+    "response": {"title": "Parabola", "beats": [{"tool": "coordinate_plane", "curve": "y=x^2"}]},
+    "finish_state": "STOP", "latency_ms": 511.0, "schema": "scene-v1", "redactions": ["learner_identity"]
+  },
+  {
+    "case_id": "perception-timeout", "boundary": "perception", "call_index": 0,
+    "request_sha256": "a3f502fc9be88c71ee754bd44db500bab4e36afa52d138aaf8277e9cd595837b",
+    "response": null, "finish_state": "TIMEOUT", "error": "Gemini structured call exceeded the hard deadline",
+    "latency_ms": 8000.0, "schema": "perception-v2", "redactions": ["learner_identity", "project_id"]
+  }
+]

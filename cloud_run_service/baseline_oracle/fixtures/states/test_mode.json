@@ -1,0 +1,12 @@
+{
+  "name": "test_mode",
+  "kind": "mode",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.65, "curiosity": 0.5, "cognitive_load": 0.45, "engagement": 0.74},
+    "concept_states": {"jemh104__quadratic_formula": {"mastery": 0.7, "flags": [], "last_signals": []}},
+    "misconception_states": {}, "evidence_ledger": [],
+    "session": {"status": "active", "mode": "TEST", "current_concept": "jemh104__quadratic_formula", "test_state": {"phase": "active", "n": 3, "results": []}, "served_items": [], "bridges_served": [], "context": []}
+  }
+}

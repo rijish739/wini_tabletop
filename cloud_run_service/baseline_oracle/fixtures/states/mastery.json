@@ -1,0 +1,13 @@
+{
+  "name": "mastery",
+  "kind": "mastery",
+  "state": {
+    "schema_version": 2,
+    "learner_id": "fixture-learner-001",
+    "global": {"confidence": 0.82, "curiosity": 0.68, "cognitive_load": 0.25, "engagement": 0.78},
+    "concept_states": {"jemh104__quadratic_formula": {"mastery": 0.88, "flags": [], "last_signals": [], "last_practiced": "2026-01-15T10:00:00+00:00"}},
+    "misconception_states": {},
+    "evidence_ledger": [{"idempotency_key": "fixture-evidence-001", "concept_id": "jemh104__quadratic_formula", "outcome": "correct", "item_id": "fixture-item-formula", "recorded_at": "2026-01-15T10:00:00+00:00"}],
+    "session": {"status": "active", "mode": "EXPLAIN", "current_concept": "jemh104__quadratic_formula", "served_items": [], "bridges_served": [], "context": []}
+  }
+}
