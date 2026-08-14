@@ -1605,7 +1605,9 @@ is published only after one successful whole-state `TurnCommit`.
 
 The canonical compatibility façade now routes all Turns through the typed coordinator. During
 this checkpoint, learner and session policy and mutations remain inside the explicitly named
-legacy adapter; the adapter records the resulting state version in a `legacy_commit_*` receipt.
+legacy adapter; the adapter invokes the existing local/durable whole-state persistence boundary
+and records the resulting state version in a `legacy_commit_*` receipt. Commit failure restores
+the starting working state and terminates the Turn.
 This is a measurable migration bridge, not a second state writer or final Feature Module.
 Coordinator recovery fails closed for identity, state, safety-integrity, assessment-integrity,
 and commit failures; it cannot manufacture mastery or evidence outcomes.

@@ -25,6 +25,17 @@ def deep_freeze(value: Any) -> Any:
     return copy.deepcopy(value)
 
 
+def deep_thaw(value: Any) -> Any:
+    """Detach immutable lifecycle values into caller-compatible mutable containers."""
+    if isinstance(value, Mapping):
+        return {str(key): deep_thaw(item) for key, item in value.items()}
+    if isinstance(value, tuple):
+        return [deep_thaw(item) for item in value]
+    if isinstance(value, frozenset):
+        return {deep_thaw(item) for item in value}
+    return copy.deepcopy(value)
+
+
 @dataclass(frozen=True)
 class DeviceCapabilities:
     speech: bool = True

@@ -2595,6 +2595,11 @@ class TutorLoop:
 
             facade = TutorLoopCompatibilityFacade(
                 legacy_turn=self._legacy_turn,
+                commit_state=getattr(
+                    self,
+                    "_legacy_commit_state",
+                    getattr(self.state, "save", lambda: None),
+                ),
                 state=self.state,
             )
             self._typed_turn_facade = facade

@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
-import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Mapping, Protocol
 
-from .contracts import FailureSeverity, FailureSignal, TurnInput, TurnResult
+from .contracts import FailureSeverity, FailureSignal, TurnInput, TurnResult, deep_thaw
 from .legacy_adapter import LegacyAdapterFailure
 from .supervisor import RuntimeSupervisor
 
@@ -83,24 +82,15 @@ class TemporaryLegacyAdapter(Protocol):
     def execute(self, turn_input: TurnInput) -> LegacyExecution: ...
 
 
-def _thaw(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _thaw(item) for key, item in value.items()}
-    if isinstance(value, tuple):
-        return [_thaw(item) for item in value]
-    if isinstance(value, frozenset):
-        return {_thaw(item) for item in value}
-    return copy.deepcopy(value)
-
-
 @dataclass(frozen=True)
 class CoordinatedTurn:
     result: TurnResult
     phases: tuple[TurnPhase, ...]
     measurements: Mapping[str, int | float]
+    recovery_actions: tuple[RecoveryAction, ...] = ()
 
     def serialize_compatibility(self) -> dict[str, Any]:
-        return _thaw(self.result.compatibility)
+        return deep_thaw(self.result.compatibility)
 
 
 class TurnCoordinator:
@@ -131,8 +121,20 @@ class TurnCoordinator:
         if execution.completed_phases != LOGICAL_TURN_PHASES:
             raise RuntimeError("Turn adapter did not complete the logical phase sequence")
         self._supervisor.observe_turn(execution.result.failures)
+        recovery_actions = tuple(
+            self._recovery_policy.decide(failure)
+            for failure in execution.result.failures
+        )
+        if RecoveryAction.FAIL_CLOSED in recovery_actions:
+            failure = execution.result.failures[
+                recovery_actions.index(RecoveryAction.FAIL_CLOSED)
+            ]
+            raise RuntimeError(
+                f"Turn failed closed: {failure.capability}/{failure.cause}"
+            )
         return CoordinatedTurn(
             result=execution.result,
             phases=execution.completed_phases,
             measurements=dict(execution.measurements),
+            recovery_actions=recovery_actions,
         )

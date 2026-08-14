@@ -16,6 +16,7 @@ from .contracts import (
     TurnContext,
     TurnInput,
     TurnResult,
+    deep_thaw,
 )
 from .coordinator import (
     LOGICAL_TURN_PHASES,
@@ -45,6 +46,7 @@ __all__ = [
     "TurnContext",
     "TurnInput",
     "TurnResult",
+    "deep_thaw",
     "LOGICAL_TURN_PHASES",
     "CoordinatedTurn",
     "LegacyExecution",

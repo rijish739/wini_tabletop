@@ -1096,10 +1096,16 @@ exception type/message; repeated invalid Turns transition `DEGRADED` to `UNAVAIL
 streaming sinks remain untouched, so provisional ordering and terminal errors keep their prior
 behavior. `/health` now includes the runtime health state.
 
+Review correction: the first bridge receipt only hashed working state and incorrectly inferred
+presentation delivery from intended output. The adapter now invokes the configured local/remote
+commit boundary before issuing its receipt, restores working/local state on commit failure, and
+records downstream presentation as unobserved `PARTIAL` with no fabricated delivered modality.
+The 27 frozen compatibility projections now run through the façade/coordinator unchanged.
+
 The frozen corpus still has its pre-existing missing-artifact/incomplete-replay limitation; no
 model, prompt, dataset, retrieval, persistence technology, or network boundary changed.
 
-Measured verification: 41/41 full `unittest` discovery, 33/33 P0 evidence/streaming invariants,
-11/11 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
+Measured verification: 45/45 full `unittest` discovery, 33/33 P0 evidence/streaming invariants,
+15/15 focused runtime tests, and 16/16 frozen-oracle tests passed; the 27-case corpus validated
 and compile/diff checks passed. The frozen reference self-check remains zero-difference, while
 its already-recorded missing artifacts and incomplete replay prevent a complete verdict.

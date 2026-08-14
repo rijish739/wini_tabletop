@@ -30,9 +30,15 @@ original exception type and message remain terminal for existing callers.
 `LegacyTurnAdapter` is intentionally named as a temporary adapter, not a Feature Module.
 It still executes all unextracted feature policy, leaves existing provisional streaming
 mechanics untouched, and reports `legacy_adapter_turns` plus
-`legacy_adapter_unextracted_phases`. Its `legacy_commit_*` receipt records the state
-version produced by the legacy Turn; future extraction checkpoints replace this bridge
-with State and Persistence's authoritative transaction one phase at a time.
+`legacy_adapter_unextracted_phases`. It invokes the existing local/durable whole-state
+persistence boundary before producing a `legacy_commit_*` receipt; a failed commit restores
+the starting working state and remains terminal. Future extraction checkpoints replace this
+bridge with State and Persistence's authoritative transaction one phase at a time.
+
+The `TutorLoop` seam cannot observe downstream TTS or device delivery. Its temporary
+`RealizationReceipt` therefore records intended modalities with `PARTIAL` status and an empty
+delivered set instead of treating intended `answer`/`display` fields as proof of realization.
+The server's existing provisional stream and device behavior remain caller-visible as before.
 
 Run from `cloud_run_service`:
 

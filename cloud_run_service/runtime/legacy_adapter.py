@@ -15,6 +15,7 @@ from .contracts import (
     TurnCommit,
     TurnInput,
     TurnResult,
+    deep_thaw,
 )
 
 
@@ -23,16 +24,6 @@ class LegacyAdapterFailure(RuntimeError):
         super().__init__(signal.cause)
         self.original = original
         self.signal = signal
-
-
-def _thaw(value: Any) -> Any:
-    if isinstance(value, Mapping):
-        return {str(key): _thaw(item) for key, item in value.items()}
-    if isinstance(value, tuple):
-        return [_thaw(item) for item in value]
-    if isinstance(value, frozenset):
-        return {_thaw(item) for item in value}
-    return copy.deepcopy(value)
 
 
 def _state_version(state: Mapping[str, Any]) -> str:
@@ -47,16 +38,24 @@ class LegacyTurnAdapter:
 
     name = "temporary_legacy_turn_adapter"
 
-    def __init__(self, *, legacy_turn: Callable[..., Mapping[str, Any]], state: Any) -> None:
+    def __init__(
+        self,
+        *,
+        legacy_turn: Callable[..., Mapping[str, Any]],
+        commit_state: Callable[[], None],
+        state: Any,
+    ) -> None:
         self._legacy_turn = legacy_turn
+        self._commit_state = commit_state
         self._state = state
 
     def execute(self, turn_input: TurnInput):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
-        interaction = _thaw(turn_input.interaction)
-        trusted = _thaw(turn_input.trusted_observations)
+        interaction = deep_thaw(turn_input.interaction)
+        trusted = deep_thaw(turn_input.trusted_observations)
+        starting_state = copy.deepcopy(self._state.data)
         try:
             compatibility = dict(self._legacy_turn(
                 str(interaction["text"]),
@@ -69,6 +68,7 @@ class LegacyTurnAdapter:
                 _allow_shift=bool(interaction.get("allow_topic_shift", True)),
             ))
         except Exception as exc:
+            self._restore(starting_state)
             signal = FailureSignal(
                 capability="legacy_runtime",
                 phase="legacy_execution",
@@ -77,6 +77,24 @@ class LegacyTurnAdapter:
                 cause=f"{type(exc).__name__}: {exc}",
                 valid_outcome=False,
                 context={"adapter": self.name},
+            )
+            raise LegacyAdapterFailure(original=exc, signal=signal) from exc
+
+        try:
+            self._commit_state()
+        except Exception as exc:
+            rollback_persisted = self._restore(starting_state)
+            signal = FailureSignal(
+                capability="state_and_persistence",
+                phase="commit",
+                severity=FailureSeverity.FATAL,
+                recoverable=False,
+                cause=f"{type(exc).__name__}: {exc}",
+                valid_outcome=False,
+                context={
+                    "adapter": self.name,
+                    "rollback_persisted": rollback_persisted,
+                },
             )
             raise LegacyAdapterFailure(original=exc, signal=signal) from exc
 
@@ -103,10 +121,13 @@ class LegacyTurnAdapter:
             compatibility=compatibility,
             realization=RealizationReceipt(
                 turn_id=turn_input.turn_id,
-                status=RealizationStatus.COMPLETE,
+                status=RealizationStatus.PARTIAL,
                 intended=tuple(delivered),
-                delivered=tuple(delivered),
-                details={"source": self.name},
+                delivered=(),
+                details={
+                    "source": self.name,
+                    "observation": "presentation_occurs_after_tutor_loop_facade",
+                },
             ),
             commit=commit,
         )
@@ -118,3 +139,14 @@ class LegacyTurnAdapter:
                 "legacy_adapter_unextracted_phases": len(LOGICAL_TURN_PHASES),
             },
         )
+
+    def _restore(self, starting_state: Mapping[str, Any]) -> bool:
+        self._state.data = copy.deepcopy(dict(starting_state))
+        save = getattr(self._state, "save", None)
+        if not callable(save):
+            return False
+        try:
+            save()
+        except Exception:
+            return False
+        return True

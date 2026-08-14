@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from types import SimpleNamespace
 
 from runtime.contracts import (
@@ -10,6 +11,8 @@ from runtime.contracts import (
     TurnInput,
     TurnResult,
     DeviceCapabilities,
+    FailureSeverity,
+    FailureSignal,
     TurnBudgets,
 )
 from runtime.coordinator import (
@@ -79,6 +82,67 @@ class TurnCoordinatorTests(unittest.TestCase):
         self.assertEqual(coordinated.measurements["legacy_adapter_turns"], 1)
         self.assertEqual(supervisor.snapshot().health, RuntimeHealth.READY)
 
+    def test_maps_returned_failure_signals_into_current_turn_recovery(self) -> None:
+        class DegradedAdapter(_SuccessfulLegacyAdapter):
+            def execute(self, turn_input):
+                execution = super().execute(turn_input)
+                signal = FailureSignal(
+                    capability="presentation",
+                    phase="realization",
+                    severity=FailureSeverity.DEGRADED,
+                    recoverable=True,
+                    cause="display_unavailable",
+                    valid_outcome=True,
+                )
+                return replace(
+                    execution,
+                    result=replace(
+                        execution.result,
+                        failures=(signal,),
+                        degradation_reasons=("display_unavailable",),
+                    ),
+                )
+
+        supervisor = RuntimeSupervisor()
+        supervisor.ready()
+        coordinator = TurnCoordinator(adapter=DegradedAdapter(), supervisor=supervisor)
+        turn_input = TurnInput(
+            turn_id="turn-degraded",
+            learner_id="learner-1",
+            interaction={"text": "Show me"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+        )
+
+        coordinated = coordinator.run(turn_input)
+
+        self.assertEqual(coordinated.recovery_actions, (RecoveryAction.DEGRADE,))
+        self.assertEqual(supervisor.snapshot().health, RuntimeHealth.DEGRADED)
+
+    def test_legacy_adapter_does_not_invent_presentation_delivery(self) -> None:
+        state = SimpleNamespace(data={"learner_id": "learner-1", "session": {}})
+        adapter = LegacyTurnAdapter(
+            legacy_turn=lambda *args, **kwargs: {
+                "answer": "Look here.",
+                "display": [{"kind": "figure"}],
+            },
+            commit_state=lambda: None,
+            state=state,
+        )
+        turn_input = TurnInput(
+            turn_id="turn-presentation",
+            learner_id="learner-1",
+            interaction={"text": "Show me"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+        )
+
+        execution = adapter.execute(turn_input)
+
+        self.assertEqual(execution.result.realization.status, RealizationStatus.PARTIAL)
+        self.assertEqual(execution.result.realization.delivered, ())
+        self.assertEqual(execution.result.realization.intended, ("speech", "display"))
+
     def test_unclassified_legacy_failure_is_observable_and_preserves_terminal_error(self) -> None:
         emitted = []
 
@@ -90,7 +154,11 @@ class TurnCoordinatorTests(unittest.TestCase):
         supervisor = RuntimeSupervisor(unavailable_after=2)
         supervisor.ready()
         coordinator = TurnCoordinator(
-            adapter=LegacyTurnAdapter(legacy_turn=legacy_turn, state=state),
+            adapter=LegacyTurnAdapter(
+                legacy_turn=legacy_turn,
+                commit_state=lambda: None,
+                state=state,
+            ),
             supervisor=supervisor,
         )
         turn_input = TurnInput(
@@ -117,6 +185,45 @@ class TurnCoordinatorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             coordinator.run(turn_input)
         self.assertEqual(supervisor.snapshot().health, RuntimeHealth.UNAVAILABLE)
+
+    def test_commit_failure_restores_working_state_and_is_terminal(self) -> None:
+        state = SimpleNamespace(
+            data={"learner_id": "learner-1", "session": {"mode": "EXPLAIN"}}
+        )
+
+        def legacy_turn(*args, **kwargs):
+            state.data["session"]["mode"] = "TEST"
+            return {"answer": "Question one"}
+
+        def fail_commit():
+            raise OSError("durable store unavailable")
+
+        supervisor = RuntimeSupervisor()
+        supervisor.ready()
+        coordinator = TurnCoordinator(
+            adapter=LegacyTurnAdapter(
+                legacy_turn=legacy_turn,
+                commit_state=fail_commit,
+                state=state,
+            ),
+            supervisor=supervisor,
+        )
+        turn_input = TurnInput(
+            turn_id="turn-commit-failed",
+            learner_id="learner-1",
+            interaction={"text": "Test me"},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+        )
+
+        with self.assertRaisesRegex(OSError, "durable store unavailable"):
+            coordinator.run(turn_input)
+
+        self.assertEqual(state.data["session"]["mode"], "EXPLAIN")
+        self.assertEqual(
+            supervisor.snapshot().last_failures[0].capability,
+            "state_and_persistence",
+        )
 
 
 if __name__ == "__main__":

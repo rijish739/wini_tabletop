@@ -14,10 +14,20 @@ from .supervisor import RuntimeHealthSnapshot, RuntimeSupervisor
 class TutorLoopCompatibilityFacade:
     """Construct typed Turn Input and serialize only the committed compatibility result."""
 
-    def __init__(self, *, legacy_turn: Callable[..., Mapping[str, Any]], state: Any) -> None:
+    def __init__(
+        self,
+        *,
+        legacy_turn: Callable[..., Mapping[str, Any]],
+        commit_state: Callable[[], None],
+        state: Any,
+    ) -> None:
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
-            adapter=LegacyTurnAdapter(legacy_turn=legacy_turn, state=state),
+            adapter=LegacyTurnAdapter(
+                legacy_turn=legacy_turn,
+                commit_state=commit_state,
+                state=state,
+            ),
             supervisor=self._supervisor,
         )
         self._state = state

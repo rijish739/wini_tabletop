@@ -253,6 +253,11 @@ class Brain:
             # candidate pool again. Without this they persist in learner_state.json
             # across every run and grow without bound — an earlier bug left 593
             # chunks permanently blacklisted (audit A-7).
+            def _commit_legacy_turn_state() -> None:
+                self.tutor.state.save()
+                self._persist_state(raise_on_failure=True)
+
+            self.tutor._legacy_commit_state = _commit_legacy_turn_state
             try:
                 cleared = self.tutor.state.begin_session()
                 self.tutor.state.save()
@@ -436,11 +441,6 @@ class Brain:
             # (_drive_test). Reading it before the turn echoed a STALE mode and
             # left the touch UI one turn behind the brain (test_results.md Bug 3).
             resolved_mode = session.get("mode", "EXPLAIN")
-        # Part 15 Phase E: the turn is decided and the lock is released — persist the
-        # learner's durable state at this turn boundary (never mid-turn). No-op unless
-        # WINI_STATE_BACKEND=firestore. Runs while the answer's audio is still
-        # streaming, so it is off the time-to-first-audio path.
-        self._persist_state()
         answer = (result.get("answer") or "").strip()
         # Slim writeback — just the graded outcome the UI needs for its correct/
         # almost feedback cue (the full writeback carries state internals).
@@ -531,17 +531,19 @@ class Brain:
             out["audio_rate"] = self.tts.rate
         return out
 
-    def _persist_state(self) -> None:
+    def _persist_state(self, *, raise_on_failure: bool = False) -> None:
         """Write the working learner state to the durable backend (Part 15 Phase E).
-        Called at TURN BOUNDARIES only — never mid-turn. Best-effort: a store failure
-        must never fail a turn (the local JSON save already ran; the next boundary
-        retries). No-op unless WINI_STATE_BACKEND=firestore."""
+        Called at TURN BOUNDARIES only — never mid-turn. Startup calls are best-effort;
+        a coordinator commit call sets ``raise_on_failure`` and fails the Turn closed.
+        No-op unless WINI_STATE_BACKEND=firestore."""
         store = getattr(self, "_state_store", None)
         if store is None:
             return
         try:
             store.save(self.tutor.state.data)
         except Exception as e:  # noqa: BLE001
+            if raise_on_failure:
+                raise
             print(f"[server] durable state write failed (retried next turn): {e}")
 
     def _maybe_speculate_grade(self, transcript: str, stt_confidence: float = 1.0,
@@ -772,17 +774,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
+            from runtime.supervisor import RuntimeHealth
+
             if not BRAIN.ready:
-                runtime_health = "UNAVAILABLE" if BRAIN.error else "STARTING"
+                runtime_health = (
+                    RuntimeHealth.UNAVAILABLE if BRAIN.error else RuntimeHealth.STARTING
+                )
             elif BRAIN.tutor is not None:
-                runtime_health = BRAIN.tutor.runtime_health.health.value
+                runtime_health = BRAIN.tutor.runtime_health.health
             elif BRAIN.error:
-                runtime_health = "DEGRADED"
+                runtime_health = RuntimeHealth.DEGRADED
             else:
-                runtime_health = "READY"
+                runtime_health = RuntimeHealth.READY
             return self._json(200, {"ok": True, "ready": BRAIN.ready,
                                     "error": BRAIN.error,
-                                    "runtime_health": runtime_health,
+                                    "runtime_health": runtime_health.value,
                                     "gen_backend": getattr(BRAIN, "gen_backend", None)})
 
         # ── Debug routes (developer-only, no auth gate — same as /health) ──────
