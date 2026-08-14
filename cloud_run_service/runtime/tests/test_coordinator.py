@@ -40,7 +40,10 @@ from runtime.supervisor import RuntimeHealth, RuntimeSupervisor
 class _SuccessfulLegacyAdapter:
     name = "temporary_legacy_turn_adapter"
 
-    def execute(self, turn_input: TurnInput) -> LegacyExecution:
+    def interaction_request(self, turn_input: TurnInput) -> InteractionControlRequest:
+        return InteractionControlRequest(turn_input=turn_input, session={})
+
+    def execute(self, turn_input: TurnInput, interaction=None) -> LegacyExecution:
         compatibility = {"answer": "One half.", "display": [{"kind": "text"}]}
         return LegacyExecution(
             result=TurnResult(
@@ -64,6 +67,15 @@ class _SuccessfulLegacyAdapter:
             phase_trace=LOGICAL_TURN_PHASES,
             measurements={"legacy_adapter_turns": 1},
         )
+
+
+class _LearningInteractionControl:
+    def control(self, request: InteractionControlRequest):
+        return ModuleOutcome(value=InteractionDecision(
+            disposition=InteractionDisposition.CONTINUE_LEARNING,
+            text=str(request.turn_input.interaction.get("text") or "continue"),
+            analysis={},
+        ))
 
 
 class TurnCoordinatorTests(unittest.TestCase):
@@ -133,7 +145,9 @@ class TurnCoordinatorTests(unittest.TestCase):
         supervisor = RuntimeSupervisor()
         supervisor.ready()
         coordinator = TurnCoordinator(
-            adapter=_SuccessfulLegacyAdapter(), supervisor=supervisor
+            adapter=_SuccessfulLegacyAdapter(),
+            interaction_control=_LearningInteractionControl(),
+            supervisor=supervisor,
         )
         turn_input = TurnInput(
             turn_id="turn-1",
@@ -156,8 +170,8 @@ class TurnCoordinatorTests(unittest.TestCase):
 
     def test_maps_returned_failure_signals_into_current_turn_recovery(self) -> None:
         class DegradedAdapter(_SuccessfulLegacyAdapter):
-            def execute(self, turn_input):
-                execution = super().execute(turn_input)
+            def execute(self, turn_input, interaction=None):
+                execution = super().execute(turn_input, interaction=interaction)
                 signal = FailureSignal(
                     capability="presentation",
                     phase="realization",
@@ -177,7 +191,11 @@ class TurnCoordinatorTests(unittest.TestCase):
 
         supervisor = RuntimeSupervisor()
         supervisor.ready()
-        coordinator = TurnCoordinator(adapter=DegradedAdapter(), supervisor=supervisor)
+        coordinator = TurnCoordinator(
+            adapter=DegradedAdapter(),
+            interaction_control=_LearningInteractionControl(),
+            supervisor=supervisor,
+        )
         turn_input = TurnInput(
             turn_id="turn-degraded",
             learner_id="learner-1",
@@ -232,6 +250,7 @@ class TurnCoordinatorTests(unittest.TestCase):
                 commit_state=lambda: None,
                 state=state,
             ),
+            interaction_control=_LearningInteractionControl(),
             supervisor=supervisor,
         )
         turn_input = TurnInput(
@@ -279,6 +298,7 @@ class TurnCoordinatorTests(unittest.TestCase):
                 commit_state=fail_commit,
                 state=state,
             ),
+            interaction_control=_LearningInteractionControl(),
             supervisor=supervisor,
         )
         turn_input = TurnInput(

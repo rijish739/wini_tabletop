@@ -45,7 +45,7 @@ class InteractionDecision:
     analysis: Mapping[str, Any] | None = None
     perception_uncertain: bool = False
     answer_attempt: bool = False
-    remember_exchange: bool = True
+    continuity: "InteractionContinuity | None" = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "disposition", InteractionDisposition(self.disposition))
@@ -63,6 +63,48 @@ class InteractionDecision:
             "analysis",
             None if self.analysis is None else deep_freeze(self.analysis),
         )
+
+    def response_state_changes(self, answer: str) -> tuple[StateChange, ...]:
+        """Let Interaction Control author post-learning continuity changes."""
+        if self.continuity is None:
+            return ()
+        return self.continuity.response_state_changes(answer)
+
+
+@dataclass(frozen=True)
+class InteractionContinuity:
+    turn_id: str
+    learner_text: str
+    prior_context: tuple[Mapping[str, Any], ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(
+            self,
+            "prior_context",
+            tuple(deep_freeze(item) for item in self.prior_context),
+        )
+
+    def response_state_changes(self, answer: str) -> tuple[StateChange, ...]:
+        context = [deep_thaw(item) for item in self.prior_context]
+        context.append({"role": "student", "text": self.learner_text[:250]})
+        if answer:
+            context.append({"role": "wini", "text": answer[:250]})
+        return (StateChange(
+            change_id=f"{self.turn_id}:interaction:session:context:response",
+            owner="interaction_control",
+            scope=StateScope.SESSION,
+            path=("context",),
+            operation=StateOperation.SET,
+            value=context[-8:],
+        ),)
+
+
+@dataclass(frozen=True)
+class CapabilityTransition:
+    """State changes authored by the capability that owns their semantics."""
+
+    result: Any = None
+    state_changes: tuple[StateChange, ...] = ()
 
 
 class InteractionControlInterface(Protocol):
@@ -93,10 +135,11 @@ class InteractionControlDependencies:
     concept_relates_to_topic: Callable[[str, str], bool]
     mode_cue: Callable[[str], str | None]
     current_mode: Callable[[dict[str, Any]], str]
-    set_mode: Callable[[dict[str, Any], str], None]
-    consume_mode_offer: Callable[[dict[str, Any], str], Any]
-    consume_test_resume: Callable[[dict[str, Any], str], Any]
-    check_frozen_test: Callable[[dict[str, Any]], Mapping[str, Any] | None]
+    set_mode: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
+    consume_mode_offer: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
+    consume_test_resume: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
+    check_frozen_test: Callable[[Mapping[str, Any], str], CapabilityTransition]
+    clear_pending_assessment: Callable[[Mapping[str, Any], str], CapabilityTransition]
     log_event: Callable[[Mapping[str, Any]], None]
     notify_safety: Callable[[Mapping[str, Any]], None]
     now: Callable[[], str]
@@ -206,7 +249,9 @@ class InteractionControl:
                 compatibility=compatibility,
             ))
 
-        pending = self._consume_pending_shift(text, session)
+        pending = self._consume_pending_shift(
+            text, session, request.turn_input.turn_id
+        )
         if pending is not None:
             text, completed = pending
             if completed is not None:
@@ -223,7 +268,9 @@ class InteractionControl:
                     ),
                 )
 
-        pending_mode = self._consume_pending_mode_control(text, session)
+        pending_mode = self._consume_pending_mode_control(
+            text, session, request.turn_input.turn_id
+        )
         if pending_mode is not None:
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -248,7 +295,9 @@ class InteractionControl:
             and str(route.primary) == "SESSION_CONTROL"
             and not bool(getattr(route, "safety_alert", False))
         ):
-            stopped = self._maybe_stop_mode(text, session)
+            stopped = self._maybe_stop_mode(
+                text, session, request.turn_input.turn_id
+            )
             if stopped is not None:
                 return ModuleOutcome(
                     value=InteractionDecision(
@@ -262,7 +311,9 @@ class InteractionControl:
                         request.turn_input, starting_session, session
                     ),
                 )
-        declined = self._maybe_decline_topic(text, session)
+        declined = self._maybe_decline_topic(
+            text, session, request.turn_input.turn_id
+        )
         if declined is not None:
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -291,7 +342,7 @@ class InteractionControl:
                 ),
                 failures=failures,
             )
-        resumed = self._resume_session(session)
+        resumed = self._resume_session(session, request.turn_input.turn_id)
         if resumed is not None:
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -315,7 +366,9 @@ class InteractionControl:
         )
         allow_shift = bool(interaction.get("allow_topic_shift", True))
         if allow_shift:
-            shifted = self._maybe_topic_shift(text, analysis, session)
+            shifted = self._maybe_topic_shift(
+                text, analysis, session, request.turn_input.turn_id
+            )
             if shifted is not None:
                 text, analysis, completed = shifted
                 if completed is not None:
@@ -356,6 +409,11 @@ class InteractionControl:
                 analysis=analysis,
                 perception_uncertain=perception_uncertain,
                 answer_attempt=bool(getattr(route, "answer_attempt", False)),
+                continuity=InteractionContinuity(
+                    turn_id=request.turn_input.turn_id,
+                    learner_text=text,
+                    prior_context=tuple(session.get("context") or ()),
+                ),
             ),
             state_changes=self._state_changes(
                 request.turn_input, starting_session, session
@@ -363,7 +421,7 @@ class InteractionControl:
         )
 
     def _resume_session(
-        self, session: dict[str, Any]
+        self, session: dict[str, Any], turn_id: str
     ) -> dict[str, str] | None:
         if session.get("status") not in {"paused", "ended"} and not session.get(
             "break_requested"
@@ -372,7 +430,9 @@ class InteractionControl:
         session["status"] = "active"
         session.pop("break_requested", None)
         session.pop("leave_requests", None)
-        resume = self._dependencies.check_frozen_test(session)
+        resume = self._apply_capability_transition(
+            session, self._dependencies.check_frozen_test(session, turn_id)
+        )
         if not resume:
             return None
         return {
@@ -389,10 +449,13 @@ class InteractionControl:
         }
 
     def _consume_pending_mode_control(
-        self, text: str, session: dict[str, Any]
+        self, text: str, session: dict[str, Any], turn_id: str
     ) -> dict[str, str] | None:
         if session.get("pending_mode_offer"):
-            decision = self._dependencies.consume_mode_offer(session, text)
+            decision = self._apply_capability_transition(
+                session,
+                self._dependencies.consume_mode_offer(session, text, turn_id),
+            )
             if decision is not None and decision[0] == "declined":
                 return {
                     "reply": "No problem — let's keep learning.",
@@ -400,7 +463,10 @@ class InteractionControl:
                     "reason": "practice offer declined; staying in EXPLAIN",
                 }
         if session.get("pending_test_resume"):
-            decision = self._dependencies.consume_test_resume(session, text)
+            decision = self._apply_capability_transition(
+                session,
+                self._dependencies.consume_test_resume(session, text, turn_id),
+            )
             if decision is not None and decision[0] == "resume":
                 test_state = session.get("test_state") or {}
                 graded = len(test_state.get("results", []))
@@ -427,7 +493,7 @@ class InteractionControl:
         return None
 
     def _maybe_decline_topic(
-        self, text: str, session: dict[str, Any]
+        self, text: str, session: dict[str, Any], turn_id: str
     ) -> dict[str, str] | None:
         if not self._dependencies.wants_different_topic(text):
             return None
@@ -465,8 +531,10 @@ class InteractionControl:
             f"Sure — we don't have to stay on {self._friendly_concept(session)}. "
             f"We could do {listed}. Which one would you like?"
         )
-        session.pop("pending_check", None)
-        session.pop("pending_hope", None)
+        self._apply_capability_transition(
+            session,
+            self._dependencies.clear_pending_assessment(session, turn_id),
+        )
         session["steer_streak"] = 0
         return {
             "reply": reply,
@@ -479,6 +547,7 @@ class InteractionControl:
         text: str,
         analysis: Mapping[str, Any],
         session: dict[str, Any],
+        turn_id: str,
     ) -> tuple[str, Mapping[str, Any], dict[str, str] | None] | None:
         test_state = session.get("test_state")
         if test_state is not None and test_state.get("phase") != "done":
@@ -511,8 +580,10 @@ class InteractionControl:
             return None
         if span and similarity >= 0.45:
             session["current_concept"] = concept_id
-            session.pop("pending_check", None)
-            session.pop("pending_hope", None)
+            self._apply_capability_transition(
+                session,
+                self._dependencies.clear_pending_assessment(session, turn_id),
+            )
             self._dependencies.log_event({
                 "ts": self._dependencies.now(),
                 "loop": "tutor_loop_v4",
@@ -614,16 +685,21 @@ class InteractionControl:
         }
 
     def _maybe_stop_mode(
-        self, text: str, session: dict[str, Any]
+        self, text: str, session: dict[str, Any], turn_id: str
     ) -> dict[str, str] | None:
         if self._dependencies.mode_cue(text) != "STOP":
             return None
         previous = self._dependencies.current_mode(session)
         if previous == "EXPLAIN" and not session.get("test_state"):
             return None
-        self._dependencies.set_mode(session, "EXPLAIN")
-        session.pop("pending_check", None)
-        session.pop("pending_hope", None)
+        self._apply_capability_transition(
+            session,
+            self._dependencies.set_mode(session, "EXPLAIN", turn_id),
+        )
+        self._apply_capability_transition(
+            session,
+            self._dependencies.clear_pending_assessment(session, turn_id),
+        )
         return {
             "reply": (
                 "Okay, we'll stop the questions for now. Let's keep learning — "
@@ -634,7 +710,7 @@ class InteractionControl:
         }
 
     def _consume_pending_shift(
-        self, text: str, session: dict[str, Any]
+        self, text: str, session: dict[str, Any], turn_id: str
     ) -> tuple[str, dict[str, str] | None] | None:
         if not session.get("pending_shift"):
             return None
@@ -645,8 +721,10 @@ class InteractionControl:
         words = normalized.split()
         if re.match(r"^(yes|yeah|ya|yep|ok(ay)?|sure|haan|ha)\b", normalized) and len(words) <= 3:
             session["current_concept"] = target["concept_id"]
-            session.pop("pending_check", None)
-            session.pop("pending_hope", None)
+            self._apply_capability_transition(
+                session,
+                self._dependencies.clear_pending_assessment(session, turn_id),
+            )
             self._dependencies.log_event({
                 "ts": self._dependencies.now(),
                 "loop": "tutor_loop_v4",
@@ -929,6 +1007,26 @@ class InteractionControl:
             else "our maths"
         )
 
+    @staticmethod
+    def _apply_capability_transition(
+        session: dict[str, Any], transition: CapabilityTransition
+    ) -> Any:
+        authored = session.setdefault("__capability_state_changes__", [])
+        for change in transition.state_changes:
+            if change.scope is not StateScope.SESSION or len(change.path) != 1:
+                raise ValueError("capability transition must target one session field")
+            if change.owner == "interaction_control":
+                raise ValueError("adjacent capability cannot author Interaction Control state")
+            key = change.path[0]
+            if change.operation is StateOperation.SET:
+                session[key] = deep_thaw(change.value)
+            elif change.operation is StateOperation.DELETE:
+                session.pop(key, None)
+            else:
+                raise ValueError("capability transition must SET or DELETE session state")
+            authored.append(change)
+        return transition.result
+
     def _state_changes(
         self,
         turn_input: TurnInput,
@@ -936,6 +1034,8 @@ class InteractionControl:
         session: dict[str, Any],
     ) -> tuple[StateChange, ...]:
         learner_alerts = session.pop("__learner_safety_alerts__", [])
+        capability_changes = tuple(session.pop("__capability_state_changes__", []))
+        capability_paths = {change.path for change in capability_changes}
         changes: list[StateChange] = []
         for index, alert in enumerate(learner_alerts):
             changes.append(StateChange(
@@ -949,6 +1049,8 @@ class InteractionControl:
             ))
         keys = set(starting_session) | set(session)
         for key in sorted(keys):
+            if (key,) in capability_paths:
+                continue
             before = starting_session.get(key, _MISSING)
             after = session.get(key, _MISSING)
             if before == after:
@@ -962,13 +1064,14 @@ class InteractionControl:
                 operation=operation,
                 value=None if after is _MISSING else after,
             ))
+        changes.extend(capability_changes)
         return tuple(changes)
 
     @staticmethod
     def _owner_for_session_path(key: str) -> str:
-        if key in {"pending_check", "pending_hope"}:
-            return "assessment_evidence"
         if key in {
+            "pending_check",
+            "pending_hope",
             "mode",
             "test_state",
             "practice_plan",
@@ -976,7 +1079,7 @@ class InteractionControl:
             "pending_mode_offer",
             "pending_test_resume",
         }:
-            return "pedagogy"
+            raise ValueError(f"{key} must be authored by its owning capability port")
         return "interaction_control"
 
 

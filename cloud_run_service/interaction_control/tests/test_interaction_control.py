@@ -5,6 +5,7 @@ import unittest
 from dataclasses import dataclass
 
 from interaction_control import (
+    CapabilityTransition,
     InteractionControl,
     InteractionControlDependencies,
     InteractionControlRequest,
@@ -13,6 +14,7 @@ from interaction_control import (
 from runtime.contracts import (
     DeviceCapabilities,
     FailureSeverity,
+    StateChange,
     StateOperation,
     StateScope,
     TurnBudgets,
@@ -75,11 +77,48 @@ def _dependencies(**overrides) -> InteractionControlDependencies:
         "consume_mode_offer": lambda session, text: None,
         "consume_test_resume": lambda session, text: None,
         "check_frozen_test": lambda session: None,
+        "clear_pending_assessment": lambda session: (
+            session.pop("pending_check", None),
+            session.pop("pending_hope", None),
+        ),
         "log_event": lambda event: None,
         "notify_safety": lambda record: None,
         "now": lambda: "2026-08-14T12:00:00",
     }
     values.update(overrides)
+    def capability_port(owner, action, callback):
+        def invoke(session, *args):
+            turn_id = args[-1]
+            working = copy.deepcopy(dict(session))
+            result = callback(working, *args[:-1])
+            changes = []
+            missing = object()
+            for key in sorted(set(session) | set(working)):
+                before = session.get(key, missing)
+                after = working.get(key, missing)
+                if before == after:
+                    continue
+                changes.append(StateChange(
+                    change_id=f"{turn_id}:{owner}:{action}:{key}",
+                    owner=owner,
+                    scope=StateScope.SESSION,
+                    path=(key,),
+                    operation=(
+                        StateOperation.DELETE if after is missing else StateOperation.SET
+                    ),
+                    value=None if after is missing else after,
+                ))
+            return CapabilityTransition(result=result, state_changes=tuple(changes))
+        return invoke
+
+    for name, owner in {
+        "set_mode": "pedagogy",
+        "consume_mode_offer": "pedagogy",
+        "consume_test_resume": "pedagogy",
+        "check_frozen_test": "pedagogy",
+        "clear_pending_assessment": "assessment_evidence",
+    }.items():
+        values[name] = capability_port(owner, name, values[name])
     return InteractionControlDependencies(**values)
 
 

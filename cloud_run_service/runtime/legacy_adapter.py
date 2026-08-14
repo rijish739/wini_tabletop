@@ -12,9 +12,6 @@ from .contracts import (
     FailureSignal,
     RealizationReceipt,
     RealizationStatus,
-    StateChange,
-    StateOperation,
-    StateScope,
     TurnCommit,
     TurnInput,
     TurnResult,
@@ -104,26 +101,12 @@ class LegacyTurnAdapter:
                     kwargs["_perception_uncertain"] = decision.perception_uncertain
                     kwargs["_interaction_answer_attempt"] = decision.answer_attempt
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
-                if decision is not None and decision.remember_exchange:
-                    context = list(
-                        self._state.data.setdefault("session", {}).get("context") or []
-                    )
-                    context.append({"role": "student", "text": controlled_text[:250]})
-                    answer = str(compatibility.get("answer") or "")
-                    if answer:
-                        context.append({"role": "wini", "text": answer[:250]})
-                    continuity_change = StateChange(
-                        change_id=(
-                            f"{turn_input.turn_id}:interaction:session:context:response"
-                        ),
-                        owner="interaction_control",
-                        scope=StateScope.SESSION,
-                        path=("context",),
-                        operation=StateOperation.SET,
-                        value=context[-8:],
+                if decision is not None:
+                    continuity_changes = decision.response_state_changes(
+                        str(compatibility.get("answer") or "")
                     )
                     state_changes += self._apply_state_changes(
-                        turn_input.learner_id, (continuity_change,)
+                        turn_input.learner_id, continuity_changes
                     )
         except Exception as exc:
             self._restore(starting_state)

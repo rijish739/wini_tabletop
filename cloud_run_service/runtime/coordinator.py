@@ -98,7 +98,7 @@ class TemporaryLegacyAdapter(Protocol):
         self, turn_input: TurnInput
     ) -> "InteractionControlRequest": ...
 
-    def execute(self, turn_input: TurnInput, interaction=None) -> LegacyExecution: ...
+    def execute(self, turn_input: TurnInput, interaction) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -120,7 +120,7 @@ class TurnCoordinator:
         *,
         adapter: TemporaryLegacyAdapter,
         supervisor: RuntimeSupervisor,
-        interaction_control: "InteractionControlInterface | None" = None,
+        interaction_control: "InteractionControlInterface",
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
@@ -129,30 +129,24 @@ class TurnCoordinator:
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
-        interaction = None
-        if self._interaction_control is not None:
-            interaction = self._interaction_control.control(
-                self._adapter.interaction_request(turn_input)
+        interaction = self._interaction_control.control(
+            self._adapter.interaction_request(turn_input)
+        )
+        if interaction.failures:
+            actions = tuple(
+                self._recovery_policy.decide(failure)
+                for failure in interaction.failures
             )
-            if interaction.failures:
-                actions = tuple(
-                    self._recovery_policy.decide(failure)
-                    for failure in interaction.failures
+            if not interaction.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(interaction.failures)
+                failure = interaction.failures[0]
+                if failure.capability == RecoveryCapability.IDENTITY.value:
+                    raise PermissionError(failure.cause)
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
                 )
-                if not interaction.valid or RecoveryAction.FAIL_CLOSED in actions:
-                    self._supervisor.observe_turn(interaction.failures)
-                    failure = interaction.failures[0]
-                    if failure.capability == RecoveryCapability.IDENTITY.value:
-                        raise PermissionError(failure.cause)
-                    raise RuntimeError(
-                        f"Turn failed closed: {failure.capability}/{failure.cause}"
-                    )
         try:
-            execution = (
-                self._adapter.execute(turn_input)
-                if interaction is None
-                else self._adapter.execute(turn_input, interaction=interaction)
-            )
+            execution = self._adapter.execute(turn_input, interaction=interaction)
         except LegacyAdapterFailure as failure:
             self._supervisor.observe_turn((failure.signal,))
             action = self._recovery_policy.decide(failure.signal)

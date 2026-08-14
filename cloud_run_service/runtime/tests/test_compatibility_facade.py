@@ -4,7 +4,11 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
-from interaction_control import InteractionDecision, InteractionDisposition
+from interaction_control import (
+    InteractionContinuity,
+    InteractionDecision,
+    InteractionDisposition,
+)
 from runtime.contracts import ModuleOutcome
 from runtime.compatibility import TutorLoopCompatibilityFacade
 from runtime.supervisor import RuntimeHealth
@@ -34,6 +38,11 @@ class CompatibilityFacadeTests(unittest.TestCase):
                         "signals": [],
                         "state_deltas": {},
                     },
+                    continuity=InteractionContinuity(
+                        turn_id=request.turn_input.turn_id,
+                        learner_text=text,
+                        prior_context=(),
+                    ),
                 ))
 
         learning_calls = []
@@ -90,10 +99,21 @@ class CompatibilityFacadeTests(unittest.TestCase):
             return expected
 
         commits = []
+        class LearningControl:
+            def control(self, request):
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text=request.turn_input.interaction["text"],
+                    analysis=request.turn_input.trusted_observations[
+                        "precomputed_analysis"
+                    ],
+                ))
+
         facade = TutorLoopCompatibilityFacade(
             legacy_turn=legacy_turn,
             commit_state=lambda: commits.append("committed"),
             state=state,
+            interaction_control=LearningControl(),
         )
 
         actual = facade.turn(

@@ -26,6 +26,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import json
 import os
@@ -77,6 +78,7 @@ ROOT = Path(__file__).resolve().parent
 STORE = ROOT / "rag_store"
 CHUNK_INDEX_DIR = ROOT / "models" / "local_chunk_index"
 QWEN = "http://127.0.0.1:8080"
+_INTERACTION_MISSING = object()
 
 from dotenv import load_dotenv
 load_dotenv(Path(__file__).parent / ".env")
@@ -2172,7 +2174,12 @@ class TutorLoop:
             is_bare_topic,
             wants_different_topic,
         )
-        from interaction_control import InteractionControl, InteractionControlDependencies
+        from interaction_control import (
+            CapabilityTransition,
+            InteractionControl,
+            InteractionControlDependencies,
+        )
+        from runtime.contracts import StateChange, StateOperation, StateScope
         from runtime_flags import STT_WRITE_CONFIDENCE_MIN
         from session_modes import mode_cues
 
@@ -2191,6 +2198,61 @@ class TutorLoop:
         def generate_persona(prompt):
             reply = qwen_chat(prompt, temperature=0.5, max_tokens=90, small=True)
             return _truncate_to_spoken_budget(reply, 45, 2)
+
+        def capability_transition(owner, action, turn_id, session, mutate):
+            working = copy.deepcopy(dict(session))
+            result = mutate(working)
+            changes = []
+            for key in sorted(set(session) | set(working)):
+                before = session.get(key, _INTERACTION_MISSING)
+                after = working.get(key, _INTERACTION_MISSING)
+                if before == after:
+                    continue
+                changes.append(StateChange(
+                    change_id=f"{turn_id}:{owner}:{action}:{key}",
+                    owner=owner,
+                    scope=StateScope.SESSION,
+                    path=(key,),
+                    operation=(
+                        StateOperation.DELETE
+                        if after is _INTERACTION_MISSING
+                        else StateOperation.SET
+                    ),
+                    value=None if after is _INTERACTION_MISSING else after,
+                ))
+            return CapabilityTransition(result=result, state_changes=tuple(changes))
+
+        def set_mode(session, mode, turn_id):
+            return capability_transition(
+                "pedagogy", "set_mode", turn_id, session,
+                lambda working: self.modes.set_mode(working, mode),
+            )
+
+        def consume_mode_offer(session, text, turn_id):
+            return capability_transition(
+                "pedagogy", "consume_mode_offer", turn_id, session,
+                lambda working: self.modes.consume_offer(working, text),
+            )
+
+        def consume_test_resume(session, text, turn_id):
+            return capability_transition(
+                "pedagogy", "consume_test_resume", turn_id, session,
+                lambda working: self.modes.consume_test_resume(working, text),
+            )
+
+        def check_frozen_test(session, turn_id):
+            return capability_transition(
+                "pedagogy", "check_frozen_test", turn_id, session,
+                self.modes.check_frozen_test,
+            )
+
+        def clear_pending_assessment(session, turn_id):
+            def clear(working):
+                working.pop("pending_check", None)
+                working.pop("pending_hope", None)
+            return capability_transition(
+                "assessment_evidence", "clear_pending", turn_id, session, clear
+            )
 
         candidates = getattr(self.analyzer.classifier, "topic_candidates", None)
         return InteractionControl(InteractionControlDependencies(
@@ -2222,10 +2284,11 @@ class TutorLoop:
             concept_relates_to_topic=self._concept_relates_to_topic,
             mode_cue=mode_cues,
             current_mode=self.modes.current_mode,
-            set_mode=self.modes.set_mode,
-            consume_mode_offer=self.modes.consume_offer,
-            consume_test_resume=self.modes.consume_test_resume,
-            check_frozen_test=self.modes.check_frozen_test,
+            set_mode=set_mode,
+            consume_mode_offer=consume_mode_offer,
+            consume_test_resume=consume_test_resume,
+            check_frozen_test=check_frozen_test,
+            clear_pending_assessment=clear_pending_assessment,
             log_event=log_event,
             notify_safety=notify_safety,
             now=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -2262,11 +2325,6 @@ class TutorLoop:
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
         learner_id = (learner_id or self.state.data.get("learner_id")
                       or "local_single_learner")
-        bound_learner = str(self.state.data.get("learner_id") or "").strip()
-        if bound_learner.lower() == "default":
-            bound_learner = ""
-        if bound_learner and bound_learner != learner_id:
-            raise PermissionError("turn learner identity does not match bound state")
         stt_confidence = 1.0 if stt_confidence is None else max(
             0.0, min(1.0, float(stt_confidence)))
         # Part 15 Phase B: `precomputed_grade` is a grader outcome the server

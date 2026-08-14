@@ -14,6 +14,12 @@ safety alert. Mode/test-plan changes retain `pedagogy` ownership; stale pending
 assessment changes retain `assessment_evidence` ownership. Safety notifications and
 append-only operational logs use injected internal ports.
 
+Adjacent capability ports return `CapabilityTransition` values containing their own
+typed `StateChange` records; Interaction Control applies those records only to its
+private working snapshot. For admitted learning, `InteractionDecision` carries an
+`InteractionContinuity` value that authors the post-response context change, so the
+temporary adapter only applies policy outputs and never invents continuity policy.
+
 Run the public-Interface tests from `cloud_run_service`:
 
 ```powershell
