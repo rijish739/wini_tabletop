@@ -14,9 +14,66 @@ from interaction_control import (
 from runtime.contracts import ModuleOutcome
 from runtime.compatibility import TutorLoopCompatibilityFacade
 from runtime.supervisor import RuntimeHealth
+from perception import Perception, PerceptionTransportError
+from perception.route import RouteResult
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
+    def test_perception_scenarios_cross_the_compatibility_facade(self) -> None:
+        class Engine:
+            def observe(self, text, session, current_concept):
+                if text == "backend down":
+                    raise PerceptionTransportError("backend_unavailable")
+                return RouteResult(primary="LEARNING"), {
+                    "normalized_text": text, "signals": [], "signal_scores": {},
+                    "concept": {
+                        "concept_id": current_concept, "concept_confidence": 0.0,
+                        "secondary_concepts": [], "abstained": True,
+                    },
+                    "cognitive_update": {},
+                    "state_deltas": {"global": {}, "concept_id": current_concept,
+                                     "concept_flags": [], "signals": []},
+                }
+
+        class Control:
+            def control(self, request):
+                observation = request.perception
+                if observation.intent != "LEARNING":
+                    return ModuleOutcome(value=InteractionDecision(
+                        disposition=InteractionDisposition.COMPLETE,
+                        text=request.turn_input.interaction["text"],
+                        compatibility={"action": observation.intent, "answer": "safe",
+                                       "display": [], "session_ended": False},
+                    ))
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text=request.turn_input.interaction["text"],
+                    analysis=observation.analysis,
+                    perception_uncertain=observation.uncertain,
+                ))
+
+        received = []
+        state = SimpleNamespace(
+            data={"learner_id": "learner-1", "session": {"current_concept": "fractions"}}
+        )
+        facade = TutorLoopCompatibilityFacade(
+            legacy_turn=lambda text, **kwargs: received.append(kwargs) or {
+                "action": "EXPLAIN", "answer": "learning", "display": []
+            },
+            commit_state=lambda: None,
+            state=state,
+            interaction_control=Control(),
+            perception=Perception(Engine()),
+        )
+
+        self.assertEqual(facade.turn("I want to kill myself")["action"], "SAFETY")
+        self.assertEqual(facade.turn("!!!!!!")["action"], "NONSENSE")
+        self.assertEqual(facade.turn("explain that")["action"], "EXPLAIN")
+        self.assertEqual(received[-1]["precomputed_analysis"]["concept"]["concept_id"], "fractions")
+        self.assertEqual(facade.turn("backend down")["action"], "EXPLAIN")
+        self.assertTrue(received[-1]["_perception_uncertain"])
+        self.assertEqual(received[-1]["precomputed_analysis"]["signals"], [])
+
     def test_learning_and_nonlearning_routes_cross_the_same_compatibility_facade(self) -> None:
         def route(text, session):
             return SimpleNamespace(

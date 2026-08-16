@@ -69,6 +69,7 @@ class GeminiPerception:
         context: Optional[str] = None,
         *,
         call_fn: Optional[Callable[[str, str], Optional[dict]]] = None,
+        model_gateway=None,
         signal_threshold: float = config.PERCEPTION_SIGNAL_THRESHOLD,
         device: Optional[str] = None,
         cache_size: int = 512,
@@ -85,6 +86,7 @@ class GeminiPerception:
         self._label_index = {l: i for i, l in enumerate(self.labels)}
         self.signal_threshold = signal_threshold
         self._call_fn = call_fn
+        self._model_gateway = model_gateway
         self._device = device
         self._embedder = None
         self._embedder_lock = threading.Lock()
@@ -305,7 +307,10 @@ class GeminiPerception:
         When the Stage 5 context cache is active, a failed cached call is retried
         ONCE with the full system instruction (cache may have expired server-side),
         and the cache is dropped for the rest of the process."""
-        import llm_vertex
+        if self._model_gateway is None:
+            from runtime.model_gateway import VertexModelGateway
+
+            self._model_gateway = VertexModelGateway()
 
         cc = self._cached_content()
         for attempt_cc in ([cc, None] if cc else [None]):
@@ -316,7 +321,7 @@ class GeminiPerception:
             self.timing["gem_cached"] = int(attempt_cc is not None)
             _ta = time.perf_counter()
             try:
-                result = llm_vertex.generate_json(
+                result = self._model_gateway.generate_json(
                     prompt,
                     response_schema=self._build_schema(),
                     system=(None if attempt_cc else self.context),

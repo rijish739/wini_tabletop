@@ -26,8 +26,8 @@ class PerceptionTransportError(RuntimeError):
         self.kind = kind
 
 
-class ModelGateway(Protocol):
-    """Transport-only port; Perception retains prompts, schemas, and policy."""
+class PerceptionEngine(Protocol):
+    """Internal policy engine retained while the cognitive analyzer is folded in."""
 
     def observe(
         self, text: str, session: Mapping[str, Any], current_concept: str | None
@@ -83,8 +83,8 @@ class Perception:
         "cognitive_update", "state_deltas",
     })
 
-    def __init__(self, model_gateway: ModelGateway) -> None:
-        self._model_gateway = model_gateway
+    def __init__(self, engine: PerceptionEngine) -> None:
+        self._engine = engine
 
     def perceive(
         self, request: PerceptionRequest
@@ -97,7 +97,7 @@ class Perception:
 
         session = deep_thaw(request.session)
         try:
-            route, analysis = self._model_gateway.observe(
+            route, analysis = self._engine.observe(
                 text, session, session.get("current_concept")
             )
             trusted = deep_thaw(request.turn_input.trusted_observations)
@@ -232,6 +232,13 @@ class Perception:
                 concept["abstained"] = True
                 neutral_analysis["signals"] = []
                 neutral_analysis["signal_scores"] = {}
+                neutral_analysis["cognitive_update"] = {
+                    "confusion": 0.0, "curiosity": 0.0, "confidence": 0.5,
+                    "misconception_probability": 0.0, "transfer_attempt": 0.0,
+                    "abstraction_attempt": 0.0, "self_correction": 0.0,
+                    "cognitive_load": 0.0, "engagement": 0.5,
+                    "frustration_risk": 0.0,
+                }
                 neutral_analysis["state_deltas"] = {
                     "global": {}, "concept_id": current,
                     "concept_flags": [], "signals": [],
@@ -243,8 +250,8 @@ class Perception:
         )
 
 
-class LegacyModelGateway:
-    """Transport adapter around the existing structured perception runtime."""
+class LegacyPerceptionEngine:
+    """Temporary internal adapter around the existing cognitive analyzer."""
 
     def __init__(self, *, route, analyze) -> None:
         self._route = route

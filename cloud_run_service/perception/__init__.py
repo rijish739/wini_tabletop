@@ -8,8 +8,7 @@ resolution, feeding the UNCHANGED derive_*/apply_deltas state machine.
 from .gates import gate, is_nonsense, is_safety
 from .route import INHERIT, INTENTS, RouteResult
 from .interface import (
-    LegacyModelGateway,
-    ModelGateway,
+    LegacyPerceptionEngine,
     Perception,
     PerceptionInterface,
     PerceptionObservation,
@@ -24,8 +23,7 @@ __all__ = [
     "RouteResult",
     "INTENTS",
     "INHERIT",
-    "LegacyModelGateway",
-    "ModelGateway",
+    "LegacyPerceptionEngine",
     "Perception",
     "PerceptionInterface",
     "PerceptionObservation",

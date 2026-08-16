@@ -1373,7 +1373,10 @@ class TutorLoop:
             _minilm_device = _dev_cfg().minilm_device
         except ImportError:
             _minilm_device = None
-        gp = GeminiPerception.load(device=_minilm_device)
+        from runtime.model_gateway import VertexModelGateway
+        gp = GeminiPerception.load(
+            device=_minilm_device, model_gateway=VertexModelGateway()
+        )
         self.analyzer = CognitiveAnalyzer(classifier=gp, resolver=gp)
         # Persona / scripted replies for the non-learning intents (front door).
         self.persona = json.loads((ROOT / "persona.json").read_text(encoding="utf-8"))
@@ -2299,9 +2302,9 @@ class TutorLoop:
     def _perception_module(self):
         module = getattr(self, "__perception_module", None)
         if module is None:
-            from perception import LegacyModelGateway, Perception
+            from perception import LegacyPerceptionEngine, Perception
 
-            module = Perception(LegacyModelGateway(
+            module = Perception(LegacyPerceptionEngine(
                 route=lambda text, session: self.analyzer.classifier.route(text, session),
                 analyze=lambda text, current: self.analyzer.analyze(
                     text, current_concept=current
