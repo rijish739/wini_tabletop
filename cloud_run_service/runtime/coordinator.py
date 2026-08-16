@@ -141,7 +141,14 @@ class TurnCoordinator:
                 self._adapter.perception_request(turn_input)
             )
             perception_failures = perception.failures
-            if not perception.valid:
+            perception_actions = tuple(
+                self._recovery_policy.decide(failure)
+                for failure in perception_failures
+            )
+            if (
+                not perception.valid
+                or RecoveryAction.FAIL_CLOSED in perception_actions
+            ):
                 self._supervisor.observe_turn(perception.failures)
                 failure = perception.failures[0]
                 raise RuntimeError(
