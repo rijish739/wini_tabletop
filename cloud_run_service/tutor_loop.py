@@ -2163,6 +2163,7 @@ class TutorLoop:
                 ),
                 state=self.state,
                 interaction_control=self._build_interaction_control(),
+                perception=self._perception_module(),
             )
             self._typed_turn_facade = facade
         return facade
@@ -2294,6 +2295,20 @@ class TutorLoop:
             now=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"),
             stt_write_confidence_min=STT_WRITE_CONFIDENCE_MIN,
         ))
+
+    def _perception_module(self):
+        module = getattr(self, "__perception_module", None)
+        if module is None:
+            from perception import LegacyModelGateway, Perception
+
+            module = Perception(LegacyModelGateway(
+                route=lambda text, session: self.analyzer.classifier.route(text, session),
+                analyze=lambda text, current: self.analyzer.analyze(
+                    text, current_concept=current
+                ),
+            ))
+            self.__perception_module = module
+        return module
 
     def turn(self, text: str, answer_budget: dict | None = None,
              precomputed_analysis: dict | None = None,

@@ -7,7 +7,10 @@ import hashlib
 import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Callable, Mapping, Protocol
+from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
+
+if TYPE_CHECKING:
+    from perception import PerceptionObservation
 
 from runtime.contracts import (
     FailureSeverity,
@@ -32,6 +35,7 @@ class InteractionControlRequest:
     turn_input: TurnInput
     session: Mapping[str, Any]
     bound_learner_id: str | None = None
+    perception: "PerceptionObservation | None" = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -214,7 +218,12 @@ class InteractionControl:
         text = str(interaction.get("text") or "")
         session = deep_thaw(request.session)
         starting_session = copy.deepcopy(session)
-        route = self._dependencies.deterministic_route(text)
+        perception = request.perception
+        route = (
+            perception.route
+            if perception is not None and perception.source == "gate"
+            else self._dependencies.deterministic_route(text)
+        )
         if route is not None:
             if bool(getattr(route, "safety_alert", False)):
                 route.primary = "SAFETY"
@@ -285,8 +294,16 @@ class InteractionControl:
                 ),
             )
 
-        route = self._dependencies.perception_route(text, session)
-        perception_uncertain = bool(getattr(route, "uncertain", False))
+        route = (
+            perception.route
+            if perception is not None
+            else self._dependencies.perception_route(text, session)
+        )
+        perception_uncertain = bool(
+            perception.uncertain
+            if perception is not None
+            else getattr(route, "uncertain", False)
+        )
         if route is not None and bool(getattr(route, "safety_alert", False)):
             route.primary = "SAFETY"
             self._record_safety(request.turn_input, text, route, session)
@@ -362,7 +379,11 @@ class InteractionControl:
         analysis = (
             precomputed_analysis
             if precomputed_analysis is not None
-            else self._dependencies.analyze(text, session.get("current_concept"))
+            else (
+                deep_thaw(perception.analysis)
+                if perception is not None
+                else self._dependencies.analyze(text, session.get("current_concept"))
+            )
         )
         allow_shift = bool(interaction.get("allow_topic_shift", True))
         if allow_shift:
@@ -408,7 +429,11 @@ class InteractionControl:
                 text=text,
                 analysis=analysis,
                 perception_uncertain=perception_uncertain,
-                answer_attempt=bool(getattr(route, "answer_attempt", False)),
+                answer_attempt=bool(
+                    perception.answer_attempt
+                    if perception is not None
+                    else getattr(route, "answer_attempt", False)
+                ),
                 continuity=InteractionContinuity(
                     turn_id=request.turn_input.turn_id,
                     learner_text=text,

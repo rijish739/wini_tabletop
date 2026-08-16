@@ -15,6 +15,7 @@ if TYPE_CHECKING:
         InteractionControlInterface,
         InteractionControlRequest,
     )
+    from perception import PerceptionInterface
 
 
 class TurnPhase(str, Enum):
@@ -98,6 +99,8 @@ class TemporaryLegacyAdapter(Protocol):
         self, turn_input: TurnInput
     ) -> "InteractionControlRequest": ...
 
+    def perception_request(self, turn_input: TurnInput): ...
+
     def execute(self, turn_input: TurnInput, interaction) -> LegacyExecution: ...
 
 
@@ -121,17 +124,33 @@ class TurnCoordinator:
         adapter: TemporaryLegacyAdapter,
         supervisor: RuntimeSupervisor,
         interaction_control: "InteractionControlInterface",
+        perception: "PerceptionInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
         self._supervisor = supervisor
         self._interaction_control = interaction_control
+        self._perception = perception
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
-        interaction = self._interaction_control.control(
-            self._adapter.interaction_request(turn_input)
-        )
+        interaction_request = self._adapter.interaction_request(turn_input)
+        perception_failures: tuple[FailureSignal, ...] = ()
+        if self._perception is not None:
+            perception = self._perception.perceive(
+                self._adapter.perception_request(turn_input)
+            )
+            perception_failures = perception.failures
+            if not perception.valid:
+                self._supervisor.observe_turn(perception.failures)
+                failure = perception.failures[0]
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
+                )
+            interaction_request = replace(
+                interaction_request, perception=perception.value
+            )
+        interaction = self._interaction_control.control(interaction_request)
         if interaction.failures:
             actions = tuple(
                 self._recovery_policy.decide(failure)
@@ -156,6 +175,14 @@ class TurnCoordinator:
                 ) from failure
             raise failure.original.with_traceback(failure.original.__traceback__)
         self._validate_phase_trace(execution)
+        if perception_failures:
+            execution = replace(
+                execution,
+                result=replace(
+                    execution.result,
+                    failures=perception_failures + execution.result.failures,
+                ),
+            )
         recovery_actions = tuple(
             self._recovery_policy.decide(failure)
             for failure in execution.result.failures

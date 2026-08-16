@@ -21,6 +21,7 @@ class TutorLoopCompatibilityFacade:
         commit_state: Callable[[], None],
         state: Any,
         interaction_control: Any,
+        perception: Any = None,
     ) -> None:
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
@@ -30,6 +31,7 @@ class TutorLoopCompatibilityFacade:
                 state=state,
             ),
             interaction_control=interaction_control,
+            perception=perception,
             supervisor=self._supervisor,
         )
         self._state = state

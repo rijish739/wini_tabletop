@@ -58,6 +58,14 @@ class LegacyTurnAdapter:
             bound_learner_id=self._state.data.get("learner_id"),
         )
 
+    def perception_request(self, turn_input: TurnInput):
+        from perception import PerceptionRequest
+
+        return PerceptionRequest(
+            turn_input=turn_input,
+            session=copy.deepcopy(self._state.data.get("session") or {}),
+        )
+
     def execute(self, turn_input: TurnInput, interaction=None):
         return self._execute(turn_input, interaction_outcome=interaction)
 

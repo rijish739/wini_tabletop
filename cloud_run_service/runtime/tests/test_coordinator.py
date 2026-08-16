@@ -35,6 +35,8 @@ from runtime.coordinator import (
 )
 from runtime.legacy_adapter import LegacyTurnAdapter
 from runtime.supervisor import RuntimeHealth, RuntimeSupervisor
+from perception import Perception, PerceptionRequest
+from perception.route import RouteResult
 
 
 class _SuccessfulLegacyAdapter:
@@ -79,6 +81,51 @@ class _LearningInteractionControl:
 
 
 class TurnCoordinatorTests(unittest.TestCase):
+    def test_coordinator_supplies_the_perception_observation_to_interaction_control(self) -> None:
+        analysis = {
+            "normalized_text": "teach fractions", "signals": [],
+            "signal_scores": {},
+            "concept": {"concept_id": "fractions", "concept_confidence": 0.9,
+                        "secondary_concepts": [], "abstained": False},
+            "cognitive_update": {},
+            "state_deltas": {"global": {}, "concept_id": "fractions",
+                             "concept_flags": [], "signals": []},
+        }
+
+        class Gateway:
+            def observe(self, text, session, current_concept):
+                return RouteResult(primary="LEARNING"), analysis
+
+        class Adapter(_SuccessfulLegacyAdapter):
+            def perception_request(self, turn_input):
+                return PerceptionRequest(turn_input=turn_input, session={})
+
+        class Control:
+            def control(self, request):
+                self.observation = request.perception
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text="teach fractions",
+                    analysis=request.perception.analysis,
+                ))
+
+        control = Control()
+        supervisor = RuntimeSupervisor()
+        supervisor.ready()
+        coordinator = TurnCoordinator(
+            adapter=Adapter(), interaction_control=control,
+            perception=Perception(Gateway()), supervisor=supervisor,
+        )
+
+        coordinator.run(TurnInput(
+            turn_id="turn-perception", learner_id="learner-1",
+            interaction={"text": "teach fractions"},
+            device=DeviceCapabilities(), budgets=TurnBudgets(total_ms=10_000),
+        ))
+
+        self.assertEqual(control.observation.concept_id, "fractions")
+        self.assertEqual(control.observation.intent, "LEARNING")
+
     def test_completed_interaction_bypasses_legacy_learning_and_commits_changes(self) -> None:
         class CompletedInteractionControl:
             def control(self, request: InteractionControlRequest):
