@@ -67,10 +67,32 @@ class LegacyTurnAdapter:
             learner_state=copy.deepcopy(self._state.data),
         )
 
-    def execute(self, turn_input: TurnInput, interaction=None):
-        return self._execute(turn_input, interaction_outcome=interaction)
+    def assessment_request(self, turn_input: TurnInput, interaction):
+        from assessment_evidence import AssessmentRequest, AssessmentStateView
 
-    def _execute(self, turn_input: TurnInput, interaction_outcome=None):
+        session = self._state.data.get("session") or {}
+        return AssessmentRequest(
+            turn_input=turn_input,
+            state=AssessmentStateView(
+                learner_id=str(self._state.data.get("learner_id") or ""),
+                pending_assessment=copy.deepcopy(session.get("pending_check")),
+                evidence_keys=tuple((self._state.data.get("evidence_index") or {}).keys()),
+                hint_progress=copy.deepcopy(session.get("hint_progress") or {}),
+            ),
+            answer_attempt=bool(getattr(interaction.value, "answer_attempt", False)),
+            perception_uncertain=bool(
+                getattr(interaction.value, "perception_uncertain", False)
+            ),
+            precomputed_grade=turn_input.trusted_observations.get("precomputed_grade"),
+        )
+
+    def execute(self, turn_input: TurnInput, interaction=None, assessment=None):
+        return self._execute(
+            turn_input, interaction_outcome=interaction, assessment_outcome=assessment
+        )
+
+    def _execute(self, turn_input: TurnInput, interaction_outcome=None,
+                 assessment_outcome=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -81,9 +103,14 @@ class LegacyTurnAdapter:
             state_changes = (
                 () if interaction_outcome is None else interaction_outcome.state_changes
             )
+            if assessment_outcome is not None:
+                state_changes += assessment_outcome.state_changes
             state_changes = self._apply_state_changes(
                 turn_input.learner_id, state_changes
             )
+            assessment_value = None
+            if assessment_outcome is not None and assessment_outcome.value is not None:
+                assessment_value = assessment_outcome.value
             decision = (
                 None if interaction_outcome is None else interaction_outcome.value
             )
@@ -112,6 +139,8 @@ class LegacyTurnAdapter:
                     kwargs["_perception_state_applied"] = any(
                         change.owner == "perception" for change in state_changes
                     )
+                if assessment_value is not None:
+                    kwargs["_prior_assessment"] = assessment_value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(
@@ -222,6 +251,9 @@ class LegacyTurnAdapter:
                 ),
             ),
             "assessment_evidence": CapabilityStateAccess(
+                learner_read=(("evidence_index",),),
+                session_read=(("pending_check",), ("hint_progress",)),
+                learner_write=(("evidence_ledger",),),
                 session_write=(("pending_check",), ("pending_hope",)),
             ),
             "pedagogy": CapabilityStateAccess(

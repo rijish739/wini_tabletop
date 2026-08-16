@@ -65,6 +65,7 @@ def arm_from_script(script: TeachingScript, session: dict) -> dict | None:
         "concept_id": hook.target_concept,
         "script_id": script.script_id,
         "beat_id": beat.beat_id,
+        "realized_turn_id": script.turn_id,
         "attempt": 1,
         "action": script.pedagogical_action or "unknown",
         "mode": session.get("mode", "EXPLAIN"),

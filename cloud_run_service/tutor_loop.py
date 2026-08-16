@@ -33,6 +33,7 @@ import os
 import re
 import threading
 import time
+from assessment_evidence import AssessmentResult
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -2167,6 +2168,9 @@ class TutorLoop:
                 state=self.state,
                 interaction_control=self._build_interaction_control(),
                 perception=self._perception_module(),
+                assessment_evidence=__import__(
+                    "assessment_evidence", fromlist=["AssessmentEvidence"]
+                ).AssessmentEvidence(model_call=qwen_chat),
             )
             self._typed_turn_facade = facade
         return facade
@@ -2338,7 +2342,8 @@ class TutorLoop:
                      _interaction_controlled: bool = False,
                      _perception_uncertain: bool = False,
                      _interaction_answer_attempt: bool = False,
-                     _perception_state_applied: bool = False) -> dict:
+                     _perception_state_applied: bool = False,
+                     _prior_assessment: AssessmentResult | None = None) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
@@ -2465,131 +2470,27 @@ class TutorLoop:
             pending = None
         writeback = None
         practice_outcome, practice_hints = None, 0   # fed to the PRACTICE ladder (§4.3)
-        if pending:
-            grade_key = make_idempotency_key(
-                learner_id, turn_id,
-                str(pending.get("item_id") or pending.get("id") or ""), text)
-            wants_hint = "hint_requested" in analysis["state_deltas"]["concept_flags"] \
-                or "request_hint" in analysis["signals"]
-            chain = pending.get("hint_chain") or []
-            if wants_hint and chain:
-                k = self.state.record_hint_request(pending["concept_id"], pending["id"])
-                if k <= len(chain):
-                    hint = chain[k - 1]
-                    hint_text = hint.get("text") if isinstance(hint, dict) else str(hint)
-                    self._log(text, f"HINT_LEVEL_{k}", "rule 10: fade one hint level, never the answer",
-                              "hint", None, analysis, {"evidence": [ev(pending["id"], "hint",
-                                                                       f"hint level {k} of pending diagnostic",
-                                                                       text=hint_text)]})
-                    if self.state.path:
-                        self.state.save()
-                    return {"action": f"HINT_LEVEL_{k}", "action_reason": "hint chain level served",
-                            "need": "hint", "shadow": None, "concept": concept,
-                            "signals": analysis["signals"], "cognitive_update": analysis["cognitive_update"],
-                            "n_evidence": 1, "bridge_ids": [], "display": [], "answer": hint_text}
-                # chain exhausted: fall through — rule 10 says switch action, don't leak
-            # Only grade a reply that actually ATTEMPTS the question. A non-attempt
-            # (ack, "I don't understand", a fresh request, a counter-question) must
-            # never move mastery or force a misconception active — the weak local
-            # judge otherwise returns "wrong" for plain confusion (see 1a).
-            if perception_uncertain:
-                grade_result = GradeResult(
-                    "not_an_answer", "uncertain_perception", 0.0, None,
-                    stt_confidence, grade_key)
-            elif non_attempt or not self.want_answer:
-                # A non-attempt never grades (§13) — and if the server speculatively
-                # graded this turn, its result is discarded here, exactly as the
-                # serial path would never have called judge_answer.
-                grade_result = GradeResult(
-                    "not_an_answer", "non_attempt_gate", 1.0, None,
-                    stt_confidence, grade_key)
-            elif precomputed_grade is not None:
-                # Part 15 Phase B: the grader already ran in parallel with perception
-                # on the identical (question, expected, text) — reuse it, no re-call.
-                grade_result = GradeResult.from_value(precomputed_grade)
-                if grade_result.idempotency_key != grade_key:
-                    grade_result = judge_answer(
-                        pending["question"], pending["expected_answer"], text,
-                        pending.get("rubric") or "", stt_confidence=stt_confidence,
-                        idempotency_key=grade_key,
-                        misconception_probe=pending.get("kind") == "misconception")
-            else:
-                grade_result = judge_answer(
-                    pending["question"], pending["expected_answer"], text,
-                    pending.get("rubric") or "", stt_confidence=stt_confidence,
-                    idempotency_key=grade_key,
-                    misconception_probe=pending.get("kind") == "misconception")
-            outcome = grade_result.outcome
-            grader_confidence = grade_result.confidence
-            if outcome in ("correct", "partial", "wrong") \
-                    and grader_confidence < GRADER_WRITE_CONFIDENCE_MIN:
+        if _prior_assessment is not None:
+            prior_grade = _prior_assessment.grade
+            if _prior_assessment.writeback_status == "low_confidence":
                 return self._shift_reply(
                     text,
                     "I couldn't grade that confidently. Please try your answer once more.",
                     "CONFIRM_LOW_GRADER_CONFIDENCE",
-                    f"grader confidence {grader_confidence:.3f} below write floor; check preserved",
+                    "grader confidence below write floor; check preserved",
                     session, answer_budget)
-            if outcome in ("correct", "partial", "wrong"):
-                hints_used = self.state.hint_chain_position(
-                    pending["concept_id"], pending.get("id"))
-                if True:  # the evidence boundary is mandatory; the flag only controls compatibility UX
-                    from response_layer.contracts import OutcomeEvent
-                    delay = self.state._days_since_practice(pending.get("concept_id")) or 0.0
-                    metadata = dict(pending.get("metadata") or {})
-                    event = OutcomeEvent(
-                        script_id=pending["script_id"], beat_id=pending["beat_id"],
-                        attempt=int(pending.get("attempt") or 1), turn_id=turn_id,
-                        idempotency_token=grade_key,
-                        assessment_hook_id=pending.get("hook_id"), outcome=outcome,
-                        learner_id=learner_id,
-                        concept_id=pending.get("concept_id"),
-                        kc_id=pending.get("kc_id") or pending.get("concept_id"),
-                        item_id=pending.get("item_id") or pending.get("id"),
-                        item_source=pending.get("item_source"),
-                        assessment_purpose=pending.get("assessment_purpose"),
-                        grader_path=grade_result.grader_path,
-                        grader_confidence=grader_confidence,
-                        stt_confidence=stt_confidence,
-                        consistent_with_misconception=grade_result.misconception_consistency,
-                        assistance_offered=int(hints_used),
-                        assistance_consumed=int(hints_used), delay_days=float(delay),
-                        action=pending.get("action") or "unknown",
-                        barrier=pending.get("barrier") or "unknown",
-                        mode=pending.get("mode") or "EXPLAIN",
-                        payload={
-                            "mutation_kind": pending.get("kind"),
-                            "target_concept": pending.get("concept_id"),
-                            "target_misconception": pending.get("target_misconception"),
-                            "difficulty": pending.get("difficulty") or metadata.get("difficulty"),
-                            "hints_used": hints_used,
-                            "binary_item": bool(pending.get("binary_item", False)),
-                            "representations": metadata.get("representations") or [],
-                        })
-                    writeback = record_outcome(self.state, event)
-                    if pending.get("kind") in ("practice", "test", "parallel_retest"):
-                        practice_outcome, practice_hints = outcome, int(hints_used)
-                elif False and pending["kind"] == "bridge":
-                    raise AssertionError("legacy evidence writer disabled")
-                elif pending["kind"] in ("practice", "test", "parallel_retest"):
-                    # Part 12: graded PRACTICE/TEST item -> the third evidence API.
-                    # Mastery moves here (never misconception status). The outcome +
-                    # hints drive the ladder movement below (§4.3).
-                    raise AssertionError("legacy evidence writer disabled")
-                    practice_outcome, practice_hints = outcome, int(hints_used)
-                else:
-                    raise AssertionError("legacy evidence writer disabled")
-                # §9 representation coverage (audit A-5). Answering correctly on an
-                # item that carries a representation IS the learner "showing" that
-                # representation — stronger evidence than the acknowledgment path
-                # above, which was the only writer and effectively never fired.
-                if False and writeback.get("outcome") == "correct":
-                    _row = self.chunks_by_id.get(pending["id"]) or {}
-                    _reps = (_row.get("representations")
-                             or self.graph.nodes.get(pending["id"], {}).get(
-                                 "supports_representation") or [])
-                    self._mark_representations_known(pending.get("concept_id"), _reps)
-                session.pop("pending_check", None)
-
+            if prior_grade and prior_grade.outcome in ("correct", "partial", "wrong"):
+                writeback = {
+                    "status": (
+                        "applied" if _prior_assessment.writeback_status == "pending"
+                        else _prior_assessment.writeback_status
+                    ),
+                    "idempotency_key": prior_grade.idempotency_key,
+                }
+                if _prior_assessment.pending_kind in (
+                        "practice", "test", "parallel_retest"):
+                    practice_outcome = prior_grade.outcome
+                    practice_hints = int(_prior_assessment.hints_used or 0)
         # 1c. pending HOPE probe from the previous turn (Part 4 wired live): if
         # the tutor served a CT/KT/KI probe last turn and the student attempted
         # an answer, score it 0-3 with the HOPE detector and fold into the

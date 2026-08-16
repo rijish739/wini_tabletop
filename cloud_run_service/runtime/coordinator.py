@@ -11,6 +11,7 @@ from .legacy_adapter import LegacyAdapterFailure
 from .supervisor import RuntimeSupervisor
 
 if TYPE_CHECKING:
+    from assessment_evidence import AssessmentEvidenceInterface, AssessmentRequest
     from interaction_control import (
         InteractionControlInterface,
         InteractionControlRequest,
@@ -101,7 +102,9 @@ class TemporaryLegacyAdapter(Protocol):
 
     def perception_request(self, turn_input: TurnInput): ...
 
-    def execute(self, turn_input: TurnInput, interaction) -> LegacyExecution: ...
+    def assessment_request(self, turn_input: TurnInput, interaction) -> "AssessmentRequest": ...
+
+    def execute(self, turn_input: TurnInput, interaction, assessment=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -125,12 +128,14 @@ class TurnCoordinator:
         supervisor: RuntimeSupervisor,
         interaction_control: "InteractionControlInterface",
         perception: "PerceptionInterface | None" = None,
+        assessment_evidence: "AssessmentEvidenceInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
         self._supervisor = supervisor
         self._interaction_control = interaction_control
         self._perception = perception
+        self._assessment_evidence = assessment_evidence
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
@@ -176,8 +181,28 @@ class TurnCoordinator:
                 raise RuntimeError(
                     f"Turn failed closed: {failure.capability}/{failure.cause}"
                 )
+        assessment = None
+        if self._assessment_evidence is not None:
+            assessment = self._assessment_evidence.evaluate_prior_attempt(
+                self._adapter.assessment_request(turn_input, interaction)
+            )
+            actions = tuple(
+                self._recovery_policy.decide(failure)
+                for failure in assessment.failures
+            )
+            if not assessment.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(assessment.failures)
+                failure = assessment.failures[0]
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
+                )
         try:
-            execution = self._adapter.execute(turn_input, interaction=interaction)
+            if assessment is None:
+                execution = self._adapter.execute(turn_input, interaction=interaction)
+            else:
+                execution = self._adapter.execute(
+                    turn_input, interaction=interaction, assessment=assessment
+                )
         except LegacyAdapterFailure as failure:
             self._supervisor.observe_turn((failure.signal,))
             action = self._recovery_policy.decide(failure.signal)
@@ -187,12 +212,15 @@ class TurnCoordinator:
                 ) from failure
             raise failure.original.with_traceback(failure.original.__traceback__)
         self._validate_phase_trace(execution)
-        if perception_failures:
+        extracted_failures = perception_failures + (
+            () if assessment is None else assessment.failures
+        )
+        if extracted_failures:
             execution = replace(
                 execution,
                 result=replace(
                     execution.result,
-                    failures=perception_failures + execution.result.failures,
+                    failures=extracted_failures + execution.result.failures,
                 ),
             )
         recovery_actions = tuple(

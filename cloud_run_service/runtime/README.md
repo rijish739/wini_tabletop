@@ -35,6 +35,13 @@ it with an immutable state snapshot, applies its typed proposed changes through 
 temporary migration adapter, and either completes the non-learning Turn or passes an
 admitted learning decision to the remaining legacy behavior.
 
+`AssessmentEvidenceInterface` owns evaluation of a previously realized assessment in
+the perception-and-prior-grading phase. The temporary adapter supplies only an immutable,
+assessment-scoped state view. Gradeable outcomes become idempotent evidence appends and a
+pending-check deletion, both validated by `WorkingStateProjection`; non-attempts and
+low-confidence grades leave the pending check armed. Assessment-integrity Failure Signals
+fail closed before legacy response generation.
+
 `LegacyTurnAdapter` is intentionally named as a temporary adapter, not a Feature Module.
 It executes the seven still-unextracted phases, leaves existing provisional streaming
 mechanics untouched, and reports `legacy_adapter_turns` plus

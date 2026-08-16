@@ -22,7 +22,12 @@ class TutorLoopCompatibilityFacade:
         state: Any,
         interaction_control: Any,
         perception: Any = None,
+        assessment_evidence: Any = None,
     ) -> None:
+        if assessment_evidence is None:
+            from assessment_evidence import AssessmentEvidence
+
+            assessment_evidence = AssessmentEvidence()
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
             adapter=LegacyTurnAdapter(
@@ -32,6 +37,7 @@ class TutorLoopCompatibilityFacade:
             ),
             interaction_control=interaction_control,
             perception=perception,
+            assessment_evidence=assessment_evidence,
             supervisor=self._supervisor,
         )
         self._state = state

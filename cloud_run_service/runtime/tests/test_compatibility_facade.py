@@ -16,9 +16,142 @@ from runtime.compatibility import TutorLoopCompatibilityFacade
 from runtime.supervisor import RuntimeHealth
 from perception import Perception, PerceptionTransportError
 from perception.route import RouteResult
+from assessment_evidence import AssessmentEvidence
+from evidence.ledger import make_idempotency_key
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
+    def test_prior_assessment_is_graded_and_projected_through_the_facade(self) -> None:
+        class AttemptControl:
+            def control(self, request):
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text=request.turn_input.interaction["text"],
+                    analysis={},
+                    answer_attempt=True,
+                ))
+
+        pending = {
+            "id": "item-1", "item_id": "item-1", "script_id": "script-1",
+            "beat_id": "beat-1", "hook_id": "hook-1",
+            "question": "What is 2 plus 3?", "expected_answer": "5",
+            "concept_id": "addition", "kind": "practice",
+            "item_verified": True, "verification_status": "verified",
+            "verification_token": "token", "realized_turn_id": "turn-1",
+        }
+        state = SimpleNamespace(data={
+            "learner_id": "learner-1", "concept_states": {},
+            "session": {"pending_check": pending},
+        })
+        received = {}
+
+        def legacy_turn(text, **kwargs):
+            received.update(kwargs)
+            self.assertNotIn("pending_check", state.data["session"])
+            return {"action": "EXPLAIN", "answer": "Good work.", "display": []}
+
+        facade = TutorLoopCompatibilityFacade(
+            legacy_turn=legacy_turn,
+            commit_state=lambda: None,
+            state=state,
+            interaction_control=AttemptControl(),
+            assessment_evidence=AssessmentEvidence(),
+        )
+
+        result = facade.turn("5", turn_id="turn-2", learner_id="learner-1")
+
+        self.assertEqual(result["action"], "EXPLAIN")
+        self.assertEqual(received["_prior_assessment"].grade.outcome, "correct")
+        self.assertEqual(len(state.data["evidence_ledger"]), 1)
+        self.assertGreater(state.data["concept_states"]["addition"]["mastery"], 0.0)
+
+    def test_prior_assessment_edge_cases_cross_the_facade(self) -> None:
+        class Control:
+            def control(self, request):
+                text = request.turn_input.interaction["text"]
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text=text,
+                    analysis={},
+                    answer_attempt=text not in {"okay", "I don't understand"},
+                ))
+
+        def pending(**changes):
+            value = {
+                "id": "item-1", "item_id": "item-1", "script_id": "script-1",
+                "beat_id": "beat-1", "hook_id": "hook-1",
+                "question": "What is 2 plus 3?", "expected_answer": "5",
+                "concept_id": "addition", "kind": "practice",
+                "item_verified": True, "verification_status": "verified",
+                "verification_token": "token", "realized_turn_id": "turn-1",
+            }
+            value.update(changes)
+            return value
+
+        def run(text, *, pending_value=None, grade=None, evidence_index=None):
+            state = SimpleNamespace(data={
+                "learner_id": "learner-1", "concept_states": {},
+                "evidence_index": evidence_index or {},
+                "session": {"pending_check": pending_value or pending()},
+            })
+            received = {}
+            facade = TutorLoopCompatibilityFacade(
+                legacy_turn=lambda _text, **kwargs: received.update(kwargs) or {
+                    "action": "EXPLAIN", "answer": "continue", "display": []
+                },
+                commit_state=lambda: None,
+                state=state,
+                interaction_control=Control(),
+                assessment_evidence=AssessmentEvidence(),
+            )
+            result = facade.turn(
+                text, turn_id="turn-2", learner_id="learner-1",
+                precomputed_grade=grade,
+            )
+            return state, received, result
+
+        wrong_state, wrong_received, _ = run("4")
+        self.assertEqual(wrong_received["_prior_assessment"].grade.outcome, "wrong")
+        self.assertEqual(len(wrong_state.data["evidence_ledger"]), 1)
+
+        partial_state, partial_received, _ = run("partly five", grade={
+            "outcome": "partial", "grader_path": "rubric_model", "confidence": 0.9,
+        })
+        self.assertEqual(partial_received["_prior_assessment"].grade.outcome, "partial")
+        self.assertNotIn("pending_check", partial_state.data["session"])
+
+        low_state, low_received, _ = run("maybe five", grade={
+            "outcome": "partial", "grader_path": "rubric_model", "confidence": 0.2,
+        })
+        self.assertEqual(
+            low_received["_prior_assessment"].writeback_status, "low_confidence"
+        )
+        self.assertIn("pending_check", low_state.data["session"])
+
+        non_state, non_received, _ = run("I don't understand")
+        self.assertFalse(non_received["_prior_assessment"].attempted)
+        self.assertIn("pending_check", non_state.data["session"])
+
+        duplicate_key = make_idempotency_key(
+            "learner-1", "turn-2", "item-1", "5"
+        )
+        duplicate_state, duplicate_received, _ = run(
+            "5", evidence_index={duplicate_key: 0}
+        )
+        self.assertEqual(
+            duplicate_received["_prior_assessment"].writeback_status, "duplicate"
+        )
+        self.assertNotIn("pending_check", duplicate_state.data["session"])
+
+        for invalid, cause in (
+            (pending(realized_turn_id="turn-2"), "stale_pending_assessment"),
+            (pending(item_verified=False, verification_status="legacy_unverified"),
+             "legacy_unverified_pending_assessment"),
+        ):
+            with self.subTest(cause=cause):
+                with self.assertRaisesRegex(RuntimeError, cause):
+                    run("5", pending_value=invalid)
+
     def test_perception_scenarios_cross_the_compatibility_facade(self) -> None:
         class Engine:
             def observe(self, text, session, current_concept):
