@@ -64,6 +64,7 @@ class LegacyTurnAdapter:
         return PerceptionRequest(
             turn_input=turn_input,
             session=copy.deepcopy(self._state.data.get("session") or {}),
+            learner_state=copy.deepcopy(self._state.data),
         )
 
     def execute(self, turn_input: TurnInput, interaction=None):
@@ -108,6 +109,9 @@ class LegacyTurnAdapter:
                     kwargs["_interaction_controlled"] = True
                     kwargs["_perception_uncertain"] = decision.perception_uncertain
                     kwargs["_interaction_answer_attempt"] = decision.answer_attempt
+                    kwargs["_perception_state_applied"] = any(
+                        change.owner == "perception" for change in state_changes
+                    )
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(
@@ -230,6 +234,12 @@ class LegacyTurnAdapter:
                         "pending_mode_offer",
                         "pending_test_resume",
                     )
+                ),
+            ),
+            "perception": CapabilityStateAccess(
+                learner_write=(
+                    ("global",),
+                    ("global_observations",),
                 ),
             ),
         }

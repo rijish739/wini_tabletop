@@ -151,6 +151,11 @@ class TurnCoordinator:
                 interaction_request, perception=perception.value
             )
         interaction = self._interaction_control.control(interaction_request)
+        if self._perception is not None and perception.state_changes:
+            interaction = replace(
+                interaction,
+                state_changes=perception.state_changes + interaction.state_changes,
+            )
         if interaction.failures:
             actions = tuple(
                 self._recovery_policy.decide(failure)

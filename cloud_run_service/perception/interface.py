@@ -9,6 +9,9 @@ from runtime.contracts import (
     FailureSeverity,
     FailureSignal,
     ModuleOutcome,
+    StateChange,
+    StateOperation,
+    StateScope,
     TurnInput,
     deep_freeze,
     deep_thaw,
@@ -38,9 +41,13 @@ class PerceptionEngine(Protocol):
 class PerceptionRequest:
     turn_input: TurnInput
     session: Mapping[str, Any]
+    learner_state: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
+        object.__setattr__(
+            self, "learner_state", deep_freeze(self.learner_state or {})
+        )
 
 
 @dataclass(frozen=True)
@@ -107,7 +114,11 @@ class Perception:
                 return self._degraded(
                     session, "degraded_fallback", text=text, analysis=analysis
                 )
-            return ModuleOutcome(value=self._validate(route, analysis, session))
+            observation = self._validate(route, analysis, session)
+            return ModuleOutcome(
+                value=observation,
+                state_changes=self._soft_state_changes(request, observation),
+            )
         except PerceptionTransportError as exc:
             cause = exc.kind if exc.kind in {"timeout", "backend_unavailable"} else "backend_unavailable"
             return self._degraded(session, cause, text=text)
@@ -178,6 +189,40 @@ class Perception:
             route=route,
             analysis=analysis,
         )
+
+    @staticmethod
+    def _soft_state_changes(
+        request: PerceptionRequest, observation: PerceptionObservation
+    ) -> tuple[StateChange, ...]:
+        """Translate validated weak evidence into typed, coordinator-visible changes."""
+        deltas = deep_thaw(observation.analysis).get("state_deltas") or {}
+        state = deep_thaw(request.learner_state)
+        changes: list[StateChange] = []
+        global_defaults = {
+            "confidence": 0.5, "curiosity": 0.5,
+            "cognitive_load": 0.5, "engagement": 0.5,
+        }
+        global_state = state.get("global") or {}
+        counts = state.get("global_observations") or {}
+        for field, observed in (deltas.get("global") or {}).items():
+            if field not in global_defaults:
+                continue
+            old = float(global_state.get(field, global_defaults[field]))
+            value = round(0.7 * old + 0.3 * float(observed), 4)
+            changes.extend((
+                StateChange(
+                    change_id=f"{request.turn_input.turn_id}:perception:global:{field}",
+                    owner="perception", scope=StateScope.LEARNER,
+                    path=("global", field), operation=StateOperation.SET, value=value,
+                ),
+                StateChange(
+                    change_id=f"{request.turn_input.turn_id}:perception:observations:{field}",
+                    owner="perception", scope=StateScope.LEARNER,
+                    path=("global_observations", field), operation=StateOperation.SET,
+                    value=int(counts.get(field, 0)) + 1,
+                ),
+            ))
+        return tuple(changes)
 
     def _degraded(
         self,

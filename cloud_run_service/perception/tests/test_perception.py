@@ -97,7 +97,13 @@ class PerceptionInterfaceTests(unittest.TestCase):
         self.assertEqual(outcome.value.signals, ("curiosity",))
         self.assertTrue(outcome.value.answer_attempt)
         self.assertEqual(outcome.value.analysis["state_deltas"]["global"], {"curiosity": 0.8})
-        self.assertEqual(outcome.state_changes, ())
+        self.assertEqual(
+            [(change.path, change.value) for change in outcome.state_changes],
+            [
+                (("global", "curiosity"), 0.59),
+                (("global_observations", "curiosity"), 1),
+            ],
+        )
 
     def test_inherits_current_concept_when_the_model_abstains(self):
         analysis = learning_analysis(None)

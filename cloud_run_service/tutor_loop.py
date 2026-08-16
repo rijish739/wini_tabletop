@@ -2337,7 +2337,8 @@ class TutorLoop:
                      learner_id: str | None = None, _allow_shift: bool = True,
                      _interaction_controlled: bool = False,
                      _perception_uncertain: bool = False,
-                     _interaction_answer_attempt: bool = False) -> dict:
+                     _interaction_answer_attempt: bool = False,
+                     _perception_state_applied: bool = False) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
@@ -2365,9 +2366,20 @@ class TutorLoop:
         perception_uncertain = bool(_perception_uncertain)
         from cognitive_analyzer.analyzer import apply_deltas
         analysis = precomputed_analysis
-        analysis["new_global_state"] = (
-            {} if perception_uncertain
-            else apply_deltas(self.state, analysis["state_deltas"]))
+        if perception_uncertain:
+            analysis["new_global_state"] = {}
+        elif _perception_state_applied:
+            concept_only_deltas = dict(analysis["state_deltas"])
+            concept_only_deltas["global"] = {}
+            apply_deltas(self.state, concept_only_deltas)
+            analysis["new_global_state"] = {
+                field: self.state.data.get("global", {}).get(field)
+                for field in analysis["state_deltas"].get("global", {})
+            }
+        else:
+            analysis["new_global_state"] = apply_deltas(
+                self.state, analysis["state_deltas"]
+            )
         concept = analysis["concept"]
         primary = concept["concept_id"]
         # 1a. Is this reply an ATTEMPT at the question we asked, or a non-attempt
