@@ -1131,3 +1131,10 @@ its already-recorded missing artifacts and incomplete replay prevent a complete 
   in the provided interpreters because both the system and bundled Python environments
   lack required runtime packages (`numpy`, and the bundled runtime also lacks
   `requests`).
+# 2026-08-16 — Pedagogy ownership handoff
+
+Moved teaching priority, learning modes, practice/test progression, pacing, and
+one-shot offers behind a typed Pedagogy Interface. Kept grading, evidence writes, and
+assessment arming out of the module. Scoped suite: 86 passing tests. Frozen oracle:
+27 cases validated, zero self-check differences; candidate replay remains incomplete
+because the repository lacks the documented runtime artifacts.

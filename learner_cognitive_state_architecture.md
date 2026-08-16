@@ -1621,3 +1621,10 @@ alert. It does not receive the mutable learner-state object. Mode/test-plan chan
 pending-assessment changes keep their existing semantic owners even when Interaction
 Control requests them during a mode stop or topic redirect. No learner cognitive schema,
 evidence rule, dataset, or measured model value changed at this checkpoint.
+# Pedagogy Feature Module extraction (2026-08-16)
+
+The Turn Coordinator now calls one typed Pedagogy Interface after validated
+Perception and prior-attempt Assessment. Pedagogy owns teaching-action priority,
+mode, practice/test progression, pacing, and pending pedagogical offers. It returns
+an immutable pedagogical decision plus authorized State Changes and Failure Signals;
+grading, assessment arming, and evidence writing remain Assessment and Evidence work.

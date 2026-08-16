@@ -17,6 +17,7 @@ if TYPE_CHECKING:
         InteractionControlRequest,
     )
     from perception import PerceptionInterface
+    from pedagogy import PedagogyInterface
 
 
 class TurnPhase(str, Enum):
@@ -104,7 +105,10 @@ class TemporaryLegacyAdapter(Protocol):
 
     def assessment_request(self, turn_input: TurnInput, interaction) -> "AssessmentRequest": ...
 
-    def execute(self, turn_input: TurnInput, interaction, assessment=None) -> LegacyExecution: ...
+    def pedagogy_request(self, turn_input: TurnInput, observation, assessment): ...
+
+    def execute(self, turn_input: TurnInput, interaction, assessment=None,
+                pedagogy=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -129,6 +133,7 @@ class TurnCoordinator:
         interaction_control: "InteractionControlInterface",
         perception: "PerceptionInterface | None" = None,
         assessment_evidence: "AssessmentEvidenceInterface | None" = None,
+        pedagogy: "PedagogyInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
@@ -136,6 +141,7 @@ class TurnCoordinator:
         self._interaction_control = interaction_control
         self._perception = perception
         self._assessment_evidence = assessment_evidence
+        self._pedagogy = pedagogy
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
@@ -196,13 +202,41 @@ class TurnCoordinator:
                 raise RuntimeError(
                     f"Turn failed closed: {failure.capability}/{failure.cause}"
                 )
+        pedagogical = None
+        continuing_learning = (
+            interaction.value is not None
+            and getattr(interaction.value.disposition, "value", "") == "continue_learning"
+        )
+        if self._pedagogy is not None and continuing_learning:
+            if self._perception is None or perception.value is None:
+                raise RuntimeError("Pedagogy requires a validated Perception observation")
+            pedagogical = self._pedagogy.decide(
+                self._adapter.pedagogy_request(
+                    turn_input, perception.value, assessment
+                )
+            )
+            actions = tuple(
+                self._recovery_policy.decide(failure)
+                for failure in pedagogical.failures
+            )
+            if not pedagogical.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(pedagogical.failures)
+                failure = pedagogical.failures[0]
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
+                )
         try:
-            if assessment is None:
-                execution = self._adapter.execute(turn_input, interaction=interaction)
-            else:
+            if pedagogical is not None:
+                execution = self._adapter.execute(
+                    turn_input, interaction=interaction, assessment=assessment,
+                    pedagogy=pedagogical,
+                )
+            elif assessment is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment
                 )
+            else:
+                execution = self._adapter.execute(turn_input, interaction=interaction)
         except LegacyAdapterFailure as failure:
             self._supervisor.observe_turn((failure.signal,))
             action = self._recovery_policy.decide(failure.signal)
@@ -212,8 +246,10 @@ class TurnCoordinator:
                 ) from failure
             raise failure.original.with_traceback(failure.original.__traceback__)
         self._validate_phase_trace(execution)
-        extracted_failures = perception_failures + (
-            () if assessment is None else assessment.failures
+        extracted_failures = (
+            perception_failures
+            + (() if assessment is None else assessment.failures)
+            + (() if pedagogical is None else pedagogical.failures)
         )
         if extracted_failures:
             execution = replace(

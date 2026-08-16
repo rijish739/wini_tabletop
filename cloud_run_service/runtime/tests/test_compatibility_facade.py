@@ -18,9 +18,111 @@ from perception import Perception, PerceptionTransportError
 from perception.route import RouteResult
 from assessment_evidence import AssessmentEvidence
 from evidence.ledger import make_idempotency_key
+from pedagogy import Pedagogy, PedagogyDependencies
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
+    def test_pedagogy_decision_crosses_the_compatibility_facade(self) -> None:
+        class Engine:
+            def observe(self, text, session, current_concept):
+                flags = []
+                signals = []
+                cognitive = {
+                    "confusion": 0.0, "curiosity": 0.0,
+                    "cognitive_load": 0.0, "frustration_risk": 0.0,
+                }
+                problem_cue = {}
+                if text == "hint please":
+                    flags, signals = ["hint_requested"], ["request_hint"]
+                elif text == "denominators always add":
+                    flags = ["misconception_suspected"]
+                elif text == "give me a harder one":
+                    signals = ["ready_for_next"]
+                elif text == "I don't understand":
+                    cognitive["confusion"] = 0.8
+                elif text == "solve 2x + 3 = 7":
+                    problem_cue = {"is_problem": True, "directive": True}
+                return RouteResult(primary="LEARNING", concept_id="fractions"), {
+                    "normalized_text": text,
+                    "signals": signals,
+                    "signal_scores": {},
+                    "concept": {
+                        "concept_id": "fractions", "concept_confidence": 1.0,
+                        "secondary_concepts": [], "abstained": False,
+                    },
+                    "cognitive_update": cognitive,
+                    "state_deltas": {
+                        "global": {}, "concept_id": "fractions",
+                        "concept_flags": flags,
+                        "signals": signals,
+                    },
+                    "problem_cue": problem_cue,
+                }
+
+        class Control:
+            def control(self, request):
+                if request.turn_input.interaction["text"] == "change topic":
+                    return ModuleOutcome(value=InteractionDecision(
+                        disposition=InteractionDisposition.COMPLETE,
+                        text="change topic",
+                        compatibility={
+                            "action": "TOPIC_SHIFT", "answer": "Which topic?",
+                            "display": [], "session_ended": False,
+                        },
+                    ))
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.CONTINUE_LEARNING,
+                    text=request.turn_input.interaction["text"],
+                    analysis=request.perception.analysis,
+                ))
+
+        received = {}
+        state = SimpleNamespace(data={
+            "learner_id": "learner-1",
+            "concept_states": {"fractions": {
+                "mastery": 0.4, "transfer_readiness": 0.9,
+            }},
+            "session": {"mode": "EXPLAIN", "current_concept": "fractions"},
+        })
+        facade = TutorLoopCompatibilityFacade(
+            legacy_turn=lambda text, **kwargs: received.update(kwargs) or {
+                "action": kwargs["_pedagogy_decision"].action,
+                "answer": "Try a similar example.", "display": [],
+            },
+            commit_state=lambda: None,
+            state=state,
+            interaction_control=Control(),
+            perception=Perception(Engine()),
+            pedagogy=Pedagogy(dependencies=PedagogyDependencies(
+                schema_ids=lambda concept_id: ["schema-1"],
+            )),
+        )
+
+        cases = (
+            ("explain fractions", "EXPLAIN"),
+            ("hint please", "ANALOGOUS_EXAMPLE"),
+            ("denominators always add", "MISCONCEPTION_PROBE"),
+            ("give me a harder one", "TRANSFER_PROBLEM"),
+            ("I don't understand", "EXPLAIN"),
+            ("okay", "METACOGNITIVE_REFLECT"),
+            ("solve 2x + 3 = 7", "SOLVE_STUDENT_PROBLEM"),
+            ("let's practice", "WORKED_EXAMPLE"),
+            ("test me", "TEST_QUESTION"),
+            ("stop the test", "EXPLAIN"),
+        )
+        for index, (text, expected) in enumerate(cases):
+            with self.subTest(text=text):
+                result = facade.turn(
+                    text, turn_id=f"turn-{index + 2}", learner_id="learner-1"
+                )
+                self.assertEqual(result["action"], expected)
+
+        self.assertEqual(received["_pedagogy_decision"].need, "explain")
+        topic_change = facade.turn(
+            "change topic", turn_id="turn-topic", learner_id="learner-1"
+        )
+        self.assertEqual(topic_change["action"], "TOPIC_SHIFT")
+
     def test_prior_assessment_is_graded_and_projected_through_the_facade(self) -> None:
         class AttemptControl:
             def control(self, request):

@@ -23,6 +23,7 @@ class TutorLoopCompatibilityFacade:
         interaction_control: Any,
         perception: Any = None,
         assessment_evidence: Any = None,
+        pedagogy: Any = None,
     ) -> None:
         if assessment_evidence is None:
             from assessment_evidence import AssessmentEvidence
@@ -38,6 +39,7 @@ class TutorLoopCompatibilityFacade:
             interaction_control=interaction_control,
             perception=perception,
             assessment_evidence=assessment_evidence,
+            pedagogy=pedagogy,
             supervisor=self._supervisor,
         )
         self._state = state

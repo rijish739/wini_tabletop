@@ -115,98 +115,6 @@ from perception import gate as _front_gate  # noqa: E402  (model-free, cheap reg
 from perception.config import PERCEPTION_BACKEND  # noqa: E402
 
 # ---------------------------------------------------------------------------
-# Rule-based pedagogy decision v1 (architecture section 6.6 / section 13).
-# First matching rule wins; each returns (action_label, query.py need mode).
-# The bridge gate is NOT a rule here — bridge_evidence always runs first in
-# retrieval, per section 6.8 ("prior knowledge is activated BEFORE new
-# instruction"). Mastery/misconception writes stay with the probe/bridge APIs.
-# ---------------------------------------------------------------------------
-
-
-def rules_decide(update: dict, signals: list, flags: list, abstained: bool,
-                 acknowledged: bool = False, clarification: bool = False,
-                 learning_start: bool = False, visual: bool = False,
-                 purpose: bool = False, student_problem: bool = False,
-                 transfer_ready: bool = False) -> tuple[str, str, str]:
-    s = set(signals)
-    # rule 1a-vis (deterministic, outranks rule 1b): the student said they cannot
-    # PICTURE it ("I cannot imagine this") or asked what it looks like. That is a
-    # representation gap, not generic confusion — re-explaining the same words is
-    # exactly the failure gemini_tutor_issues.md #3/#4 flagged. Switch modality:
-    # a concrete scene / figure (rule 6 machinery, KI need).
-    if visual and not acknowledged:
-        return "REPRESENTATION_TRANSLATION", "integrate", \
-            "rule 1a-vis: learner cannot picture it -> switch representation, never re-define"
-    # rule 1w (deterministic): the student asked WHY this is worth learning, what
-    # it is for, or HOW something shown connects to the topic — or complained that
-    # their question was not answered. ANSWER THAT question; never respond with a
-    # new problem or another definition (2026-07-03 transcript: "how is this
-    # related to quadratic equation" drew a TRANSFER_PROBLEM, then two deflections
-    # until the student gave up).
-    if purpose and not acknowledged:
-        return "WHY_IT_MATTERS", "explain", \
-            "rule 1w: purpose/connection question -> answer the why directly, never deflect"
-    # rule 1b (deterministic, outranks the inferred-misconception probe): the
-    # student EXPLICITLY signalled they did not understand / it is too hard / we
-    # are repeating ourselves. Re-explain the SAME idea more simply — never answer
-    # a confused learner with a Socratic challenge, and never re-serve a probe they
-    # just said they could not follow (learning_log repetition + mis-grade regression).
-    if clarification and not acknowledged:
-        return "EXPLAIN", "explain", \
-            "rule 1b: learner did not understand -> re-explain more simply (no challenge, no re-probe)"
-    # rule 1c (learning start): the student is opening a NEW / never-taught topic and
-    # asking to learn it (curiosity / a bare question, no distress, no pending check).
-    # Introduce and EXPLAIN it — never QUIZ or Socratically challenge a topic that has
-    # not been taught yet (the transcript regression: "I want to learn trigonometry"
-    # -> QUIZ "which angle is 90 degrees?").
-    if learning_start and not acknowledged:
-        return "EXPLAIN", "explain", \
-            "rule 1c: fresh topic + wants to learn -> introduce and explain (never quiz first)"
-    if "misconception_suspected" in flags:
-        return "MISCONCEPTION_PROBE", "explain", "rule 2: probe before correcting (section 13 rule 8)"
-    if "hint_requested" in flags:
-        return "ANALOGOUS_EXAMPLE", "schema", "rule 3: hint asked -> schema + analogous example, never the answer (rule 10)"
-    # PURE acknowledgment ("yes, that explained it") with no fresh ask:
-    # consolidate and move forward — NEVER re-explain (debug_text.txt
-    # regression). The deterministic cue outranks the classifier here because
-    # the classifier misreads acks as confusion (no positive-ack training data).
-    if acknowledged:
-        return "METACOGNITIVE_REFLECT", "reflect", \
-            "rule 2b: understanding confirmed -> reflect + advance, never re-explain (rule 11)"
-    if update["cognitive_load"] >= 0.7 or update["frustration_risk"] >= 0.6:
-        return "ENCOURAGE", "explain", "rule 4: high load/frustration -> simple explanation + encouragement (rule 2/7)"
-    # rule 4b (deterministic, OUTRANKS rule 5): the student brought a problem
-    # instance of their own and wants it worked out. Every other action in the
-    # §6.6 catalog is served FROM THE STORE — none of them has the utterance
-    # itself as its object — so before this rule a word problem fell through to
-    # rule 5: a student-supplied problem IS structurally a transfer attempt, so
-    # perception scores `transfer_attempt` high, `transfer_ready_evidence` gets
-    # raised, and TRANSFER_PROBLEM answers a child's "find the speeds" with a
-    # DIFFERENT problem plus "do NOT solve it" (audit A-2). The cue is
-    # deterministic on purpose: the routing must not depend on the same model
-    # whose (correct) transfer signal caused the misroute.
-    if student_problem:
-        return "SOLVE_STUDENT_PROBLEM", "schema", \
-            "rule 4b: student brought their own problem -> solve THAT instance using the stored method"
-    if transfer_ready and ("transfer_ready_evidence" in flags or "ready_for_next" in s):
-        return "TRANSFER_PROBLEM", "transfer", "rule 5: transfer readiness -> near transfer first (section 6.6)"
-    if s & {"request_representation", "representation_shift", "graphical", "diagrammatic"}:
-        return "REPRESENTATION_TRANSLATION", "integrate", "rule 6: representation gap -> translate (rule 5, KI)"
-    if "self_corrected" in flags:
-        return "METACOGNITIVE_REFLECT", "reflect", "rule 9: self-correction -> reflection prompt (rule 11)"
-    if "example_request" in s:
-        return "WORKED_EXAMPLE", "example", "rule 8: example asked -> worked example"
-    if update["curiosity"] >= 0.6 and update["confusion"] < 0.4:
-        return "SOCRATIC_Q", "challenge", "rule 7: curious + not confused -> challenge (CT)"
-    if update["confusion"] >= 0.4:
-        return "EXPLAIN", "explain", "rule 10a: confusion default -> explain simply"
-    if abstained and not acknowledged:
-        return "EXPLAIN", "explain", "rule 10a: unresolved + no clear signal -> explain simply"
-    return "EXPLAIN", "explain", \
-        "rule 10b: no verified assessment selected -> grounded explanation, never pseudo-quiz"
-
-
-# ---------------------------------------------------------------------------
 # Local MiniLM chunk index (built once, reused)
 # ---------------------------------------------------------------------------
 
@@ -817,35 +725,6 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
             int(answer_budget.get("max_sentences", 2)),
         )
     return _ensure_assessment_question(text, required_question)
-
-
-def _budget_for_generation(answer_budget: dict | None, action: str) -> dict | None:
-    """Resize the spoken budget to the ACTUAL pedagogical action.
-
-    The pacing layer guesses a generic budget before the action is decided, so a
-    WORKED_EXAMPLE would otherwise be capped at EXPLAIN's 35 words / 2 sentences —
-    only enough to announce an example, not work it. We take the per-action word/
-    sentence room from the pacing controller (single source of truth) while keeping
-    the caller's micro-check decision (must_end_with reflects pending_check state).
-    """
-    if not answer_budget:
-        return answer_budget
-    try:
-        from pacing.pacing_controller import ACTION_BUDGETS
-        ab = ACTION_BUDGETS.get(action)
-    except Exception:  # noqa: BLE001 — pacing not importable: keep caller's budget
-        ab = None
-    if not ab:
-        return answer_budget
-    out = dict(answer_budget)
-    out["max_words"] = int(ab["max_words"])
-    out["max_sentences"] = int(ab["max_sentences"])
-    # adopt the action's check type (e.g. WORKED_EXAMPLE -> 'try_step', so the model
-    # asks them to try the next step rather than 'did you understand'); but keep the
-    # caller's must_end_with, which already encodes pending_check (no extra check).
-    if out.get("must_end_with") == "micro_check":
-        out["micro_check_type"] = ab.get("micro_check_type", out.get("micro_check_type"))
-    return out
 
 
 # The sentence that carries a derivation's FINAL RESULT (audit A-3). A worked
@@ -1615,104 +1494,6 @@ class TutorLoop:
         return [n for n, d in self.graph.nodes(data=True)
                 if d.get("type") == "problem_schema" and d.get("concept_id") == concept_id]
 
-    def _drive_test(self, session: dict, concept_id: str | None, last_outcome) -> dict | None:
-        """Run the TEST quiz-set state machine one turn (§4.4). Returns a mode_item
-        dict carrying `action`, `need`, `why`, the spoken `speak` line, and (for a
-        question) the `pending` check to arm — or None to fall back to rules_decide.
-
-        Item generation is runtime (generate_quiz_item); grading happened UPSTREAM
-        in step 1b via apply_item_result (kind='test', full weight, hint-free) and
-        arrives here as `last_outcome`. On the gate the set is recorded to
-        test_history and, on a FAIL, the mode drops to a corrective EXPLAIN
-        (Bloom mastery cycle); the concept's mastery_gate carries the durable
-        failed_pending_retest flag so a later 'test me' is a parallel-form re-test."""
-        if not self.want_answer:
-            return None                      # TEST inherently needs generation
-        ts = session.get("test_state")
-        if ts and ts.get("phase") != "done":
-            # A test in progress is LOCKED to the concept it began on. The student's
-            # short answers ("6xy", "48") re-classify to other concepts turn to turn;
-            # honouring that drift would restart the set every item (never reaching the
-            # gate). Grading already used each item's own concept, so mastery is safe.
-            concept_id = ts["concept_id"]
-        else:
-            schema_ids = self._concept_schema_ids(concept_id)
-            ts = self.modes.build_quiz_set(session, concept_id, schema_ids)
-            if not ts:
-                return None                  # nothing testable -> rules_decide
-            last_outcome = None              # a fresh set does not carry a prior item
-        step = self.modes.advance_test(session, last_outcome=last_outcome,
-                                       gate_threshold=MASTERY_GATE_DEFAULT)
-        if step and step["phase"] == "serving":
-            schema = self.graph.nodes.get(step["schema_id"], {})
-            asked_ids = {str(it.get("id")) for it in ts.get("items", []) if it.get("id")}
-            verified = default_bank().select(
-                concept_id, "check_independent", asked_ids) if concept_id else None
-            item = verified.to_dict() if verified is not None else None
-            if not item:
-                # can't produce a gradeable item: end on what we have, or abandon.
-                if not ts["results"]:
-                    session.pop("test_state", None)
-                    return None
-                ts["phase"] = "done"
-                step = self.modes.score_quiz(ts["results"], len(ts["results"]),
-                                             MASTERY_GATE_DEFAULT)
-            else:
-                iid = item.get("item_id") or f"quiz::{concept_id}::{step['i']}::{int(time.time())}"
-                ts.setdefault("items", []).append({
-                    "id": iid, "schema_id": step["schema_id"],
-                    "question": item["question"], "expected_answer": item["expected_answer"],
-                    "difficulty": schema.get("difficulty")})
-                pending = {**item, "kind": "test", "id": iid,
-                           "concept_id": concept_id,
-                           "assessment_purpose": item.get("assessment_purpose")
-                           or "check_independent",
-                           "reveal_policy": "never_during_test",
-                           "difficulty": schema.get("difficulty"), "hint_chain": None}
-                return {"action": "TEST_QUESTION", "need": "schema", "why": step["why"],
-                        "speak": self._test_question_line(step["i"], step["n"],
-                                                          item["question"], last_outcome),
-                        "pending": pending,
-                        # Stage 4 (§5.6): fields the T9 question card reads.
-                        "question": item["question"], "item_no": step["i"], "of": step["n"]}
-        # summary (all N graded, or an early end): record + gate + (fail) corrective
-        wb = self.state.record_test_result(
-            concept_id, score=step["score"], n=step["n"], gate=step["gate"],
-            item_results=ts.get("items", []), gate_threshold=step["threshold"])
-        speak = self._test_summary_line(step)
-        session.pop("test_state", None)      # set is finished either way
-        if step["gate"] == "fail":
-            self.modes.set_mode(session, "EXPLAIN")   # Bloom corrective loop (§4.4)
-        return {"action": "TEST_SUMMARY", "need": "none",
-                "why": step["why"] + (" -> corrective EXPLAIN" if step["gate"] == "fail" else ""),
-                "speak": speak, "test_record": wb,
-                # Stage 4 (§5.6): fields the T9 score card reads.
-                "results": list(step.get("results") or []),
-                "correct": step.get("correct"), "of": step["n"]}
-
-    @staticmethod
-    def _test_question_line(i: int, n: int, question: str, last_outcome) -> str:
-        """The exact spoken text for a TEST question turn: immediate feedback on the
-        previous item (§4.3 R3) + the next question, delivered verbatim (no LLM
-        paraphrase — a test must not reword its own numbers)."""
-        fb = {"correct": "Correct! ", "partial": "Almost — partial credit. ",
-              "wrong": "Not quite, but let's keep going. "}.get(last_outcome, "")
-        lead = "Here's your first question. " if i == 1 else f"Question {i} of {n}. "
-        return f"{fb}{lead}{question}"
-
-    @staticmethod
-    def _test_summary_line(step: dict) -> str:
-        c, n = step["correct"], step["n"]
-        pct = int(round(step["score"] * 100))
-        if step["gate"] == "pass":
-            return (f"Great work — you got {c} out of {n} right ({pct}%). That's a pass! "
-                    f"You've shown you really understand this. "
-                    f"Want to keep going, or learn something new?")
-        thr = int(round(step["threshold"] * 100))
-        return (f"You got {c} out of {n} right ({pct}%). That's below the {thr}% we aim "
-                f"for — and that's completely okay. Let's go back and work through the "
-                f"tricky parts together.")
-
     @staticmethod
     def _mode_display(mode_item: dict | None) -> list[dict]:
         """Stage 4 (§5.6): T9 TEXT cards for TEST turns. A `question_card` keeps the
@@ -2171,6 +1952,19 @@ class TutorLoop:
                 assessment_evidence=__import__(
                     "assessment_evidence", fromlist=["AssessmentEvidence"]
                 ).AssessmentEvidence(model_call=qwen_chat),
+                pedagogy=__import__(
+                    "pedagogy", fromlist=["Pedagogy", "PedagogyDependencies"]
+                ).Pedagogy(
+                    offers_enabled=os.getenv("WINI_MODE_OFFERS", "0").lower()
+                    not in ("0", "false", ""),
+                    dependencies=__import__(
+                        "pedagogy", fromlist=["PedagogyDependencies"]
+                    ).PedagogyDependencies(
+                        schema_ids=self._concept_schema_ids,
+                        can_assess=self.want_answer,
+                        mastery_gate_threshold=MASTERY_GATE_DEFAULT,
+                    ),
+                ),
             )
             self._typed_turn_facade = facade
         return facade
@@ -2300,6 +2094,7 @@ class TutorLoop:
             log_event=log_event,
             notify_safety=notify_safety,
             now=lambda: time.strftime("%Y-%m-%dT%H:%M:%S"),
+            pedagogy_owns_modes=True,
             stt_write_confidence_min=STT_WRITE_CONFIDENCE_MIN,
         ))
 
@@ -2343,7 +2138,8 @@ class TutorLoop:
                      _perception_uncertain: bool = False,
                      _interaction_answer_attempt: bool = False,
                      _perception_state_applied: bool = False,
-                     _prior_assessment: AssessmentResult | None = None) -> dict:
+                     _prior_assessment: AssessmentResult | None = None,
+                     _pedagogy_decision=None) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
@@ -2395,7 +2191,7 @@ class TutorLoop:
         # regression: "i can not understand" graded wrong → mastery dropped).
         from cognitive_classifier.cues import (
             is_pure_ack, is_question, is_clarification_request, is_answer_attempt,
-            is_visualization_request, is_purpose_question, is_learning_request,
+            is_visualization_request, is_purpose_question,
             is_animation_request, is_real_life_request,
         )
         _sig = set(analysis["signals"])
@@ -2525,83 +2321,66 @@ class TutorLoop:
         if acknowledged and primary and session.get("last_action") == "REPRESENTATION_TRANSLATION":
             self._mark_representations_known(primary, session.get("last_repr_targets", []))
 
-        # 3. pedagogy: rules decide, shadow suggests (logged only)
-        # A "learning start" is a not-yet-mastered concept the student is asking to
-        # learn (curiosity or a bare question), with no distress, no pending check, and
-        # no answer attempt — introduce it rather than quiz it (rule 1c). Gate on
-        # MASTERY, not is_known: apply_deltas creates a concept-state row on the first
-        # turn, so is_known() is already True by here even for a brand-new topic;
-        # mastery stays at COLD_START until graded evidence moves it.
-        # An EXPLICIT "I want to learn / teach me" request always teaches (never a
-        # cold quiz), even when the concept carries prior mastery — the 2026-07-03
-        # transcript opened with "I want to learn about the quadratic equation" and
-        # got QUIZ because perception's signals were empty and mastery was warm.
-        # The welcoming-intro TONE stays reserved for genuinely new topics.
-        explicit_learn = is_learning_request(text)
-        learning_start = (
-            bool(primary)
-            and (self.state.mastery(primary) <= COLD_START_MASTERY or explicit_learn)
-            and not answer_try and not acknowledged and not pending
-            # a problem instance is not "opening a topic": "solve x^2-5x+6=0" can
-            # score curiosity/question and would otherwise be hijacked into an
-            # intro EXPLAIN before rule 4b is ever reached.
-            and not student_problem
-            and (("curiosity" in _sig) or ("question" in _sig) or is_question(text)
-                 or explicit_learn or bool(_sig & {"example_request", "learning_goal"}))
-            and analysis["cognitive_update"].get("frustration_risk", 0.0) < 0.6
-        )
-        # 3a. Part 12 OUTER LOOP: resolve the pedagogy MODE for this turn (§5.2).
-        # Explicit request cues switch EXPLAIN/PRACTICE/TEST; evidence transitions +
-        # offers arrive in Stages 2/3. EXPLAIN (the default) leaves the inner loop
-        # byte-identical to pre-Part-12.
-        from session_modes import mode_cues
-        mode, mode_reason = self.modes.resolve_mode(session, text, cue=mode_cues(text))
-        # 3b. Dispatch (§5.2). Inner-loop overrides ALWAYS win and pause the plan:
-        # a confusion / visualization / purpose plea, or a suspected misconception,
-        # falls through to rules_decide even inside PRACTICE/TEST (precedence table).
-        override_active = (
-            (wants_visual and not answer_try) or (wants_why and not answer_try)
-            or (clarification and not answer_try)
-            or ("misconception_suspected" in analysis["state_deltas"]["concept_flags"])
-        )
-        mode_item = None
-        if mode == "PRACTICE" and not override_active:
-            mastery_now = self.state.mastery(primary) if primary else COLD_START_MASTERY
-            item = self.modes.next_practice_item(
-                session, mastery=mastery_now,
-                last_outcome=practice_outcome, last_hints=practice_hints)
-            if item.get("exit_to_explain"):
-                self.modes.set_mode(session, "EXPLAIN")
-                mode, mode_reason = "EXPLAIN", item["why"]
+        # 3. Pedagogy has already selected policy from validated Perception and
+        # the working-state projection. This compatibility implementation consumes
+        # the typed decision and owns only downstream realization.
+        if _pedagogy_decision is None:
+            raise RuntimeError("legacy learning behavior requires a Pedagogy decision")
+        mode = _pedagogy_decision.mode
+        mode_reason = _pedagogy_decision.reason
+        action = _pedagogy_decision.action
+        need = _pedagogy_decision.need
+        why = _pedagogy_decision.reason
+        pedagogical_budget = dict(answer_budget or {})
+        pedagogical_budget["max_sentences"] = _pedagogy_decision.pacing.max_sentences
+        pedagogical_budget["max_words"] = _pedagogy_decision.pacing.max_words
+        answer_budget = pedagogical_budget
+        mode_item = dict(_pedagogy_decision.plan or {}) or None
+        # Assessment/Evidence materializes Pedagogy's abstract test intent with a
+        # verified item. Pedagogy never selects, arms, grades, or records evidence.
+        if mode_item and mode_item.get("action") == "TEST_QUESTION":
+            ts = session.get("test_state") or {}
+            test_concept = mode_item.get("concept_id") or primary
+            seen = {str(item.get("id")) for item in ts.get("items", []) if item.get("id")}
+            selected = default_bank().select(test_concept, "check_independent", seen) if test_concept else None
+            item = selected.to_dict() if selected is not None else None
+            if item is None:
+                mode_item = None
+                action, need = "EXPLAIN", "explain"
+                why += "; no verified test item -> non-assessing explanation"
             else:
-                mode_item = item
-        elif mode == "TEST" and not override_active:
-            mode_item = self._drive_test(session, primary, practice_outcome)
-            # a failed-gate summary flips the session to a corrective EXPLAIN inside
-            # _drive_test; reflect that for this turn's logging/echo.
-            if mode_item is not None:
-                mode = self.modes.current_mode(session)
-            # A mode change blocked by the active test (§4.4): acknowledge it so
-            # the student doesn't think the UI is broken — the test continues.
-            if mode_item is not None and mode_item.get("speak") \
-                    and "blocked" in (mode_reason or ""):
-                mode_item["speak"] = ("We're in the middle of a test — let's finish "
-                                      "it first. ") + mode_item["speak"]
+                item_id = item["item_id"]
+                ts.setdefault("items", []).append({
+                    "id": item_id, "schema_id": mode_item["schema_id"],
+                    "question": item["question"],
+                    "expected_answer": item["expected_answer"],
+                })
+                feedback = {
+                    "correct": "Correct! ", "partial": "Almost — partial credit. ",
+                    "wrong": "Not quite, but let's keep going. ",
+                }.get(mode_item.get("prior_outcome"), "")
+                lead = ("Here's your first question. " if mode_item["item_no"] == 1
+                        else f"Question {mode_item['item_no']} of {mode_item['of']}. ")
+                mode_item.update({
+                    "speak": f"{feedback}{lead}{item['question']}",
+                    "question": item["question"],
+                    "pending": {
+                        **item, "kind": "test", "id": item_id,
+                        "concept_id": test_concept, "reveal_policy": "never_during_test",
+                        "hint_chain": None,
+                    },
+                })
+        if mode_item and mode_item.get("test_completion"):
+            completion = mode_item["test_completion"]
+            test_concept = mode_item.get("concept_id") or primary
+            mode_item["test_record"] = self.state.record_test_result(
+                test_concept, score=completion["score"], n=completion["n"],
+                gate=completion["gate"],
+                item_results=list(mode_item.get("item_history") or ()),
+                gate_threshold=completion["threshold"],
+            )
         if mode_item is not None:
             action, need, why = mode_item["action"], mode_item["need"], mode_item["why"]
-        else:
-            action, need, why = rules_decide(
-                analysis["cognitive_update"], analysis["signals"],
-                analysis["state_deltas"]["concept_flags"], concept["abstained"],
-                acknowledged=acknowledged,
-                clarification=(clarification and not answer_try),
-                learning_start=learning_start,
-                visual=(wants_visual and not answer_try),
-                purpose=(wants_why and not answer_try),
-                student_problem=student_problem,
-                transfer_ready=(bool(primary) and
-                                self.state.transfer_readiness(primary) >= 0.75),
-            )
         # L3: learner state snapshot
         try:
             if _dbg:
@@ -2620,18 +2399,17 @@ class TutorLoop:
                 if wants_visual and not answer_try: _cues.append("visual")
                 if wants_why and not answer_try: _cues.append("why")
                 if clarification and not answer_try: _cues.append("clarification")
-                if learning_start: _cues.append("learning_start")
+                if _pedagogy_decision.introduction: _cues.append("learning_start")
                 if student_problem: _cues.append("student_problem")
                 if acknowledged: _cues.append("acknowledged")
-                _dbg.emit(_dbg.L4, "rules_decide",
+                _dbg.emit(_dbg.L4, "pedagogy_decide",
                           action=action, need=need, reason=why,
                           mode=mode, via_mode_item=bool(mode_item),
                           signals=analysis.get("signals") or [],
                           cues=_cues)
         except Exception:  # noqa: BLE001
             pass
-        intro = (learning_start and action == "EXPLAIN"
-                 and bool(primary) and self.state.mastery(primary) <= COLD_START_MASTERY)
+        intro = bool(_pedagogy_decision.introduction)
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
 
         # 4. retrieval over the local index, reusing query.py machinery
@@ -2916,7 +2694,7 @@ class TutorLoop:
             # (generic EXPLAIN). Now that the action is decided, give the generator
             # the action-appropriate word/sentence room — e.g. a WORKED_EXAMPLE
             # needs space to actually work the example, not just announce it.
-            gen_budget = _budget_for_generation(answer_budget, action)
+            gen_budget = answer_budget
             # Follow-up continuity (the "explanation changes the question" bug): when
             # the student is asking about the SAME sum already on the table — a
             # clarification / anaphoric follow-up with no new numbers of their own,
@@ -3042,15 +2820,10 @@ class TutorLoop:
                 # Turn-scoped: never let this thread's hook leak into another turn.
                 set_first_sentence_hook(None)
 
-        # 5b. Part 12: after an EXPLAIN turn where the student just confirmed
-        # understanding, optionally OFFER practice (§4.1 row 2). Off by default until
-        # Stage 2 (PRACTICE exists); appends one inviting line + arms a yes/no offer.
-        if answer and mode == "EXPLAIN":
-            offer = self.modes.maybe_offer_practice(
-                session, acknowledged=acknowledged, analysis=analysis,
-                has_active_misconception=bool(getattr(snapshot, "active_misconceptions", None)))
-            if offer:
-                answer = f"{answer} {offer}"
+        # 5b. Pedagogy may attach a one-shot practice offer to its typed plan.
+        offer = (_pedagogy_decision.plan or {}).get("offer")
+        if answer and offer:
+            answer = f"{answer} {offer}"
 
         # 5c. Draw-the-answer (response_layer.scene_author): a visual was EARNED this
         # turn, so author the figure FROM the generated answer — the board mirrors what

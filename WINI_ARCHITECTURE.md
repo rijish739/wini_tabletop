@@ -327,3 +327,9 @@ the extracted Interaction Control Feature Module for admission, non-learning rou
 topic/conversation continuity, redirection, mode-stop interaction, and termination.
 Completed interactions commit directly; admitted learning interactions continue through
 the temporary legacy adapter while later Feature Modules are extracted.
+# 2026-08-16 runtime module update
+
+The Turn Coordinator now invokes a typed Pedagogy Feature Module between validated
+Perception/prior Assessment and retrieval. Pedagogy owns teaching action, mode,
+practice/test progression, pacing, and pending offers while Assessment and Evidence
+retains grading, arming, and evidence ownership.

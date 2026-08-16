@@ -1371,3 +1371,11 @@ full standard-library discovery runs 65 tests, with 60 passing and five import e
 solely because `numpy` is absent from the available interpreter. The frozen oracle
 self-check reports 27 cases and zero differences; its pre-existing artifact/model-replay
 status remains incomplete.
+# Baseline Split checkpoint: Pedagogy (2026-08-16)
+
+Extracted the Pedagogy Feature Module and connected it to the Turn Coordinator.
+Interface and compatibility-façade coverage includes explain, practice, test, hint,
+misconception, transfer, clarification, acknowledgement, learner-problem,
+topic-change, and stop behavior. Verification: 86 scoped tests passed; the 27-case
+oracle validated and its frozen-reference self-check found zero differences (the
+known missing-artifact capture limitation remains).

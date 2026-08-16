@@ -592,3 +592,9 @@ manifest, embedding artifact, ranking rule, or dataset input. The compatibility 
 continues to carry learning Turns into the legacy retrieval path after admission, while
 completed non-learning Turns bypass retrieval as before. No store number was changed or
 re-measured because the store contract is unaffected.
+# Pedagogy Feature Module extraction (2026-08-16)
+
+Retrieval now consumes the action and need selected by the typed Pedagogy Interface.
+Pedagogy may request an assessment only when Perception is certain and a verified item
+is available; item grading, arming, and evidence writes are deliberately excluded.
+The frozen 27-case equivalence oracle self-check reports zero differences.

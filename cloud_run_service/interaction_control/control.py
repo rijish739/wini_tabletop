@@ -148,6 +148,7 @@ class InteractionControlDependencies:
     notify_safety: Callable[[Mapping[str, Any]], None]
     now: Callable[[], str]
     stt_write_confidence_min: float = 0.60
+    pedagogy_owns_modes: bool = False
 
 
 class InteractionControl:
@@ -277,9 +278,11 @@ class InteractionControl:
                     ),
                 )
 
-        pending_mode = self._consume_pending_mode_control(
-            text, session, request.turn_input.turn_id
-        )
+        pending_mode = None
+        if not self._dependencies.pedagogy_owns_modes:
+            pending_mode = self._consume_pending_mode_control(
+                text, session, request.turn_input.turn_id
+            )
         if pending_mode is not None:
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -308,6 +311,8 @@ class InteractionControl:
             route.primary = "SAFETY"
             self._record_safety(request.turn_input, text, route, session)
         if (
+            not self._dependencies.pedagogy_owns_modes
+            and
             route is not None
             and str(route.primary) == "SESSION_CONTROL"
             and not bool(getattr(route, "safety_alert", False))
@@ -344,7 +349,12 @@ class InteractionControl:
                     request.turn_input, starting_session, session
                 ),
             )
-        if route is not None and str(route.primary) != "LEARNING":
+        pedagogical_mode_control = (
+            self._dependencies.pedagogy_owns_modes
+            and self._dependencies.mode_cue(text) is not None
+        )
+        if (route is not None and str(route.primary) != "LEARNING"
+                and not pedagogical_mode_control):
             compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
@@ -455,6 +465,8 @@ class InteractionControl:
         session["status"] = "active"
         session.pop("break_requested", None)
         session.pop("leave_requests", None)
+        if self._dependencies.pedagogy_owns_modes:
+            return None
         resume = self._apply_capability_transition(
             session, self._dependencies.check_frozen_test(session, turn_id)
         )

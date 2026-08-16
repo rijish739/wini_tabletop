@@ -86,13 +86,90 @@ class LegacyTurnAdapter:
             precomputed_grade=turn_input.trusted_observations.get("precomputed_grade"),
         )
 
-    def execute(self, turn_input: TurnInput, interaction=None, assessment=None):
+    def pedagogy_request(self, turn_input: TurnInput, observation, assessment):
+        from cognitive_classifier.cues import (
+            is_clarification_request,
+            is_learning_request,
+            is_pure_ack,
+            is_purpose_question,
+            is_question,
+            is_visualization_request,
+        )
+        from pedagogy import PedagogyObservation, PedagogyRequest, PedagogyStateView
+        from session_modes import mode_cues
+
+        session = copy.deepcopy(self._state.data.get("session") or {})
+        concept_id = observation.concept_id or session.get("current_concept")
+        concept = (self._state.data.get("concept_states") or {}).get(concept_id) or {}
+        mastery_fn = getattr(self._state, "mastery", None)
+        transfer_fn = getattr(self._state, "transfer_readiness", None)
+        assessment_value = None if assessment is None else assessment.value
+        analysis = deep_thaw(observation.analysis)
+        normalized = str(analysis.get("normalized_text") or "").strip()
+        signals = tuple(observation.signals)
+        problem = analysis.get("problem_cue") or {}
+        return PedagogyRequest(
+            turn_input=turn_input,
+            observation=PedagogyObservation(
+                normalized_text=normalized,
+                concept_id=observation.concept_id,
+                signals=signals,
+                concept_flags=tuple(
+                    (analysis.get("state_deltas") or {}).get("concept_flags") or ()
+                ),
+                cognitive_update=observation.cognitive_update,
+                abstained=bool((analysis.get("concept") or {}).get("abstained")),
+                answer_attempt=observation.answer_attempt,
+                uncertain=observation.uncertain,
+                acknowledged=is_pure_ack(normalized),
+                clarification_requested=(
+                    is_clarification_request(normalized)
+                    or "simplification_request" in signals
+                ),
+                visualization_requested=is_visualization_request(normalized),
+                purpose_requested=is_purpose_question(normalized),
+                learning_requested=is_learning_request(normalized),
+                question=is_question(normalized),
+                learner_problem=(
+                    bool(problem.get("is_problem"))
+                    and bool(problem.get("directive"))
+                ),
+                requested_mode=mode_cues(normalized),
+            ),
+            state=PedagogyStateView(
+                session=session,
+                mastery=(
+                    float(mastery_fn(concept_id)) if callable(mastery_fn) and concept_id
+                    else float(concept.get("mastery", 0.2))
+                ),
+                transfer_readiness=(
+                    float(transfer_fn(concept_id)) if callable(transfer_fn) and concept_id
+                    else float(concept.get("transfer_readiness", 0.0))
+                ),
+                has_active_misconception=any(
+                    value.get("status") == "active"
+                    for value in (self._state.data.get("misconception_states") or {}).values()
+                    if isinstance(value, Mapping)
+                ),
+            ),
+            prior_outcome=(
+                assessment_value.grade.outcome
+                if assessment_value is not None and assessment_value.grade is not None
+                and assessment_value.pending_kind in {"practice", "test", "parallel_retest"}
+                else None
+            ),
+            prior_hints=(0 if assessment_value is None else assessment_value.hints_used),
+        )
+
+    def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
+                pedagogy=None):
         return self._execute(
-            turn_input, interaction_outcome=interaction, assessment_outcome=assessment
+            turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
+            pedagogy_outcome=pedagogy,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
-                 assessment_outcome=None):
+                 assessment_outcome=None, pedagogy_outcome=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -105,6 +182,8 @@ class LegacyTurnAdapter:
             )
             if assessment_outcome is not None:
                 state_changes += assessment_outcome.state_changes
+            if pedagogy_outcome is not None:
+                state_changes += pedagogy_outcome.state_changes
             state_changes = self._apply_state_changes(
                 turn_input.learner_id, state_changes
             )
@@ -141,6 +220,8 @@ class LegacyTurnAdapter:
                     )
                 if assessment_value is not None:
                     kwargs["_prior_assessment"] = assessment_value
+                if pedagogy_outcome is not None:
+                    kwargs["_pedagogy_decision"] = pedagogy_outcome.value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(

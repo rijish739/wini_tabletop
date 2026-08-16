@@ -1423,3 +1423,9 @@ generation port, and scripted safety/farewell behavior are reused without changi
 prompt-of-record, model choice, dataset, split, label, artifact, or reported evaluation
 number. Learning decisions continue into the migration adapter with the already-derived
 analysis observation.
+# Pedagogy Feature Module runtime seam (2026-08-16)
+
+The existing policy-shadow model remains observational. Runtime teaching policy is
+now concentrated behind the typed Pedagogy Interface and consumes projected,
+validated Perception facts. No dataset, label-space, model artifact, or measured model
+quality number changed in this extraction.
