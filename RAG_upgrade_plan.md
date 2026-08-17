@@ -598,3 +598,11 @@ Retrieval now consumes the action and need selected by the typed Pedagogy Interf
 Pedagogy may request an assessment only when Perception is certain and a verified item
 is available; item grading, arming, and evidence writes are deliberately excluded.
 The frozen 27-case equivalence oracle self-check reports zero differences.
+
+# Retrieval Feature Module extraction (2026-08-17)
+
+The learner-aware ranking, bridge/misconception/need ordering, cohesion filtering,
+relevance abstention, and provenance-manifest construction now sit behind the typed
+Retrieval Interface. The coordinator passes Pedagogy's decision and immutable store
+and learner views. Retrieval proposes served-history changes; it does not persist the
+learning log or learner state directly. No store, index, embedding, or dataset was rebuilt.

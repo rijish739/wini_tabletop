@@ -8,6 +8,7 @@ from typing import Any, Callable, Mapping, Protocol
 from evidence.contracts import GradeResult
 from evidence.grading import grade_answer, obvious_non_attempt
 from evidence.ledger import make_idempotency_key
+from items.authored import from_authored
 from runtime.contracts import (
     FailureSeverity,
     FailureSignal,
@@ -144,6 +145,48 @@ class AssessmentEvidence:
             value=replace(result, writeback_status="pending"),
             state_changes=(evidence, disarm),
         )
+
+    def prepare_grounded_item(
+        self, *, concept_id: str | None, evidence, graph, pedagogical,
+        pending_assessment: bool, perception_uncertain: bool,
+        practice_candidate: Callable[[str | None], Mapping[str, Any] | None] | None = None,
+    ) -> Mapping[str, Any] | None:
+        """Govern current-turn assessable-item selection from grounded evidence."""
+        if pending_assessment or perception_uncertain:
+            return None
+        for item in evidence:
+            if item["type"] not in {"bridge_diagnostic", "misconception"}:
+                continue
+            question = item.get("question") or item.get("diagnostic_question")
+            if not question:
+                continue
+            node = graph.nodes.get(item["id"], {})
+            kind = "bridge" if item["type"] == "bridge_diagnostic" else "misconception"
+            authored = from_authored({
+                "id": item["id"], "concept_id": concept_id,
+                "question": question, "expected_answer": node.get("expected_answer", ""),
+                "rubric": node.get("rubric") or node.get("why_wrong") or "",
+                "assessment_purpose": "diagnose_barrier" if kind == "bridge"
+                else "diagnose_misconception",
+                "response_type": node.get("response_type") or "short_text",
+                "reveal_policy": node.get("reveal_policy") or "after_attempt",
+                "hint_chain": item.get("hint_chain") or node.get("hint_chain"),
+                "verification_provenance": node.get("verification_provenance") or "authored_store",
+                "verification_version": node.get("verification_version") or "store-v1",
+                "item_source": kind,
+                "metadata": {"representations": node.get("supports_representation") or []},
+            })
+            if authored is not None:
+                return {**authored.to_dict(), "kind": kind, "id": authored.item_id,
+                        "difficulty": node.get("difficulty")}
+        plan = dict(pedagogical.plan or {})
+        if pedagogical.mode == "TEST" and plan.get("pending"):
+            return plan["pending"]
+        if (pedagogical.mode == "PRACTICE" and pedagogical.action in {
+                "ISOMORPHIC_PRACTICE", "COMPLETION_STEP", "TRANSFER_PROBLEM"
+            } and practice_candidate is not None):
+            return practice_candidate(concept_id)
+        return None
 
     def _grade(self, request, pending, text, key, stt_confidence) -> GradeResult:
         if request.precomputed_grade is not None:

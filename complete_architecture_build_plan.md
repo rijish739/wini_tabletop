@@ -1379,3 +1379,13 @@ misconception, transfer, clarification, acknowledgement, learner-problem,
 topic-change, and stop behavior. Verification: 86 scoped tests passed; the 27-case
 oracle validated and its frozen-reference self-check found zero differences (the
 known missing-artifact capture limitation remains).
+
+# Baseline Split checkpoint: Retrieval (2026-08-17)
+
+Extracted retrieval selection and provenance behind `RetrievalInterface.retrieve()`
+and connected it to the Turn Coordinator and compatibility façade. The module owns
+bridge precedence, probe-first misconception evidence, need-specific graph evidence,
+served-history-aware ranking, cohesion, provenance, and safe non-assessing failures.
+Measured verification: 93/93 discoverable tests passed; focused interface/coordinator/
+façade tests passed; compilation and diff checks passed. The frozen 27-case oracle
+self-check reports zero differences, with its pre-existing missing-artifact status.

@@ -1429,3 +1429,9 @@ The existing policy-shadow model remains observational. Runtime teaching policy 
 now concentrated behind the typed Pedagogy Interface and consumes projected,
 validated Perception facts. No dataset, label-space, model artifact, or measured model
 quality number changed in this extraction.
+
+# Retrieval Feature Module runtime seam (2026-08-17)
+
+The existing MiniLM embeddings and seven-term reranker are now consumed through a
+typed Retrieval Interface. This is an ownership/interface extraction only: no model,
+dataset, label space, store artifact, index, prompt, or measured quality number changed.

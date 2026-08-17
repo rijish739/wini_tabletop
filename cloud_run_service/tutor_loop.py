@@ -1950,6 +1950,7 @@ class TutorLoop:
         facade = getattr(self, "_typed_turn_facade", None)
         if facade is None:
             from runtime.compatibility import TutorLoopCompatibilityFacade
+            assessment_module = self._assessment_evidence_module()
 
             facade = TutorLoopCompatibilityFacade(
                 legacy_turn=self._legacy_turn,
@@ -1961,9 +1962,7 @@ class TutorLoop:
                 state=self.state,
                 interaction_control=self._build_interaction_control(),
                 perception=self._perception_module(),
-                assessment_evidence=__import__(
-                    "assessment_evidence", fromlist=["AssessmentEvidence"]
-                ).AssessmentEvidence(model_call=qwen_chat),
+                assessment_evidence=assessment_module,
                 pedagogy=__import__(
                     "pedagogy", fromlist=["Pedagogy", "PedagogyDependencies"]
                 ).Pedagogy(
@@ -1988,9 +1987,17 @@ class TutorLoop:
                             self._retrieval_cohesion_check
                             if self.use_judge and self.want_answer else None
                         ),
-                        practice_candidate=lambda concept_id: self._practice_gradeable(
-                            concept_id, self.state.data.get("session") or {}
-                        ),
+                        prepare_assessment=lambda request, evidence, graph:
+                            assessment_module.prepare_grounded_item(
+                                concept_id=request.concept_id, evidence=evidence,
+                                graph=graph, pedagogical=request.pedagogical,
+                                pending_assessment=request.state.pending_assessment,
+                                perception_uncertain=request.perception_uncertain,
+                                practice_candidate=lambda concept_id:
+                                    self._practice_gradeable(
+                                        concept_id, self.state.data.get("session") or {}
+                                    ),
+                            ),
                     )
                 ),
             )
@@ -2138,6 +2145,15 @@ class TutorLoop:
                 ),
             ))
             self.__perception_module = module
+        return module
+
+    def _assessment_evidence_module(self):
+        module = getattr(self, "__assessment_evidence_module", None)
+        if module is None:
+            from assessment_evidence import AssessmentEvidence
+
+            module = AssessmentEvidence(model_call=qwen_chat)
+            self.__assessment_evidence_module = module
         return module
 
     def turn(self, text: str, answer_budget: dict | None = None,
@@ -2440,217 +2456,45 @@ class TutorLoop:
         intro = bool(_pedagogy_decision.introduction)
         shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
 
-        # 4. retrieval over the local index, reusing query.py machinery
-        concept_hits = [{"concept_id": primary, "score": concept["concept_confidence"]}] if primary else []
-        concept_hits += [{"concept_id": c, "score": 0.3} for c in concept.get("secondary_concepts", [])]
-        concept_ids = [h["concept_id"] for h in concept_hits]
-        band, band_reason = resolve_band(concept_hits, self.state, None)
-        snapshot = Snapshot(self.state, primary, self.concepts_by_id.get(primary), self.graph, band)
+        # 4. Retrieval is mandatory on coordinated learning turns. The legacy
+        # runtime consumes its typed result but owns none of its selection policy.
+        if _retrieval_result is None:
+            raise RuntimeError("legacy learning behavior requires a Retrieval outcome")
+        manifest = _retrieval_result.manifest.to_dict()
+        evidence = manifest["evidence"]
+        cohesion_log = manifest["cohesion_log"]
+        grounding = manifest["grounding"]
+        assessment_candidate = (
+            dict(_retrieval_result.assessment_candidate)
+            if _retrieval_result.assessment_candidate is not None else None
+        )
+        if (action in {
+                "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
+                "TRANSFER_PROBLEM", "TEST_QUESTION"
+            } and not _retrieval_result.assessment_allowed):
+            action, need = "EXPLAIN", "explain"
+            why = f"{why}; retrieval fail-safe: no verified grounded item"
 
-        # One query embedding for the whole turn, built on first use. Bridge
-        # selection (A-8) needs it BEFORE the retrieval block below computes
-        # q_emb, and the teaching-visual floor (B-3) needs it after — memoizing
-        # keeps it to a single encode either way.
-        _q_cache: dict = {}
+        query_embedding = tuple(_retrieval_result.query_embedding)
 
         def _q_vec():
-            if "v" not in _q_cache:
-                _q_cache["v"] = self.analyzer.classifier.embed(
-                    [analysis["normalized_text"]])
-            return _q_cache["v"]
+            if not query_embedding:
+                raise RuntimeError("retrieval query embedding unavailable")
+            return np.asarray([query_embedding], dtype=float)
 
         def _text_sim(txt: str) -> float:
             txt = (txt or "").strip()
-            if not txt:
+            if not txt or not query_embedding:
                 return 0.0
-            return float((_q_vec() @ self.analyzer.classifier.embed([txt[:400]]).T)[0][0])
+            embedded = self.analyzer.classifier.embed([txt[:400]])
+            return float((_q_vec() @ embedded.T)[0][0])
 
-        def _bridge_relevance(g9_id: str, node: dict) -> float:
-            """How related is this Class 9 prerequisite to what the student just
-            said? Scored on the bridge's own words (name + diagnostic question),
-            which is what makes 'mean_average' lose to a genuine prerequisite on
-            a distance-speed-time problem."""
-            return _text_sim(" ".join(str(x) for x in (
-                node.get("name") or g9_id.split("::")[-1].replace("_", " "),
-                node.get("diagnostic_question") or "") if x))
-
-        evidence: list[dict] = []
-        evidence += bridge_evidence(self.graph, self.chunks_by_id, snapshot, concept_ids,
-                                    force=(need == "bridge"),
-                                    relevance=_bridge_relevance)
-        evidence += misconception_evidence(self.graph, snapshot)
-        evidence += need_evidence(self.graph, self.concepts_by_id, snapshot, need, None)
-
-
-        # candidate probe: the analyzer suspects a misconception but none is
-        # active in state yet — serve the concept's first untracked
-        # misconception diagnostic (probe before correcting, rule 8)
-        if action == "MISCONCEPTION_PROBE" and primary and primary in self.graph \
-                and not any(e["type"] == "misconception" for e in evidence):
-            # concept-card `misconceptions` are free text; the nodes hang off the
-            # concept via has_misconception edges
-            for _, mid, d in self.graph.out_edges(primary, data=True):
-                if d.get("relation") != "has_misconception":
-                    continue
-                if self.state.misconception_status(mid) not in (
-                        "untracked", "candidate", "weakening"):
-                    continue
-                a = self.graph.nodes[mid]
-                if a.get("diagnostic_question"):
-                    evidence.insert(0, ev(mid, "misconception",
-                                          "suspected via analyzer; diagnostic served (probe-first)",
-                                          diagnostic_question=a.get("diagnostic_question"),
-                                          hint_chain=a.get("hint_chain")))
-                    break
-
-        # Select at most one assessment for the script. Under P0 this does not
-        # write session state; arm_from_script is the sole writer after delivery
-        # validation. The flag-off branch retains the legacy writer for rollback.
-        assessment_candidate = None
-        # arm the pending check for the NEXT turn: first diagnostic served wins
-        # (bridges precede misconceptions in evidence order, matching section 6.8).
-        # ONLY the two mastery-grading diagnostics may arm it — a `ct_probe` also
-        # carries a `question`, but CT/KT/KI probes are scored by the HOPE path
-        # (pending_hope) and must NOT be graded as misconceptions: doing so wrote
-        # a bogus `ct_probe::...` entry into misconception_states and moved mastery
-        # (learning_log regression — a Socratic turn tanked quadratic_zero_geometry).
-        for e in evidence:
-            if e["type"] not in ("bridge_diagnostic", "misconception"):
-                continue
-            q = e.get("question") or e.get("diagnostic_question")
-            if not q:
-                continue
-            node = self.graph.nodes.get(e["id"], {})
-            expected = node.get("expected_answer", "")
-            kind = "bridge" if e["type"] == "bridge_diagnostic" else "misconception"
-            authored = from_authored({
-                "id": e["id"], "concept_id": primary or e.get("target_concept"),
-                "question": q, "expected_answer": expected,
-                "rubric": node.get("rubric") or node.get("why_wrong") or "",
-                "assessment_purpose": ("diagnose_barrier" if kind == "bridge"
-                                       else "diagnose_misconception"),
-                "response_type": node.get("response_type") or "short_text",
-                "reveal_policy": node.get("reveal_policy") or "after_attempt",
-                "hint_chain": e.get("hint_chain") or node.get("hint_chain"),
-                "verification_provenance": node.get("verification_provenance") or "authored_store",
-                "verification_version": node.get("verification_version") or "store-v1",
-                "item_source": kind,
-                "metadata": {"representations": node.get("supports_representation") or []},
-            })
-            if authored:
-                assessment_candidate = {**authored.to_dict(), "kind": kind,
-                                        "id": authored.item_id,
-                                        "difficulty": node.get("difficulty")}
-                break
-
-        # 4a-practice. Part 12 (§4.3/§5.2): a graded PRACTICE item arms pending_check
-        # with kind="practice" (the ladder's COMPLETION/ISOMORPHIC/TRANSFER levels),
-        # UNLESS a bridge/misconception diagnostic already took the slot (those win —
-        # probe-before-correct). If no gradeable instance exists the item is served
-        # ungraded (mastery simply won't move — never a crash).
-        if mode == "PRACTICE" and action in {
-                "ISOMORPHIC_PRACTICE", "COMPLETION_STEP", "TRANSFER_PROBLEM"} \
-                and not session.get("pending_check"):
-            pc = self._practice_gradeable(primary, session)
-            if pc:
-                assessment_candidate = assessment_candidate or pc
-
-        # 4a-test. Part 12 (§4.4): a TEST item OWNS the pending_check slot. Unlike
-        # PRACTICE, assessment is deliberate quizzing, so probe-before-correct does
-        # NOT preempt it — the test question overrides any bridge/misconception arm.
-        if mode == "TEST" and mode_item and mode_item.get("pending"):
-            assessment_candidate = mode_item["pending"]
-
-        if session.get("pending_check"):
-            assessment_candidate = None
-        if perception_uncertain:
-            assessment_candidate = None
-        if action in {
-                "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
-                "TRANSFER_PROBLEM", "TEST_QUESTION"} and not assessment_candidate:
-            action, need = "EXPLAIN", "explain"
-            why = f"{why}; P0 fail-closed: no verified item, so no assessing question"
-
-        candidates_idx = [i for i, r in enumerate(self.chunks)
-                          if any(c in (r.get("concept_ids") or []) for c in concept_ids)] \
-            or list(range(len(self.chunks)))
-        q_emb = _q_vec()
-        sims = (q_emb @ self.chunk_emb[candidates_idx].T)[0]
-        order = np.argsort(-sims)[:24]
-        ranked = [dict(self.chunks[candidates_idx[j]], score=float(max(sims[j], 0.0))) for j in order]
-        top, trace = snapshot_rerank(ranked, snapshot, need, 6, self.figure_misconceptions)
-        for r in top:
-            evidence.append(ev(r["chunk_id"], "chunk",
-                               f"local semantic+pedagogic match (role={r.get('pedagogical_role')})",
-                               image_path=r.get("image_path") if r.get("kind") == "figure_caption" else None))
-        cohesion_log = cohesion_filter(self.graph, evidence, self.chunks, concept_ids,
-                                       band[2], None, use_judge=False)
-        # v3: local Qwen contradiction judge (cost-gated to >= 3 evidence types)
-        if self.use_judge and self.want_answer:
-            blocks_text = {}
-            for e in evidence:
-                row = self.chunks_by_id.get(e["id"])
-                blocks_text[e["id"]] = (row or {}).get("text") or e.get("text") \
-                    or e.get("question") or e.get("why_wrong") or ""
-            dropped = qwen_cohesion_check(evidence, blocks_text)
-            if dropped:
-                evidence = [e for e in evidence if e["id"] not in dropped]
-                cohesion_log = (cohesion_log or []) + [f"qwen_judge dropped: {dropped}"]
-
-        # Which §6.7 grounding contract this turn runs under (audit A-1). A turn
-        # that works the STUDENT'S own instance is grounded in the manifest's
-        # METHOD only — their numbers cannot be in the manifest, so recording
-        # "manifest_only" would be a lie logged against every such turn, and any
-        # future grounding-guard trained on these pairs would learn from
-        # mislabelled data. Recorded here so the log states which rule applied.
-        grounding = ("method_only" if action == "SOLVE_STUDENT_PROBLEM"
-                     else "manifest_only")
-        manifest = {
-            "evidence": evidence,
-            "bridge_ids": [e["id"] for e in evidence if e["type"].startswith("bridge")],
-            "schema_ids": [e["id"] for e in evidence if e["type"] == "problem_schema"],
-            "ranking_trace": trace, "cohesion_log": cohesion_log,
-            "snapshot": snapshot.summary(), "band_reason": band_reason,
-            "grounding": grounding,
-        }
-
-        # The compatibility path consumes the extracted Retrieval outcome as the
-        # authority. The legacy calculation above remains only for direct internal
-        # callers during the temporary façade migration and is never selected by
-        # the typed coordinator.
-        if _retrieval_result is not None:
-            manifest = _retrieval_result.manifest.to_dict()
-            evidence = manifest["evidence"]
-            cohesion_log = manifest["cohesion_log"]
-            grounding = manifest["grounding"]
-            assessment_candidate = (
-                dict(_retrieval_result.assessment_candidate)
-                if _retrieval_result.assessment_candidate is not None else None
+        from types import SimpleNamespace
+        snapshot = SimpleNamespace(
+            active_misconceptions=manifest["snapshot"].get(
+                "active_misconceptions", {}
             )
-            if (action in {
-                    "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
-                    "TRANSFER_PROBLEM", "TEST_QUESTION"
-                } and not _retrieval_result.assessment_allowed):
-                action, need = "EXPLAIN", "explain"
-                why = f"{why}; retrieval fail-safe: no verified grounded item"
-            _extracted_q = np.asarray([_retrieval_result.query_embedding], dtype=float)
-
-            def _q_vec():
-                return _extracted_q
-
-            def _text_sim(txt: str) -> float:
-                txt = (txt or "").strip()
-                if not txt or not _retrieval_result.query_embedding:
-                    return 0.0
-                embedded = self.analyzer.classifier.embed([txt[:400]])
-                return float((_extracted_q @ embedded.T)[0][0])
-            from types import SimpleNamespace
-            snapshot = SimpleNamespace(
-                active_misconceptions=manifest["snapshot"].get(
-                    "active_misconceptions", {}
-                )
-            )
-
+        )
         # L5: retrieval done (with cohesion log & evidence details)
         try:
             if _dbg:

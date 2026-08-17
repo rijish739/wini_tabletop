@@ -1138,3 +1138,14 @@ one-shot offers behind a typed Pedagogy Interface. Kept grading, evidence writes
 assessment arming out of the module. Scoped suite: 86 passing tests. Frozen oracle:
 27 cases validated, zero self-check differences; candidate replay remains incomplete
 because the repository lacks the documented runtime artifacts.
+
+# 2026-08-17 — Retrieval ownership handoff
+
+- Added a typed Retrieval Interface over immutable store and learner-state views.
+- Preserved prerequisite bridge precedence, probe-before-correction, need modes,
+  seven-term ranking, served-history demotion, cohesion, and provenance manifests.
+- Retrieval proposes `served_items` and `bridges_served` changes and returns safe
+  non-assessing typed outcomes for store, embedding, evidence, and cohesion failures.
+- Verification: 93/93 full discovery passed; the 27-case frozen oracle self-check
+  found zero differences (known incomplete model-artifact replay status unchanged).
+- No store, index, embedding, dataset, prompt, or measured model result changed.

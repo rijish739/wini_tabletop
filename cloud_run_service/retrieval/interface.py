@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import Any, Callable, Mapping, Protocol, Sequence
@@ -9,7 +10,6 @@ from typing import Any, Callable, Mapping, Protocol, Sequence
 import numpy as np
 import networkx as nx
 
-from items.authored import from_authored
 from query import (
     Snapshot,
     bridge_evidence,
@@ -170,7 +170,7 @@ class RetrievalStoreView:
         object.__setattr__(self, "concepts", tuple(deep_freeze(v) for v in self.concepts))
         object.__setattr__(self, "chunks", tuple(deep_freeze(v) for v in self.chunks))
         if self.graph is not None:
-            object.__setattr__(self, "graph", nx.freeze(self.graph.copy()))
+            object.__setattr__(self, "graph", nx.freeze(copy.deepcopy(self.graph)))
         if self.chunk_embeddings is not None:
             values = np.array(self.chunk_embeddings, dtype=float, copy=True)
             values.setflags(write=False)
@@ -256,7 +256,8 @@ class RetrievalResult:
 class RetrievalDependencies:
     embed: Callable[[Sequence[str]], Any] | None = None
     cohesion_check: Callable[[list[dict[str, Any]]], Sequence[str] | None] | None = None
-    practice_candidate: Callable[[str | None], Mapping[str, Any] | None] | None = None
+    prepare_assessment: Callable[[RetrievalRequest, list[dict[str, Any]], Any],
+                                 Mapping[str, Any] | None] | None = None
 
 
 class RetrievalInterface(Protocol):
@@ -281,6 +282,9 @@ class Retrieval:
         except (ValueError, TypeError, KeyError) as exc:
             return self._safe_empty(request, self._failure(
                 request, "invalid_evidence", "validation", str(exc)))
+        except Exception as exc:
+            return self._safe_empty(request, self._failure(
+                request, "embeddings_unavailable", "embedding", str(exc)))
 
     def _retrieve(self, request: RetrievalRequest) -> ModuleOutcome[RetrievalResult]:
         graph = request.store.graph
@@ -359,15 +363,10 @@ class Retrieval:
             grounding=("method_only" if request.pedagogical.action == "SOLVE_STUDENT_PROBLEM"
                        else "manifest_only"), need=need,
         )
-        assessment = self._assessment_candidate(request, evidence, graph)
-        if (assessment is None and request.pedagogical.mode == "PRACTICE"
-                and request.pedagogical.action in {
-                    "ISOMORPHIC_PRACTICE", "COMPLETION_STEP", "TRANSFER_PROBLEM"
-                } and not request.state.pending_assessment
-                and self._dependencies.practice_candidate is not None):
-            assessment = self._dependencies.practice_candidate(primary)
-        if request.state.pending_assessment or request.perception_uncertain:
-            assessment = None
+        assessment = (
+            self._dependencies.prepare_assessment(request, evidence, graph)
+            if self._dependencies.prepare_assessment is not None else None
+        )
         allowed = not request.perception_uncertain and (
             request.pedagogical.action not in ASSESSING_ACTIONS or assessment is not None)
         changes = self._served_changes(request, typed)
@@ -396,48 +395,27 @@ class Retrieval:
                 return
 
     @staticmethod
-    def _assessment_candidate(request, evidence, graph):
-        for item in evidence:
-            if item["type"] not in {"bridge_diagnostic", "misconception"}:
-                continue
-            question = item.get("question") or item.get("diagnostic_question")
-            if not question:
-                continue
-            node = graph.nodes.get(item["id"], {})
-            kind = "bridge" if item["type"] == "bridge_diagnostic" else "misconception"
-            authored = from_authored({
-                "id": item["id"], "concept_id": request.concept_id,
-                "question": question, "expected_answer": node.get("expected_answer", ""),
-                "rubric": node.get("rubric") or node.get("why_wrong") or "",
-                "assessment_purpose": "diagnose_barrier" if kind == "bridge"
-                else "diagnose_misconception",
-                "response_type": node.get("response_type") or "short_text",
-                "reveal_policy": node.get("reveal_policy") or "after_attempt",
-                "hint_chain": item.get("hint_chain") or node.get("hint_chain"),
-                "verification_provenance": node.get("verification_provenance") or "authored_store",
-                "verification_version": node.get("verification_version") or "store-v1",
-                "item_source": kind,
-                "metadata": {"representations": node.get("supports_representation") or []},
-            })
-            if authored is not None:
-                return {**authored.to_dict(), "kind": kind, "id": authored.item_id,
-                        "difficulty": node.get("difficulty")}
-        plan = dict(request.pedagogical.plan or {})
-        if request.pedagogical.mode == "TEST" and plan.get("pending"):
-            return plan["pending"]
-        return None
-
-    @staticmethod
     def _served_changes(request, evidence):
         ids = tuple(dict.fromkeys(item.id for item in evidence))
         if not ids:
             return ()
-        return (StateChange(
+        changes = [StateChange(
             change_id=f"{request.turn_input.turn_id}:retrieval:served",
             owner=CAPABILITY, scope=StateScope.SESSION, path=("served_items",),
             operation=StateOperation.SET,
             value=tuple(dict.fromkeys((*request.state.served_items, *ids))),
-        ),)
+        )]
+        bridges = tuple(dict.fromkeys(
+            item.id for item in evidence if item.type == "bridge_diagnostic"
+        ))
+        if bridges:
+            changes.append(StateChange(
+                change_id=f"{request.turn_input.turn_id}:retrieval:bridges",
+                owner=CAPABILITY, scope=StateScope.SESSION,
+                path=("bridges_served",), operation=StateOperation.SET,
+                value=tuple(dict.fromkeys((*request.state.bridges_served, *bridges))),
+            ))
+        return tuple(changes)
 
     def _validate_store(self, request):
         store = request.store

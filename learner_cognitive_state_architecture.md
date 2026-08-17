@@ -1628,3 +1628,11 @@ Perception and prior-attempt Assessment. Pedagogy owns teaching-action priority,
 mode, practice/test progression, pacing, and pending pedagogical offers. It returns
 an immutable pedagogical decision plus authorized State Changes and Failure Signals;
 grading, assessment arming, and evidence writing remain Assessment and Evidence work.
+
+# Retrieval Feature Module extraction (2026-08-17)
+
+The Turn Coordinator now invokes one typed Retrieval Interface after Pedagogy.
+Retrieval receives immutable learner-state projections, preserves bridge-first and
+probe-before-correction ordering, and returns an immutable provenance manifest and
+proposed `served_items`/`bridges_served` Session State changes. It never writes state.
+Failure outcomes carry no grounded evidence and prohibit assessable output.

@@ -5,6 +5,7 @@ import unittest
 import networkx as nx
 import numpy as np
 
+from assessment_evidence import AssessmentEvidence
 from pedagogy import PedagogicalDecision, PedagogicalPacing
 from retrieval import (
     Retrieval,
@@ -84,10 +85,18 @@ def state(**overrides) -> RetrievalStateView:
 
 class RetrievalInterfaceTests(unittest.TestCase):
     def module(self, *, cohesion_check=None, practice_candidate=None) -> Retrieval:
+        assessment = AssessmentEvidence()
         return Retrieval(RetrievalDependencies(
             embed=lambda texts: np.asarray([[1.0, 0.0] for _ in texts]),
             cohesion_check=cohesion_check,
-            practice_candidate=practice_candidate,
+            prepare_assessment=lambda request, evidence, graph:
+                assessment.prepare_grounded_item(
+                    concept_id=request.concept_id, evidence=evidence, graph=graph,
+                    pedagogical=request.pedagogical,
+                    pending_assessment=request.state.pending_assessment,
+                    perception_uncertain=request.perception_uncertain,
+                    practice_candidate=practice_candidate,
+                ),
         ))
 
     def request(self, *, pedagogical=None, learner_state=None, retrieval_store=None):
@@ -109,6 +118,8 @@ class RetrievalInterfaceTests(unittest.TestCase):
         self.assertEqual("manifest_only", outcome.value.manifest.grounding)
         self.assertEqual("retrieval", outcome.state_changes[0].owner)
         self.assertEqual(("served_items",), outcome.state_changes[0].path)
+        self.assertEqual(("bridges_served",), outcome.state_changes[1].path)
+        self.assertIn("grade9::division", outcome.state_changes[1].value)
 
     def test_need_modes_select_schema_transfer_and_representation_evidence(self):
         schema = self.module().retrieve(self.request(pedagogical=decision("WORKED_EXAMPLE", "schema")))
@@ -148,6 +159,23 @@ class RetrievalInterfaceTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             outcome.value.manifest.ranking_trace["changed"] = True
 
+    def test_empty_result_abstains_instead_of_returning_ungrounded_content(self):
+        graph = nx.DiGraph()
+        graph.add_node("fractions", type="concept")
+        empty = RetrievalStoreView(
+            concepts=({"concept_id": "fractions", "representations": []},),
+            chunks=({
+                "chunk_id": "irrelevant", "text": "Unrelated material",
+                "concept_ids": ["fractions"], "pedagogical_role": "explanation",
+            },),
+            graph=graph, chunk_embeddings=np.asarray([[0.0, 1.0]]),
+        )
+
+        outcome = self.module().retrieve(self.request(retrieval_store=empty))
+
+        self.assertEqual((), outcome.value.manifest.evidence)
+        self.assertTrue(outcome.value.manifest.ranking_trace["abstained"])
+
     def test_unavailable_embeddings_returns_safe_empty_non_assessing_outcome(self):
         outcome = Retrieval().retrieve(self.request(
             pedagogical=decision("TRANSFER_PROBLEM", "transfer")))
@@ -158,6 +186,11 @@ class RetrievalInterfaceTests(unittest.TestCase):
         self.assertEqual((), outcome.value.manifest.evidence)
         self.assertEqual("embeddings_unavailable", outcome.failures[0].cause)
         self.assertTrue(outcome.failures[0].valid_outcome)
+
+        transport_failure = Retrieval(RetrievalDependencies(
+            embed=lambda texts: (_ for _ in ()).throw(RuntimeError("model offline")),
+        )).retrieve(self.request())
+        self.assertEqual("embeddings_unavailable", transport_failure.failures[0].cause)
 
     def test_missing_store_invalid_evidence_and_cohesion_failure_are_typed(self):
         missing = self.module().retrieve(self.request(retrieval_store=RetrievalStoreView()))

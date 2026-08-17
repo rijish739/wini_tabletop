@@ -281,6 +281,14 @@ python F:/Projects/Pedagogical_study_pkg/scripts/run_llama_server.py
 
 See `CLAUDE.md` for the full command list and the hard project mandates.
 
+## Retrieval Feature Module (2026-08-17)
+
+The Turn Coordinator now calls `RetrievalInterface.retrieve()` after Pedagogy.
+Retrieval consumes immutable concept, mastery, misconception, representation, and
+served-history views and returns a typed grounded provenance manifest plus proposed
+session served-history changes. Missing stores, invalid evidence, unavailable
+embeddings, and cohesion failures produce typed safe, non-assessing outcomes.
+
 ---
 
 ## P0 Evidence Integrity implementation (2026-08-12)

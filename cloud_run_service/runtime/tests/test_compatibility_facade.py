@@ -4,6 +4,9 @@ import unittest
 from pathlib import Path
 from types import SimpleNamespace
 
+import networkx as nx
+import numpy as np
+
 from interaction_control import (
     CapabilityTransition,
     InteractionControl,
@@ -19,25 +22,11 @@ from perception.route import RouteResult
 from assessment_evidence import AssessmentEvidence
 from evidence.ledger import make_idempotency_key
 from pedagogy import Pedagogy, PedagogyDependencies
-from retrieval import GroundedManifest, RetrievalResult
+from retrieval import Retrieval, RetrievalDependencies
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
     def test_pedagogy_decision_crosses_the_compatibility_facade(self) -> None:
-        class RetrievalPort:
-            def retrieve(self, request):
-                manifest = GroundedManifest(
-                    evidence=(), bridge_ids=(), schema_ids=(), ranking_trace={},
-                    cohesion_log=(), snapshot={}, band_reason="fixture",
-                    grounding="manifest_only", need=request.pedagogical.need,
-                )
-                return ModuleOutcome(value=RetrievalResult(
-                    manifest=manifest,
-                    assessment_allowed=request.pedagogical.action not in {
-                        "MISCONCEPTION_PROBE", "TRANSFER_PROBLEM", "TEST_QUESTION"
-                    },
-                ))
-
         class Engine:
             def observe(self, text, session, current_concept):
                 flags = []
@@ -92,6 +81,50 @@ class CompatibilityFacadeTests(unittest.TestCase):
                 ))
 
         received = {}
+        retrieval_graph = nx.DiGraph()
+        retrieval_graph.add_node("fractions", type="concept")
+        retrieval_graph.add_node("schema-1", type="problem_schema", name="fraction schema",
+                       method_steps=["use a common denominator"])
+        retrieval_graph.add_edge("fractions", "schema-1", relation="has_schema")
+        retrieval_graph.add_node("recipe", type="concept")
+        retrieval_graph.add_edge("fractions", "recipe", relation="transfers_to",
+                       transfer_type="near")
+        retrieval_graph.add_node(
+            "misc-1", type="misconception",
+            diagnostic_question="Do denominators always add?", expected_answer="no",
+            why_wrong="Use a common denominator.",
+        )
+        retrieval_graph.add_edge("fractions", "misc-1", relation="has_misconception")
+        retrieval_graph.add_node(
+            "fraction-figure", type="figure", image_path="fraction.png",
+            supports_representation=["visual"],
+        )
+        retrieval_graph.add_edge("fractions", "fraction-figure", relation="has_figure")
+        manifests = {}
+
+        class LegacyEngine:
+            concepts = ({"concept_id": "fractions", "representations": ["visual"]},)
+            chunks = ({
+                "chunk_id": "fraction-explanation", "text": "Fractions are equal parts.",
+                "concept_ids": ["fractions"], "pedagogical_role": "explanation",
+                "difficulty": 3,
+            }, {
+                "chunk_id": "fraction-example", "text": "One half plus one half is one.",
+                "concept_ids": ["fractions"], "pedagogical_role": "worked_example",
+                "difficulty": 3,
+            })
+            chunk_emb = np.asarray([[1.0, 0.0], [0.9, 0.1]])
+            graph = retrieval_graph
+
+            def turn(self, text, **kwargs):
+                received.update(kwargs)
+                manifests[text] = kwargs["_retrieval_result"].manifest
+                return {
+                    "action": kwargs["_pedagogy_decision"].action,
+                    "answer": "Try a similar example.", "display": [],
+                }
+
+        legacy = LegacyEngine()
         state = SimpleNamespace(data={
             "learner_id": "learner-1",
             "concept_states": {"fractions": {
@@ -100,10 +133,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             "session": {"mode": "EXPLAIN", "current_concept": "fractions"},
         })
         facade = TutorLoopCompatibilityFacade(
-            legacy_turn=lambda text, **kwargs: received.update(kwargs) or {
-                "action": kwargs["_pedagogy_decision"].action,
-                "answer": "Try a similar example.", "display": [],
-            },
+            legacy_turn=legacy.turn,
             commit_state=lambda: None,
             state=state,
             interaction_control=Control(),
@@ -111,7 +141,9 @@ class CompatibilityFacadeTests(unittest.TestCase):
             pedagogy=Pedagogy(dependencies=PedagogyDependencies(
                 schema_ids=lambda concept_id: ["schema-1"],
             )),
-            retrieval=RetrievalPort(),
+            retrieval=Retrieval(RetrievalDependencies(
+                embed=lambda texts: np.asarray([[1.0, 0.0] for _ in texts]),
+            )),
         )
 
         cases = (
@@ -122,6 +154,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             ("I don't understand", "EXPLAIN"),
             ("okay", "METACOGNITIVE_REFLECT"),
             ("solve 2x + 3 = 7", "SOLVE_STUDENT_PROBLEM"),
+            ("show me a diagram", "REPRESENTATION_TRANSLATION"),
             ("let's practice", "WORKED_EXAMPLE"),
             ("test me", "TEST_QUESTION"),
             ("stop the test", "EXPLAIN"),
@@ -136,6 +169,32 @@ class CompatibilityFacadeTests(unittest.TestCase):
         self.assertEqual(received["_pedagogy_decision"].need, "explain")
         self.assertEqual(received["_retrieval_result"].manifest.grounding,
                          "manifest_only")
+        self.assertIn("chunk", {item.type for item in
+                                manifests["explain fractions"].evidence})
+        self.assertIn("problem_schema", {item.type for item in
+                                         manifests["hint please"].evidence})
+        self.assertIn("misconception", {item.type for item in
+                                        manifests["denominators always add"].evidence})
+        self.assertIn("transfer_target", {item.type for item in
+                                          manifests["give me a harder one"].evidence})
+        self.assertIn("figure", {item.type for item in
+                                 manifests["show me a diagram"].evidence})
+        degraded_state = SimpleNamespace(data={
+            "learner_id": "learner-1", "concept_states": {},
+            "session": {"mode": "EXPLAIN", "current_concept": "fractions"},
+        })
+        degraded_facade = TutorLoopCompatibilityFacade(
+            legacy_turn=legacy.turn, commit_state=lambda: None,
+            state=degraded_state, interaction_control=Control(),
+            perception=Perception(Engine()), pedagogy=Pedagogy(),
+            retrieval=Retrieval(),
+        )
+        degraded_facade.turn(
+            "explain fractions", turn_id="turn-degraded", learner_id="learner-1"
+        )
+        self.assertEqual((), received["_retrieval_result"].manifest.evidence)
+        self.assertFalse(received["_retrieval_result"].assessment_allowed)
+        self.assertEqual(degraded_facade.runtime_health.health, RuntimeHealth.DEGRADED)
         topic_change = facade.turn(
             "change topic", turn_id="turn-topic", learner_id="learner-1"
         )
