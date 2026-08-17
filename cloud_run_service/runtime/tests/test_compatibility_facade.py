@@ -19,10 +19,25 @@ from perception.route import RouteResult
 from assessment_evidence import AssessmentEvidence
 from evidence.ledger import make_idempotency_key
 from pedagogy import Pedagogy, PedagogyDependencies
+from retrieval import GroundedManifest, RetrievalResult
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
     def test_pedagogy_decision_crosses_the_compatibility_facade(self) -> None:
+        class RetrievalPort:
+            def retrieve(self, request):
+                manifest = GroundedManifest(
+                    evidence=(), bridge_ids=(), schema_ids=(), ranking_trace={},
+                    cohesion_log=(), snapshot={}, band_reason="fixture",
+                    grounding="manifest_only", need=request.pedagogical.need,
+                )
+                return ModuleOutcome(value=RetrievalResult(
+                    manifest=manifest,
+                    assessment_allowed=request.pedagogical.action not in {
+                        "MISCONCEPTION_PROBE", "TRANSFER_PROBLEM", "TEST_QUESTION"
+                    },
+                ))
+
         class Engine:
             def observe(self, text, session, current_concept):
                 flags = []
@@ -96,6 +111,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             pedagogy=Pedagogy(dependencies=PedagogyDependencies(
                 schema_ids=lambda concept_id: ["schema-1"],
             )),
+            retrieval=RetrievalPort(),
         )
 
         cases = (
@@ -118,6 +134,8 @@ class CompatibilityFacadeTests(unittest.TestCase):
                 self.assertEqual(result["action"], expected)
 
         self.assertEqual(received["_pedagogy_decision"].need, "explain")
+        self.assertEqual(received["_retrieval_result"].manifest.grounding,
+                         "manifest_only")
         topic_change = facade.turn(
             "change topic", turn_id="turn-topic", learner_id="learner-1"
         )

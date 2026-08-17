@@ -1934,6 +1934,18 @@ class TutorLoop:
               f"      tier={record.get('safety_tier')} "
               f"category={record.get('safety_category')}\n{line}\n")
 
+    def _retrieval_cohesion_check(self, evidence: list[dict]) -> list[str]:
+        blocks_text = {}
+        for item in evidence:
+            row = self.chunks_by_id.get(item["id"])
+            blocks_text[item["id"]] = (row or {}).get("text") or item.get("text") \
+                or item.get("question") or item.get("why_wrong") or ""
+        dropped = qwen_cohesion_check(evidence, blocks_text)
+        if dropped:
+            evidence[:] = [item for item in evidence if item["id"] not in dropped]
+            return [f"qwen_judge dropped: {dropped}"]
+        return []
+
     def _turn_compatibility_facade(self):
         facade = getattr(self, "_typed_turn_facade", None)
         if facade is None:
@@ -1964,6 +1976,22 @@ class TutorLoop:
                         can_assess=self.want_answer,
                         mastery_gate_threshold=MASTERY_GATE_DEFAULT,
                     ),
+                ),
+                retrieval=__import__(
+                    "retrieval", fromlist=["Retrieval", "RetrievalDependencies"]
+                ).Retrieval(
+                    __import__(
+                        "retrieval", fromlist=["RetrievalDependencies"]
+                    ).RetrievalDependencies(
+                        embed=self.analyzer.classifier.embed,
+                        cohesion_check=(
+                            self._retrieval_cohesion_check
+                            if self.use_judge and self.want_answer else None
+                        ),
+                        practice_candidate=lambda concept_id: self._practice_gradeable(
+                            concept_id, self.state.data.get("session") or {}
+                        ),
+                    )
                 ),
             )
             self._typed_turn_facade = facade
@@ -2139,7 +2167,7 @@ class TutorLoop:
                      _interaction_answer_attempt: bool = False,
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
-                     _pedagogy_decision=None) -> dict:
+                     _pedagogy_decision=None, _retrieval_result=None) -> dict:
         self._response_script = None
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
@@ -2585,6 +2613,43 @@ class TutorLoop:
             "snapshot": snapshot.summary(), "band_reason": band_reason,
             "grounding": grounding,
         }
+
+        # The compatibility path consumes the extracted Retrieval outcome as the
+        # authority. The legacy calculation above remains only for direct internal
+        # callers during the temporary façade migration and is never selected by
+        # the typed coordinator.
+        if _retrieval_result is not None:
+            manifest = _retrieval_result.manifest.to_dict()
+            evidence = manifest["evidence"]
+            cohesion_log = manifest["cohesion_log"]
+            grounding = manifest["grounding"]
+            assessment_candidate = (
+                dict(_retrieval_result.assessment_candidate)
+                if _retrieval_result.assessment_candidate is not None else None
+            )
+            if (action in {
+                    "MISCONCEPTION_PROBE", "ISOMORPHIC_PRACTICE", "COMPLETION_STEP",
+                    "TRANSFER_PROBLEM", "TEST_QUESTION"
+                } and not _retrieval_result.assessment_allowed):
+                action, need = "EXPLAIN", "explain"
+                why = f"{why}; retrieval fail-safe: no verified grounded item"
+            _extracted_q = np.asarray([_retrieval_result.query_embedding], dtype=float)
+
+            def _q_vec():
+                return _extracted_q
+
+            def _text_sim(txt: str) -> float:
+                txt = (txt or "").strip()
+                if not txt or not _retrieval_result.query_embedding:
+                    return 0.0
+                embedded = self.analyzer.classifier.embed([txt[:400]])
+                return float((_extracted_q @ embedded.T)[0][0])
+            from types import SimpleNamespace
+            snapshot = SimpleNamespace(
+                active_misconceptions=manifest["snapshot"].get(
+                    "active_misconceptions", {}
+                )
+            )
 
         # L5: retrieval done (with cohesion log & evidence details)
         try:
@@ -3112,7 +3177,8 @@ class TutorLoop:
         # Gemini IS the authoritative perception now; _log keeps the field for old rows.)
         self._log(text, action, why, need, shadow, analysis, manifest, writeback,
                   hope_update, mode=mode)
-        self.state.mark_served([e["id"] for e in evidence])
+        if _retrieval_result is None:
+            self.state.mark_served([e["id"] for e in evidence])
         if self.state.path:
             self.state.save()
         # L8: write-back summary

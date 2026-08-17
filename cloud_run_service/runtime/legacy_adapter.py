@@ -161,15 +161,62 @@ class LegacyTurnAdapter:
             prior_hints=(0 if assessment_value is None else assessment_value.hints_used),
         )
 
+    def retrieval_request(self, turn_input: TurnInput, observation, pedagogical):
+        from retrieval import RetrievalRequest, RetrievalStateView, RetrievalStoreView
+
+        engine = getattr(self._legacy_turn, "__self__", None)
+        data = self._state.data
+        concept_states = data.get("concept_states") or {}
+        mastery = {
+            str(concept_id): float(row.get("mastery", 0.2))
+            for concept_id, row in concept_states.items() if isinstance(row, Mapping)
+        }
+        session = data.get("session") or {}
+        analysis = deep_thaw(observation.analysis)
+        concept = analysis.get("concept") or {}
+        return RetrievalRequest(
+            turn_input=turn_input,
+            concept_id=observation.concept_id,
+            concept_confidence=float(concept.get("concept_confidence") or 0.0),
+            secondary_concepts=tuple(concept.get("secondary_concepts") or ()),
+            pedagogical=pedagogical,
+            perception_uncertain=observation.uncertain,
+            state=RetrievalStateView(
+                mastery=mastery,
+                measured_concepts=frozenset(
+                    concept_id for concept_id, row in concept_states.items()
+                    if isinstance(row, Mapping) and row.get("mastery") is not None
+                ),
+                misconceptions=copy.deepcopy(data.get("misconception_states") or {}),
+                representations_known={
+                    concept_id: tuple(row.get("representations_known") or ())
+                    for concept_id, row in concept_states.items() if isinstance(row, Mapping)
+                },
+                served_items=tuple(session.get("served_items") or ()),
+                bridges_served=tuple(session.get("bridges_served") or ()),
+                hint_progress=copy.deepcopy(session.get("hint_progress") or {}),
+                hope_rolling=copy.deepcopy(data.get("hope_rolling") or {}),
+                concept_metadata=copy.deepcopy(concept_states),
+                pending_assessment=bool(session.get("pending_check")),
+            ),
+            store=RetrievalStoreView(
+                concepts=tuple(getattr(engine, "concepts", ()) or ()),
+                chunks=tuple(getattr(engine, "chunks", ()) or ()),
+                graph=getattr(engine, "graph", None),
+                chunk_embeddings=getattr(engine, "chunk_emb", None),
+            ),
+        )
+
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
-                pedagogy=None):
+                pedagogy=None, retrieval=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
-            pedagogy_outcome=pedagogy,
+            pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
-                 assessment_outcome=None, pedagogy_outcome=None):
+                 assessment_outcome=None, pedagogy_outcome=None,
+                 retrieval_outcome=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -184,6 +231,8 @@ class LegacyTurnAdapter:
                 state_changes += assessment_outcome.state_changes
             if pedagogy_outcome is not None:
                 state_changes += pedagogy_outcome.state_changes
+            if retrieval_outcome is not None:
+                state_changes += retrieval_outcome.state_changes
             state_changes = self._apply_state_changes(
                 turn_input.learner_id, state_changes
             )
@@ -222,6 +271,8 @@ class LegacyTurnAdapter:
                     kwargs["_prior_assessment"] = assessment_value
                 if pedagogy_outcome is not None:
                     kwargs["_pedagogy_decision"] = pedagogy_outcome.value
+                if retrieval_outcome is not None:
+                    kwargs["_retrieval_result"] = retrieval_outcome.value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(
@@ -354,6 +405,9 @@ class LegacyTurnAdapter:
                     ("global",),
                     ("global_observations",),
                 ),
+            ),
+            "retrieval": CapabilityStateAccess(
+                session_write=(("served_items",), ("bridges_served",)),
             ),
         }
         projection = WorkingStateProjection(
