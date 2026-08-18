@@ -25,11 +25,16 @@ class TutorLoopCompatibilityFacade:
         assessment_evidence: Any = None,
         pedagogy: Any = None,
         retrieval: Any = None,
+        response_planning: Any = None,
     ) -> None:
         if assessment_evidence is None:
             from assessment_evidence import AssessmentEvidence
 
             assessment_evidence = AssessmentEvidence()
+        if response_planning is None and retrieval is not None:
+            from response_planning import ResponsePlanning
+
+            response_planning = ResponsePlanning()
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
             adapter=LegacyTurnAdapter(
@@ -42,6 +47,7 @@ class TutorLoopCompatibilityFacade:
             assessment_evidence=assessment_evidence,
             pedagogy=pedagogy,
             retrieval=retrieval,
+            response_planning=response_planning,
             supervisor=self._supervisor,
         )
         self._state = state

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -46,6 +47,8 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     cognitive["confusion"] = 0.8
                 elif text == "solve 2x + 3 = 7":
                     problem_cue = {"is_problem": True, "directive": True}
+                elif text == "give me a visual analogy":
+                    signals = ["request_representation"]
                 return RouteResult(primary="LEARNING", concept_id="fractions"), {
                     "normalized_text": text,
                     "signals": signals,
@@ -101,6 +104,15 @@ class CompatibilityFacadeTests(unittest.TestCase):
         )
         retrieval_graph.add_edge("fractions", "fraction-figure", relation="has_figure")
         manifests = {}
+        response_plans = {}
+
+        class ScenarioPedagogy(Pedagogy):
+            def decide(self, request):
+                outcome = super().decide(request)
+                if request.observation.normalized_text == "give me a visual analogy":
+                    return replace(outcome, value=replace(
+                        outcome.value, action="VISUAL_ANALOGY"))
+                return outcome
 
         class LegacyEngine:
             concepts = ({"concept_id": "fractions", "representations": ["visual"]},)
@@ -119,6 +131,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             def turn(self, text, **kwargs):
                 received.update(kwargs)
                 manifests[text] = kwargs["_retrieval_result"].manifest
+                response_plans[text] = kwargs["_response_plan"]
                 return {
                     "action": kwargs["_pedagogy_decision"].action,
                     "answer": "Try a similar example.", "display": [],
@@ -138,11 +151,19 @@ class CompatibilityFacadeTests(unittest.TestCase):
             state=state,
             interaction_control=Control(),
             perception=Perception(Engine()),
-            pedagogy=Pedagogy(dependencies=PedagogyDependencies(
+            pedagogy=ScenarioPedagogy(dependencies=PedagogyDependencies(
                 schema_ids=lambda concept_id: ["schema-1"],
             )),
             retrieval=Retrieval(RetrievalDependencies(
                 embed=lambda texts: np.asarray([[1.0, 0.0] for _ in texts]),
+                prepare_assessment=lambda request, evidence, graph: {
+                    "id": "item-1", "item_id": "item-1", "kind": "test",
+                    "question": "What is one half plus one half?",
+                    "expected_answer": "1", "concept_id": "fractions",
+                    "assessment_purpose": "check_independent",
+                    "state_update_intent": "test", "item_verified": True,
+                    "verification_status": "verified", "verification_token": "token",
+                },
             )),
         )
 
@@ -155,6 +176,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             ("okay", "METACOGNITIVE_REFLECT"),
             ("solve 2x + 3 = 7", "SOLVE_STUDENT_PROBLEM"),
             ("show me a diagram", "REPRESENTATION_TRANSLATION"),
+            ("give me a visual analogy", "VISUAL_ANALOGY"),
             ("let's practice", "WORKED_EXAMPLE"),
             ("test me", "TEST_QUESTION"),
             ("stop the test", "EXPLAIN"),
@@ -179,6 +201,13 @@ class CompatibilityFacadeTests(unittest.TestCase):
                                           manifests["give me a harder one"].evidence})
         self.assertIn("figure", {item.type for item in
                                  manifests["show me a diagram"].evidence})
+        for text, expected in cases:
+            self.assertEqual(response_plans[text].script.pedagogical_action, expected)
+        self.assertEqual(response_plans["show me a diagram"].intended_modalities,
+                         ("speech", "display"))
+        self.assertEqual(response_plans["test me"].approved_modalities, ("speech",))
+        self.assertEqual(response_plans["test me"].assessment_proposal.item_id,
+                         "item-1")
         degraded_state = SimpleNamespace(data={
             "learner_id": "learner-1", "concept_states": {},
             "session": {"mode": "EXPLAIN", "current_concept": "fractions"},

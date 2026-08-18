@@ -207,16 +207,46 @@ class LegacyTurnAdapter:
             ),
         )
 
+    def response_planning_request(self, turn_input, observation, pedagogical, retrieval):
+        from response_planning import ResponsePlanningRequest, ResponsePlanningStateView
+
+        analysis = deep_thaw(observation.analysis)
+        cognitive = observation.cognitive_update
+        concept_id = observation.concept_id or (self._state.data.get("session") or {}).get(
+            "current_concept")
+        engine = getattr(self._legacy_turn, "__self__", None)
+        graph = getattr(engine, "graph", None)
+        node = graph.nodes.get(concept_id, {}) if graph is not None and concept_id else {}
+        evidence = retrieval.manifest.evidence
+        return ResponsePlanningRequest(
+            turn_input=turn_input, pedagogical=pedagogical, retrieval=retrieval,
+            concept_id=concept_id,
+            state=ResponsePlanningStateView(
+                concept_type=node.get("concept_type") or node.get("kind"),
+                misconception_targets=tuple(item.id for item in evidence
+                                            if item.type == "misconception"),
+                representation_targets=tuple(dict.fromkeys(
+                    rep for item in evidence
+                    for rep in (item.content.get("supports_representation") or ()))),
+                cognitive_load=float(cognitive.get("cognitive_load", 0.0)),
+                frustration_risk=float(cognitive.get("frustration_risk", 0.0)),
+                mastery=float(((self._state.data.get("concept_states") or {})
+                               .get(concept_id) or {}).get("mastery", 0.2)),
+                clarification="simplification_request" in observation.signals,
+            ),
+        )
+
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
-                pedagogy=None, retrieval=None):
+                pedagogy=None, retrieval=None, response_plan=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
+            response_plan_outcome=response_plan,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
                  assessment_outcome=None, pedagogy_outcome=None,
-                 retrieval_outcome=None):
+                 retrieval_outcome=None, response_plan_outcome=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -273,6 +303,8 @@ class LegacyTurnAdapter:
                     kwargs["_pedagogy_decision"] = pedagogy_outcome.value
                 if retrieval_outcome is not None:
                     kwargs["_retrieval_result"] = retrieval_outcome.value
+                if response_plan_outcome is not None:
+                    kwargs["_response_plan"] = response_plan_outcome.value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(

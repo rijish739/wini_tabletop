@@ -1778,103 +1778,23 @@ class TutorLoop:
     def _response_layer(self, text, action, need, primary, concept, evidence, analysis,
                         snapshot, mode, wants_visual, clarification, intro, grounding,
                         mode_cards, crop_items, wants_animation=False, wants_real_life=False):
-        """Script-first visual decision. Builds a ResponseContext from this turn's
-        already-computed state, plans a Teaching Script (template-first), validates it,
-        and turns the validator's EARNED-visual decision into
-        (display, figure_on_screen, visual_directive).
-
-        No generation happens here — the streamed generator fills the words knowing
-        ``figure_on_screen`` (so speech references the on-screen visual only because the
-        script decided it first). The caller wraps this so any failure degrades to the
-        answer-first path. Preserves Part-13 streaming: one generation call, unchanged.
-        """
-        import response_layer as _rl
-
-        scene_cid, scene_shape = self._scene_for(primary)
-        node = self.graph.nodes.get(primary, {}) if primary else {}
-        concept_type = scene_shape or node.get("concept_type") or node.get("kind") or ""
-        available_crop = crop_items[0] if crop_items else None
-
-        cog = analysis.get("cognitive_update", {}) or {}
-        misconception_targets = [e["id"] for e in evidence if e.get("type") == "misconception"]
-        representation_targets = sorted({
-            rep for e in evidence for rep in (e.get("supports_representation") or [])})
-        active_mis = bool(getattr(snapshot, "active_misconceptions", None))
-
-        ctx = _rl.build_response_context(
-            pedagogical_action=action, need=need, teaching_goal=need,
-            concept_id=primary, concept_type=concept_type, evidence=evidence,
-            response_kind="instructional", mode=mode, wants_visual=wants_visual,
-            wants_animation=wants_animation, wants_real_life=wants_real_life,
-            clarification=clarification, is_intro=intro, grounding=grounding,
-            misconception_targets=misconception_targets,
-            representation_targets=representation_targets,
-            active_misconception=active_mis, misconception_confirmed=active_mis,
-            cognitive_load=float(cog.get("cognitive_load", 0.0)),
-            frustration_risk=float(cog.get("frustration_risk", 0.0)),
-            mastery=(self.state.mastery(primary) if primary else None),
-            available_scene_concept_id=scene_cid, available_crop=available_crop,
-        )
-        script = _rl.TeachingScriptPlanner().plan(ctx)
-        attach_assessment_hook(script, getattr(self, "_assessment_candidate", None))
-        ev_text = {}
-        for e in evidence:
-            row = self.chunks_by_id.get(e["id"])
-            ev_text[e["id"]] = (row or {}).get("text") or e.get("text") \
-                or e.get("question") or e.get("why_wrong") or ""
-        _rl.ScriptValidator().validate(script, evidence_text=ev_text,
-                                       profile=ctx.device_profile)
-        # The compiler consumes this exact validated object after answer generation;
-        # it is never reconstructed from parallel modality assumptions.
+        """Adapt an approved Response Plan to the legacy generation seam."""
+        extracted = getattr(self, "_extracted_response_plan", None)
+        if extracted is None:
+            raise RuntimeError("response planning must precede legacy generation")
+        script = extracted.script
         self._response_script = script
-
         v = script.validation.get("visual", {}) or {}
         allowed = bool(v.get("allowed"))
         reason = v.get("reason")
-        if allowed:
-            # DRAW THE ANSWER: a visual is earned. Defer the actual figure until the
-            # answer exists — turn() calls scene_author AFTER generation and fills
-            # `scene` + flips arm_scene. No crop shown; the drawn board IS the figure
-            # (crop stays as a fallback if drawing declines).
-            #
-            # figure_on_screen stays FALSE here: nothing is on the screen yet, and the
-            # draw can still decline. The generator is told about the pending board via
-            # the directive's `pending_draw` (-> qwen_answer(board_pending=True)), which
-            # asks for step-by-step structure WITHOUT letting it promise a picture. The
-            # old figure_on_screen=True emitted the textbook cue, so the model said
-            # "look at the figure on the screen" — already streamed to TTS before we
-            # knew whether a board existed, which no post-hoc sanitizer can undo.
-            directive = {
-                "type": "generated_declarative_scene_spec", "allowed": True,
-                "arm_scene": False, "pending_draw": True, "scene": None,
-                "asset": None, "narration_mode": "script_override",
-                "reason": reason, "script_id": script.script_id,
-            }
-            display = list(mode_cards)
-            figure_on_screen = False
-        else:
-            directive = {"type": "none", "allowed": False, "arm_scene": False,
-                         "asset": None, "narration_mode": "script_override",
-                         "reason": reason, "script_id": script.script_id}
-            display = list(mode_cards)
-            figure_on_screen = False
+        directive = {
+            "type": ("generated_declarative_scene_spec" if allowed else "none"),
+            "allowed": allowed, "arm_scene": False, "pending_draw": allowed,
+            "scene": None, "asset": None, "narration_mode": "script_override",
+            "reason": reason, "script_id": script.script_id,
+        }
         print(f"[tutor] response-layer [{action}] earned={allowed} — {reason}")
-        if _dbg:
-            try:
-                _dbg.emit(_dbg.L6, "response_plan",
-                          script_id=getattr(script, "script_id", None),
-                          earned_visual=allowed,
-                          reason=reason,
-                          pedagogical_action=action,
-                          need=need,
-                          concept_id=primary,
-                          concept_type=concept_type,
-                          cognitive_load=float(cog.get("cognitive_load", 0.0)),
-                          frustration_risk=float(cog.get("frustration_risk", 0.0)),
-                          available_scene=scene_cid)
-            except Exception:  # noqa: BLE001
-                pass
-        return display, figure_on_screen, directive
+        return list(mode_cards), False, directive
 
     def apply_response_outcomes(self, events):
         """Apply device assessment outcomes once, at a learner-state turn boundary."""
@@ -2183,8 +2103,12 @@ class TutorLoop:
                      _interaction_answer_attempt: bool = False,
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
-                     _pedagogy_decision=None, _retrieval_result=None) -> dict:
+                     _pedagogy_decision=None, _retrieval_result=None,
+                     _response_plan=None) -> dict:
         self._response_script = None
+        self._extracted_response_plan = _response_plan
+        if _response_plan is not None:
+            self._response_script = _response_plan.script
         self._assessment_candidate = None
         turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
         learner_id = (learner_id or self.state.data.get("learner_id")
@@ -2547,7 +2471,7 @@ class TutorLoop:
         figure_on_screen = bool(display)
         rl_visual = None
         self._assessment_candidate = assessment_candidate
-        if RESPONSE_LAYER and self.want_answer \
+        if (self._extracted_response_plan is not None or RESPONSE_LAYER) and self.want_answer \
                 and not (mode_item and mode_item.get("speak")):
             try:
                 display, figure_on_screen, rl_visual = self._response_layer(
@@ -2556,6 +2480,8 @@ class TutorLoop:
                     crop_items, wants_animation=wants_animation,
                     wants_real_life=wants_real_life)
             except Exception as e:  # noqa: BLE001 — never let the layer cost a turn
+                if self._extracted_response_plan is not None:
+                    raise
                 print(f"[tutor] response layer skipped; answer-first fallback: {e}")
                 display, figure_on_screen, rl_visual = mode_cards + crop_items, \
                     bool(mode_cards or crop_items), None
