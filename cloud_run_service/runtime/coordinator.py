@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from retrieval import RetrievalInterface
     from response_planning import ResponsePlanningInterface
     from response_generation import ResponseGenerationInterface
+    from presentation import PresentationInterface
 
 
 class TurnPhase(str, Enum):
@@ -120,7 +121,7 @@ class TemporaryLegacyAdapter(Protocol):
 
     def execute(self, turn_input: TurnInput, interaction, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None) -> LegacyExecution: ...
+                generated_response=None, realization=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -149,6 +150,7 @@ class TurnCoordinator:
         retrieval: "RetrievalInterface | None" = None,
         response_planning: "ResponsePlanningInterface | None" = None,
         response_generation: "ResponseGenerationInterface | None" = None,
+        presentation: "PresentationInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
@@ -160,6 +162,7 @@ class TurnCoordinator:
         self._retrieval = retrieval
         self._response_planning = response_planning
         self._response_generation = response_generation
+        self._presentation = presentation
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
@@ -298,13 +301,33 @@ class TurnCoordinator:
                     planned,
                     value=replace(planned.value, assessment_proposal=None),
                 )
+        realization = None
+        if self._presentation is not None and planned_for_execution is not None and generated is not None:
+            from presentation import PresentationRequest
+            realization = self._presentation.realize(PresentationRequest(
+                turn_input=turn_input,
+                response_plan=planned_for_execution.value,
+                generated_response=generated.value,
+            ))
+            actions = tuple(self._recovery_policy.decide(failure)
+                            for failure in realization.failures)
+            if not realization.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(realization.failures)
+                failure = realization.failures[0]
+                raise RuntimeError(f"Turn failed closed: {failure.capability}/{failure.cause}")
         try:
+            execution_kwargs = {}
+            if self._presentation is not None:
+                execution_kwargs["realization"] = (
+                    None if realization is None else realization.value
+                )
             if planned is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
                     response_plan=planned_for_execution,
                     generated_response=generated,
+                    **execution_kwargs,
                 )
             elif retrieved is not None:
                 execution = self._adapter.execute(
@@ -338,6 +361,7 @@ class TurnCoordinator:
             + (() if retrieved is None else retrieved.failures)
             + (() if planned is None else planned.failures)
             + (() if generated is None else generated.failures)
+            + (() if realization is None else realization.failures)
         )
         if extracted_failures:
             execution = replace(

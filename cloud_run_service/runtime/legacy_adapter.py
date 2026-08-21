@@ -261,7 +261,7 @@ class LegacyTurnAdapter:
 
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None):
+                generated_response=None, realization=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
@@ -394,7 +394,7 @@ class LegacyTurnAdapter:
             learner_id=turn_input.learner_id,
             outcome=compatibility,
             compatibility=compatibility,
-            realization=RealizationReceipt(
+            realization=realization or RealizationReceipt(
                 turn_id=turn_input.turn_id,
                 status=RealizationStatus.PARTIAL,
                 intended=tuple(delivered),

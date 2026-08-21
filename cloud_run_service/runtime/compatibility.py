@@ -27,6 +27,7 @@ class TutorLoopCompatibilityFacade:
         retrieval: Any = None,
         response_planning: Any = None,
         response_generation: Any = None,
+        presentation: Any = None,
     ) -> None:
         if assessment_evidence is None:
             from assessment_evidence import AssessmentEvidence
@@ -50,6 +51,7 @@ class TutorLoopCompatibilityFacade:
             retrieval=retrieval,
             response_planning=response_planning,
             response_generation=response_generation,
+            presentation=presentation,
             supervisor=self._supervisor,
         )
         self._state = state
