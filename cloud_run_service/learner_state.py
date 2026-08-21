@@ -25,10 +25,11 @@ cold-start mastery so brand-new users still get a sensible (beginner) band.
 from __future__ import annotations
 import json
 import os
+import copy
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Mapping, Optional
 
 COLD_START_MASTERY = 0.30  # unseen concept -> treat as near-beginner
 
@@ -90,6 +91,14 @@ BRIDGE_MASTERY_DELTA = {"correct": +0.25, "partial": +0.05, "wrong": -0.10}
 class LearnerState:
     path: Optional[Path]
     data: Dict[str, Any]
+
+    def publish_working_state(self, state: Mapping[str, Any]) -> None:
+        """Publish a validated Turn projection through the state owner."""
+        self.data = copy.deepcopy(dict(state))
+
+    def restore_state(self, state: Mapping[str, Any]) -> None:
+        """Restore a previously published snapshot after a failed Turn."""
+        self.data = copy.deepcopy(dict(state))
 
     @property
     def concept_states(self) -> Dict[str, Any]:

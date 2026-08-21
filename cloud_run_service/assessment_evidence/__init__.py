@@ -4,6 +4,7 @@ from .interface import (
     AssessmentEvidence,
     AssessmentEvidenceInterface,
     AssessmentRequest,
+    AssessmentArmingRequest,
     AssessmentResult,
     AssessmentStateView,
 )
@@ -12,6 +13,7 @@ __all__ = [
     "AssessmentEvidence",
     "AssessmentEvidenceInterface",
     "AssessmentRequest",
+    "AssessmentArmingRequest",
     "AssessmentResult",
     "AssessmentStateView",
 ]

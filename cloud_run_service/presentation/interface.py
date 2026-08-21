@@ -46,7 +46,7 @@ class Presentation:
         intended = tuple(plan.intended_modalities)
         failures: list[FailureSignal] = []
         delivered: list[str] = []
-        details: dict[str, Any] = {"events": [], "display": []}
+        details: dict[str, Any] = {"events": [], "speech": [], "display": []}
 
         if "speech" in intended:
             if not request.turn_input.device.speech:
@@ -60,6 +60,7 @@ class Presentation:
                         if request.speech is not None:
                             request.speech(spoken)
                             delivered.append("speech")
+                        details["speech"].append({"text": spoken})
                         self._emit(request, turn_id, len(details["events"]), "speech", {"text": spoken}, details)
                     except Exception as exc:
                         failures.append(self._failure("stream_interrupted", "streaming", True, str(exc)))
@@ -211,7 +212,7 @@ class Presentation:
     @staticmethod
     def _emit(request, turn_id, sequence, kind, payload, details) -> None:
         event = ProvisionalOutput(turn_id=turn_id, sequence=sequence, kind=kind, payload=payload)
-        details["events"].append(event.kind)
+        details["events"].append({"kind": event.kind, "payload": dict(payload)})
         if request.emit is not None:
             request.emit(event)
 

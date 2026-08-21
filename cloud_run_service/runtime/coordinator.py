@@ -109,6 +109,9 @@ class TemporaryLegacyAdapter(Protocol):
 
     def assessment_request(self, turn_input: TurnInput, interaction) -> "AssessmentRequest": ...
 
+    def assessment_arming_request(self, turn_input: TurnInput, response_plan,
+                                  realization) -> Any: ...
+
     def pedagogy_request(self, turn_input: TurnInput, observation, assessment): ...
 
     def retrieval_request(self, turn_input: TurnInput, observation, pedagogical): ...
@@ -121,7 +124,8 @@ class TemporaryLegacyAdapter(Protocol):
 
     def execute(self, turn_input: TurnInput, interaction, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None, realization=None) -> LegacyExecution: ...
+                generated_response=None, realization=None,
+                assessment_arming=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -315,6 +319,23 @@ class TurnCoordinator:
                 self._supervisor.observe_turn(realization.failures)
                 failure = realization.failures[0]
                 raise RuntimeError(f"Turn failed closed: {failure.capability}/{failure.cause}")
+        assessment_arming = None
+        if (self._assessment_evidence is not None and planned_for_execution is not None
+                and planned_for_execution.value.assessment_proposal is not None):
+            assessment_arming = self._assessment_evidence.arm_after_realization(
+                self._adapter.assessment_arming_request(
+                    turn_input, planned_for_execution.value, realization.value
+                    if realization is not None else None
+                )
+            )
+            actions = tuple(self._recovery_policy.decide(failure)
+                            for failure in assessment_arming.failures)
+            if not assessment_arming.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(assessment_arming.failures)
+                failure = assessment_arming.failures[0]
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
+                )
         try:
             execution_kwargs = {}
             if self._presentation is not None:
@@ -322,11 +343,15 @@ class TurnCoordinator:
                     None if realization is None else realization.value
                 )
             if planned is not None:
+                execute_kwargs = dict(
+                    assessment_arming=assessment_arming,
+                )
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
                     response_plan=planned_for_execution,
                     generated_response=generated,
+                    **execute_kwargs,
                     **execution_kwargs,
                 )
             elif retrieved is not None:
@@ -362,6 +387,7 @@ class TurnCoordinator:
             + (() if planned is None else planned.failures)
             + (() if generated is None else generated.failures)
             + (() if realization is None else realization.failures)
+            + (() if assessment_arming is None else assessment_arming.failures)
         )
         if extracted_failures:
             execution = replace(

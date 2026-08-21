@@ -17,6 +17,8 @@ from runtime.contracts import (
     StateOperation,
     StateScope,
     TurnInput,
+    RealizationReceipt,
+    RealizationStatus,
     deep_freeze,
 )
 from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN, STT_WRITE_CONFIDENCE_MIN
@@ -51,6 +53,19 @@ class AssessmentRequest:
 
 
 @dataclass(frozen=True)
+class AssessmentArmingRequest:
+    """Facts required to arm a newly planned item after presentation."""
+
+    turn_input: TurnInput
+    proposal: Any
+    script: Any
+    realization: RealizationReceipt | None
+    state: AssessmentStateView
+    mode: str = "EXPLAIN"
+    barrier: str = "unknown"
+
+
+@dataclass(frozen=True)
 class AssessmentResult:
     attempted: bool
     grade: GradeResult | None = None
@@ -63,6 +78,10 @@ class AssessmentResult:
 class AssessmentEvidenceInterface(Protocol):
     def evaluate_prior_attempt(
         self, request: AssessmentRequest
+    ) -> ModuleOutcome[AssessmentResult]: ...
+
+    def arm_after_realization(
+        self, request: AssessmentArmingRequest
     ) -> ModuleOutcome[AssessmentResult]: ...
 
 
@@ -145,6 +164,106 @@ class AssessmentEvidence:
             value=replace(result, writeback_status="pending"),
             state_changes=(evidence, disarm),
         )
+
+    def arm_after_realization(
+        self, request: AssessmentArmingRequest
+    ) -> ModuleOutcome[AssessmentResult]:
+        """Propose pending assessment state only after a truthful receipt.
+
+        This method is deliberately pure with respect to session state.  The
+        State and Persistence writer applies the returned change at commit.
+        """
+        proposal = request.proposal
+        hook = getattr(proposal, "hook", None)
+        item_id = str(getattr(proposal, "item_id", "") or "")
+        if hook is None or not item_id:
+            return ModuleOutcome(value=AssessmentResult(attempted=False))
+        if request.state.pending_assessment is not None:
+            return ModuleOutcome(value=AssessmentResult(attempted=False))
+        if not self._hook_is_verified(hook):
+            return self._arming_failure(request, "unverified_assessment_proposal")
+        receipt = request.realization
+        if receipt is None:
+            return self._arming_failure(request, "realization_missing")
+        if receipt.turn_id != request.turn_input.turn_id:
+            return self._arming_failure(request, "realization_turn_mismatch")
+        if receipt.status not in {RealizationStatus.COMPLETE, RealizationStatus.DEGRADED}:
+            return self._arming_failure(request, f"realization_{receipt.status.value}")
+        if "speech" not in receipt.delivered:
+            return self._arming_failure(request, "assessment_speech_not_realized")
+        speech_text = " ".join(
+            str(event.get("text") or "")
+            for event in receipt.details.get("speech", ())
+            if isinstance(event, Mapping)
+        )
+        events = receipt.details.get("events", ())
+        event_text = " ".join(
+            str(event.get("payload", {}).get("text") or "")
+            if isinstance(event, Mapping) else str(event)
+            for event in events
+        )
+        question = str(getattr(hook, "question", "") or "").strip()
+        # A modality-only receipt is insufficient: the receipt must carry the
+        # exact spoken assessment text so altered or truncated delivery cannot
+        # arm a pending check.
+        if question and question not in (speech_text + event_text):
+            return self._arming_failure(request, "realization_question_mismatch")
+
+        pending = hook.to_dict()
+        beat = next(
+            (beat for beat in (getattr(request.script, "beats", ()) or ())
+             if getattr(getattr(beat, "assessment_hook", None), "item_id", None)
+             == item_id),
+            None,
+        )
+        pending.update({
+            "kind": getattr(hook, "state_update_intent", None) or "practice",
+            "id": item_id,
+            "concept_id": getattr(hook, "target_concept", None),
+            "script_id": getattr(request.script, "script_id", None),
+            "beat_id": getattr(beat, "beat_id", None),
+            "realized_turn_id": request.turn_input.turn_id,
+            "attempt": 1,
+            "action": getattr(request.script, "pedagogical_action", None) or "unknown",
+            "mode": request.mode,
+            "barrier": request.barrier,
+        })
+        change = StateChange(
+            change_id=f"{request.turn_input.turn_id}:assessment:arm:{item_id}",
+            owner=CAPABILITY,
+            scope=StateScope.SESSION,
+            path=("pending_check",),
+            operation=StateOperation.SET,
+            value=pending,
+            idempotency_key=f"{request.turn_input.turn_id}:assessment:arm:{item_id}",
+        )
+        return ModuleOutcome(
+            value=AssessmentResult(attempted=False, pending_item_id=item_id,
+                                   pending_kind=pending["kind"], writeback_status="pending"),
+            state_changes=(change,),
+        )
+
+    @staticmethod
+    def _hook_is_verified(hook: Any) -> bool:
+        return bool(
+            getattr(hook, "item_id", None)
+            and getattr(hook, "question", None)
+            and (getattr(hook, "expected_answer", None) or getattr(hook, "rubric", None))
+            and getattr(hook, "assessment_purpose", None)
+            and getattr(hook, "state_update_intent", None)
+            and getattr(hook, "reveal_policy", None)
+            and getattr(hook, "verification_token", None)
+            and getattr(hook, "verification_status", None)
+            in {"verified", "authored_verified"}
+        )
+
+    @staticmethod
+    def _arming_failure(request: AssessmentArmingRequest, cause: str) -> ModuleOutcome:
+        return ModuleOutcome(value=None, failures=(FailureSignal(
+            capability=CAPABILITY, phase="assessment_arming",
+            severity=FailureSeverity.ERROR, recoverable=False, cause=cause,
+            valid_outcome=False, context={"turn_id": request.turn_input.turn_id},
+        ),))
 
     def prepare_grounded_item(
         self, *, concept_id: str | None, evidence, graph, pedagogical,

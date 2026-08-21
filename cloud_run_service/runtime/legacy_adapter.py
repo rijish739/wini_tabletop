@@ -207,6 +207,22 @@ class LegacyTurnAdapter:
             ),
         )
 
+    def assessment_arming_request(self, turn_input, response_plan, realization):
+        from assessment_evidence import AssessmentArmingRequest, AssessmentStateView
+        session = self._state.data.get("session") or {}
+        return AssessmentArmingRequest(
+            turn_input=turn_input,
+            proposal=response_plan.assessment_proposal,
+            script=response_plan.script,
+            realization=realization,
+            state=AssessmentStateView(
+                learner_id=str(self._state.data.get("learner_id") or ""),
+                pending_assessment=copy.deepcopy(session.get("pending_check")),
+            ),
+            mode=str(session.get("mode") or "EXPLAIN"),
+            barrier=str(session.get("barrier") or "unknown"),
+        )
+
     def response_planning_request(self, turn_input, observation, pedagogical, retrieval):
         from response_planning import ResponsePlanningRequest, ResponsePlanningStateView
 
@@ -261,19 +277,21 @@ class LegacyTurnAdapter:
 
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None, realization=None):
+                generated_response=None, realization=None, assessment_arming=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
             response_plan_outcome=response_plan,
             generated_response_outcome=generated_response,
             realization=realization,
+            assessment_arming=assessment_arming,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
                  assessment_outcome=None, pedagogy_outcome=None,
                  retrieval_outcome=None, response_plan_outcome=None,
-                 generated_response_outcome=None, realization=None):
+                 generated_response_outcome=None, realization=None,
+                 assessment_arming=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -290,6 +308,8 @@ class LegacyTurnAdapter:
                 state_changes += pedagogy_outcome.state_changes
             if retrieval_outcome is not None:
                 state_changes += retrieval_outcome.state_changes
+            if assessment_arming is not None:
+                state_changes += assessment_arming.state_changes
             state_changes = self._apply_state_changes(
                 turn_input.learner_id, state_changes
             )
@@ -333,6 +353,7 @@ class LegacyTurnAdapter:
                 kwargs["_response_plan"] = (
                     None if response_plan_outcome is None else response_plan_outcome.value
                 )
+                kwargs["_defer_assessment_arming"] = True
                 if generated_response_outcome is not None:
                     kwargs["_generated_response"] = generated_response_outcome.value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
@@ -433,65 +454,30 @@ class LegacyTurnAdapter:
         if not changes:
             return ()
         from state_and_persistence import (
-            CapabilityStateAccess,
             WorkingStateProjection,
+            canonical_capability_access,
         )
 
-        access = {
-            "interaction_control": CapabilityStateAccess(
-                learner_write=(("safety_alerts",),),
-                session_write=tuple(
-                    (path,) for path in (
-                        "current_concept",
-                        "pending_shift",
-                        "context",
-                        "status",
-                        "leave_requests",
-                        "break_requested",
-                        "steer_streak",
-                        "safety_alert",
-                    )
-                ),
-            ),
-            "assessment_evidence": CapabilityStateAccess(
-                learner_read=(("evidence_index",),),
-                session_read=(("pending_check",), ("hint_progress",)),
-                learner_write=(("evidence_ledger",),),
-                session_write=(("pending_check",), ("pending_hope",)),
-            ),
-            "pedagogy": CapabilityStateAccess(
-                session_write=tuple(
-                    (path,) for path in (
-                        "mode",
-                        "test_state",
-                        "practice_plan",
-                        "practice_state",
-                        "pending_mode_offer",
-                        "pending_test_resume",
-                    )
-                ),
-            ),
-            "perception": CapabilityStateAccess(
-                learner_write=(
-                    ("global",),
-                    ("global_observations",),
-                ),
-            ),
-            "retrieval": CapabilityStateAccess(
-                session_write=(("served_items",), ("bridges_served",)),
-            ),
-        }
+        access = canonical_capability_access()
         projection = WorkingStateProjection(
             learner_id=learner_id,
             state=self._state.data,
             access=access,
         )
         applied = tuple(change for change in changes if projection.apply(change))
-        self._state.data = projection.projected_state()
+        publish = getattr(self._state, "publish_working_state", None)
+        if callable(publish):
+            publish(projection.projected_state())
+        else:  # Test doubles and pre-contract callers; production uses the owner seam.
+            setattr(self._state, "data", projection.projected_state())
         return applied
 
     def _restore(self, starting_state: Mapping[str, Any]) -> bool:
-        self._state.data = copy.deepcopy(dict(starting_state))
+        restore = getattr(self._state, "restore_state", None)
+        if callable(restore):
+            restore(starting_state)
+        else:
+            setattr(self._state, "data", copy.deepcopy(dict(starting_state)))
         save = getattr(self._state, "save", None)
         if not callable(save):
             return False

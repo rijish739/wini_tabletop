@@ -187,6 +187,7 @@ class WorkingStateProjection:
         self._changed_paths: dict[
             tuple[StateScope, StatePath], tuple[str, StateOperation]
         ] = {}
+        self._change_ids: dict[str, StateChange] = {}
         self._idempotency_keys = set(working.get("evidence_index") or {}) | set(
             working.get("state_change_index") or {}
         )
@@ -224,6 +225,14 @@ class WorkingStateProjection:
         if not _contains(writable, change.path):
             raise StateChangeRejected(
                 f"{change.owner} does not own {change.scope.value}:{'.'.join(change.path)}"
+            )
+
+        previous_change = self._change_ids.get(change.change_id)
+        if previous_change is not None:
+            if previous_change == change:
+                return False
+            raise StateChangeConflict(
+                f"change id already used by {previous_change.owner}"
             )
 
         if change.idempotency_key and change.idempotency_key in self._idempotency_keys:
@@ -282,7 +291,9 @@ class WorkingStateProjection:
                 )
         else:
             self._apply_operation(root, change)
+        self._validate_invariants()
         self._changed_paths[target_key] = (change.change_id, change.operation)
+        self._change_ids[change.change_id] = change
         self._changes.append(change)
         if change.idempotency_key:
             self._idempotency_keys.add(change.idempotency_key)
@@ -291,6 +302,17 @@ class WorkingStateProjection:
                 change.idempotency_key
             ] = change.change_id
         return True
+
+    def _validate_invariants(self) -> None:
+        """Validate cross-state structure after every accepted change."""
+        if self._working.get("learner_id") != self.learner_id:
+            raise StateChangeRejected("state identity changed inside a Turn")
+        session = self._working.get("session")
+        if session is not None and not isinstance(session, dict):
+            raise StateChangeRejected("session state must remain a mapping")
+        pending = (session or {}).get("pending_check")
+        if pending is not None and not isinstance(pending, dict):
+            raise StateChangeRejected("pending_check must be a mapping or null")
 
     def _apply_operation(self, root: dict[str, Any], change: StateChange) -> None:
         if change.operation is StateOperation.SET:

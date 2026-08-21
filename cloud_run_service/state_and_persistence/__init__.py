@@ -19,6 +19,12 @@ from .persistence import (
     StaleState,
     state_version,
 )
+from .ownership import (
+    OwnedStateField,
+    STATE_OWNERSHIP_MATRIX,
+    canonical_capability_access,
+    validate_ownership_matrix,
+)
 
 __all__ = [
     "CapabilityStateAccess",
@@ -36,4 +42,8 @@ __all__ = [
     "StaleState",
     "WorkingStateProjection",
     "state_version",
+    "OwnedStateField",
+    "STATE_OWNERSHIP_MATRIX",
+    "canonical_capability_access",
+    "validate_ownership_matrix",
 ]

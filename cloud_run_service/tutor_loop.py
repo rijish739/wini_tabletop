@@ -2111,7 +2111,8 @@ class TutorLoop:
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
                      _pedagogy_decision=None, _retrieval_result=None,
-                     _response_plan=None, _generated_response=None) -> dict:
+                     _response_plan=None, _generated_response=None,
+                     _defer_assessment_arming: bool = False) -> dict:
         self._response_script = None
         self._extracted_response_plan = _response_plan
         if _response_plan is not None:
@@ -2866,7 +2867,11 @@ class TutorLoop:
         # P0 one-arming path. Arm only after the exact verified question survived
         # generation/streaming and the deterministic key-leak check. A corrupted
         # assessment is explicitly voided and can never reach next-turn grading.
-        if assessment_candidate and not session.get("pending_check"):
+        # New assessment arming is owned by AssessmentEvidence and happens only
+        # after Presentation returns a verified RealizationReceipt.  The legacy
+        # implementation may still validate delivery for compatibility, but it
+        # must not mutate pending assessment state here.
+        if assessment_candidate and not session.get("pending_check") and not _defer_assessment_arming:
             script = self._response_script or assessment_script(
                 assessment_candidate, action, primary)
             hooks = [b.assessment_hook for b in script.beats if b.assessment_hook]
