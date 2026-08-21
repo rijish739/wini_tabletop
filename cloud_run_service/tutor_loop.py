@@ -1920,6 +1920,13 @@ class TutorLoop:
                             ),
                     )
                 ),
+                response_generation=(
+                    __import__("response_generation", fromlist=["ResponseGeneration"])
+                    .ResponseGeneration(
+                        __import__("runtime.model_gateway", fromlist=["VertexModelGateway"])
+                        .VertexModelGateway(), backend=GEN_BACKEND)
+                    if self.want_answer and GEN_BACKEND == "gemini" else None
+                ),
             )
             self._typed_turn_facade = facade
         return facade
@@ -2104,7 +2111,7 @@ class TutorLoop:
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
                      _pedagogy_decision=None, _retrieval_result=None,
-                     _response_plan=None) -> dict:
+                     _response_plan=None, _generated_response=None) -> dict:
         self._response_script = None
         self._extracted_response_plan = _response_plan
         if _response_plan is not None:
@@ -2506,6 +2513,10 @@ class TutorLoop:
             # question or the score summary. No LLM paraphrase: a test must not
             # reword its own numbers, and the summary is a controlled report.
             answer = mode_item["speak"]
+        elif self.want_answer and _generated_response is not None:
+            # Response Generation owns the learner-facing verbal answer. The
+            # temporary legacy path consumes it only for presentation/state parity.
+            answer = _generated_response.answer
         elif self.want_answer:
             blocks = []
             for e in evidence:

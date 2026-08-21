@@ -26,6 +26,7 @@ class TutorLoopCompatibilityFacade:
         pedagogy: Any = None,
         retrieval: Any = None,
         response_planning: Any = None,
+        response_generation: Any = None,
     ) -> None:
         if assessment_evidence is None:
             from assessment_evidence import AssessmentEvidence
@@ -48,6 +49,7 @@ class TutorLoopCompatibilityFacade:
             pedagogy=pedagogy,
             retrieval=retrieval,
             response_planning=response_planning,
+            response_generation=response_generation,
             supervisor=self._supervisor,
         )
         self._state = state

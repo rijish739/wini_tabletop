@@ -236,17 +236,43 @@ class LegacyTurnAdapter:
             ),
         )
 
+    def response_generation_request(self, turn_input, observation, pedagogical,
+                                    retrieval, response_plan):
+        from response_generation import ResponseGenerationRequest, ResponseGenerationStateView
+
+        session = self._state.data.get("session") or {}
+        engine = getattr(self._legacy_turn, "__self__", None)
+        concept_id = observation.concept_id or session.get("current_concept")
+        graph = getattr(engine, "graph", None)
+        node = graph.nodes.get(concept_id, {}) if graph is not None and concept_id else {}
+        proposal = response_plan.assessment_proposal
+        deterministic = (proposal.hook.question if pedagogical.action == "TEST_QUESTION"
+                         and proposal is not None else None)
+        return ResponseGenerationRequest(
+            turn_input=turn_input, pedagogical=pedagogical, retrieval=retrieval,
+            response_plan=response_plan,
+            state=ResponseGenerationStateView(
+                history=tuple(copy.deepcopy(session.get("context") or ())[-6:]),
+                clarification="simplification_request" in observation.signals,
+                figure_on_screen="display" in response_plan.approved_modalities,
+                chapter_hint=str(node.get("chapter_name") or "Class 10 Mathematics"),
+            ), deterministic_spoken=deterministic,
+        )
+
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
-                pedagogy=None, retrieval=None, response_plan=None):
+                pedagogy=None, retrieval=None, response_plan=None,
+                generated_response=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
             response_plan_outcome=response_plan,
+            generated_response_outcome=generated_response,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
                  assessment_outcome=None, pedagogy_outcome=None,
-                 retrieval_outcome=None, response_plan_outcome=None):
+                 retrieval_outcome=None, response_plan_outcome=None,
+                 generated_response_outcome=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -303,8 +329,11 @@ class LegacyTurnAdapter:
                     kwargs["_pedagogy_decision"] = pedagogy_outcome.value
                 if retrieval_outcome is not None:
                     kwargs["_retrieval_result"] = retrieval_outcome.value
-                if response_plan_outcome is not None:
-                    kwargs["_response_plan"] = response_plan_outcome.value
+                kwargs["_response_plan"] = (
+                    None if response_plan_outcome is None else response_plan_outcome.value
+                )
+                if generated_response_outcome is not None:
+                    kwargs["_generated_response"] = generated_response_outcome.value
                 compatibility = dict(self._legacy_turn(controlled_text, **kwargs))
                 if decision is not None:
                     continuity_changes = decision.response_state_changes(
@@ -380,13 +409,22 @@ class LegacyTurnAdapter:
                 () if interaction_outcome is None else interaction_outcome.failures
             ),
         )
+        generation = (None if generated_response_outcome is None
+                      else generated_response_outcome.value)
         return LegacyExecution(
             result=result,
             phase_trace=LOGICAL_TURN_PHASES,
             measurements={
                 "legacy_adapter_turns": 1,
                 "legacy_adapter_unextracted_phases": len(LOGICAL_TURN_PHASES)
-                - (1 if interaction_outcome is not None else 0),
+                - (1 if interaction_outcome is not None else 0)
+                - (1 if generation is not None else 0),
+                "response_generation_model_calls": (
+                    0 if generation is None else generation.model_calls
+                ),
+                "model_client_constructions": (
+                    0 if generation is None else generation.client_constructions
+                ),
             },
         )
 

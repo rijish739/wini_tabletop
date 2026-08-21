@@ -14,4 +14,4 @@ QWK gate (report section 5): >= 0.6 desired. Discrimination gate: strong answer 
 
 **Label caveat:** `final_label` = round((rater_a + rater_b)/2), both LLM (gemini-flash + gemini-pro stand-in; raters agreed 84% exact / 98.6% within 1). The human round was a 30-prompt quality audit + the drop decision, not a full re-label. Replace with teacher labels before production scale.
 
-Build time: 64s
+Build time: 39s

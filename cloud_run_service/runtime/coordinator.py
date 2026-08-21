@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from pedagogy import PedagogyInterface
     from retrieval import RetrievalInterface
     from response_planning import ResponsePlanningInterface
+    from response_generation import ResponseGenerationInterface
 
 
 class TurnPhase(str, Enum):
@@ -114,8 +115,12 @@ class TemporaryLegacyAdapter(Protocol):
     def response_planning_request(self, turn_input: TurnInput, observation,
                                   pedagogical, retrieval): ...
 
+    def response_generation_request(self, turn_input: TurnInput, observation,
+                                    pedagogical, retrieval, response_plan): ...
+
     def execute(self, turn_input: TurnInput, interaction, assessment=None,
-                pedagogy=None, retrieval=None, response_plan=None) -> LegacyExecution: ...
+                pedagogy=None, retrieval=None, response_plan=None,
+                generated_response=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -143,6 +148,7 @@ class TurnCoordinator:
         pedagogy: "PedagogyInterface | None" = None,
         retrieval: "RetrievalInterface | None" = None,
         response_planning: "ResponsePlanningInterface | None" = None,
+        response_generation: "ResponseGenerationInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
         self._adapter = adapter
@@ -153,6 +159,7 @@ class TurnCoordinator:
         self._pedagogy = pedagogy
         self._retrieval = retrieval
         self._response_planning = response_planning
+        self._response_generation = response_generation
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
@@ -269,11 +276,35 @@ class TurnCoordinator:
                 raise RuntimeError(
                     f"Turn failed closed: {failure.capability}/{failure.cause}"
                 )
+        generated = None
+        planned_for_execution = planned
+        if self._response_generation is not None and planned is not None:
+            generated = self._response_generation.generate(
+                self._adapter.response_generation_request(
+                    turn_input, perception.value, pedagogical.value,
+                    retrieved.value, planned.value,
+                )
+            )
+            actions = tuple(self._recovery_policy.decide(failure)
+                            for failure in generated.failures)
+            if not generated.valid or RecoveryAction.FAIL_CLOSED in actions:
+                self._supervisor.observe_turn(generated.failures)
+                failure = generated.failures[0]
+                raise RuntimeError(
+                    f"Turn failed closed: {failure.capability}/{failure.cause}"
+                )
+            if generated.value is not None and not generated.value.assessing:
+                planned_for_execution = replace(
+                    planned,
+                    value=replace(planned.value, assessment_proposal=None),
+                )
         try:
             if planned is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
-                    pedagogy=pedagogical, retrieval=retrieved, response_plan=planned,
+                    pedagogy=pedagogical, retrieval=retrieved,
+                    response_plan=planned_for_execution,
+                    generated_response=generated,
                 )
             elif retrieved is not None:
                 execution = self._adapter.execute(
@@ -306,6 +337,7 @@ class TurnCoordinator:
             + (() if pedagogical is None else pedagogical.failures)
             + (() if retrieved is None else retrieved.failures)
             + (() if planned is None else planned.failures)
+            + (() if generated is None else generated.failures)
         )
         if extracted_failures:
             execution = replace(

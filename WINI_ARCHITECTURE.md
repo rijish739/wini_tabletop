@@ -23,6 +23,7 @@ then go to the document that owns the detail you need.
 | Document | Role | Status |
 |---|---|---|
 | **This file** (`WINI_ARCHITECTURE.md`) | End-to-end picture + index to everything else | Living overview |
+| [`COMPLETE_ARCHITECTURE_FLOW.md`](COMPLETE_ARCHITECTURE_FLOW.md) | **Refactored Modular Architecture & 9-Phase Turn Pipeline Flow** | Active Architecture |
 | [`learner_cognitive_state_architecture.md`](learner_cognitive_state_architecture.md) | **WHAT** the system models — schemas, signals, contracts (source of truth) | Lockstep #1 |
 | [`RAG_upgrade_plan.md`](RAG_upgrade_plan.md) | **HOW** the store carries those structures — build/verify plan (executed) | Lockstep #2 |
 | [`model_dataset_architecture_report.md`](model_dataset_architecture_report.md) | Datasets + neural models that realize the architecture | Lockstep #3 |

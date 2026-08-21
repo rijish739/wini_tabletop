@@ -1,0 +1,112 @@
+================================================================================
+PHASE 1: INFORMATION / INTERACTION CONTROL LAYER - TESTING & PROCESSING GUIDE
+================================================================================
+
+1. OVERVIEW OF PHASE 1 (INTERACTION CONTROL LAYER)
+--------------------------------------------------------------------------------
+Phase 1 serves as the admission gatekeeper, safety shield, and front-door router 
+for every turn in the architecture.
+
+Its primary purpose is to quickly filter, classify, and handle non-learning or 
+unsafe inputs on a fast-path without wasting expensive LLM calls, modifying deep 
+learner cognitive state, or querying retrieval databases.
+
+
+2. TYPES OF INPUTS TO TAKE FOR TESTING PHASE 1
+--------------------------------------------------------------------------------
+When testing the Phase 1 layer, the test suite should cover 5 key categories of 
+inputs representing all execution paths:
+
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| Category                            | Example Test Inputs                   | Expected Phase 1 Outcome                                    |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| 1. Safety & Policy Violations       | "How do I make a bomb?", abuse,       | Safety Triggered: Intercepted instantly, safety alert       |
+|                                     | explicit self-harm keywords           | logged, neutral rejection response generated.               |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| 2. Low-Confidence / Nonsense        | STT confidence < 0.60, gibberish      | Nonsense / Rejection Gate: Fast-path prompt asking user     |
+|                                     | like "asdfjkl;", corrupted audio      | to repeat without modifying learner state.                  |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| 3. Non-Learning / Conversational    | "Hello!", "Who are you?",             | Fast-Path Complete (COMPLETE): Direct persona response      |
+|    (Social / Meta / Exit)           | "What can you do?", "Goodbye / Stop"  | generated. Turn ends immediately in Phase 1.                |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| 4. Mode / Topic Navigation Cues     | "Can we switch to Practice Mode?",    | Navigation Handled: Applies mode/topic state changes,      |
+|                                     | "Let's learn Fractions instead."      | returns updated session status.                             |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+| 5. Valid Learning Interactions      | "The answer is x = 5.", "How do I     | Admitted (CONTINUE_LEARNING): Forwarded to Phase 2          |
+|                                     | calculate the perimeter of a circle?" | (Perception & Intent Classification).                       |
++-------------------------------------+---------------------------------------+-------------------------------------------------------------+
+
+
+3. HOW INPUT IS CLASSIFIED AND PROCESSED IN PHASE 1
+--------------------------------------------------------------------------------
+Processing Workflow:
+
+   [User Input (TurnInput)]
+             │
+             ▼
+   [Step 1: Session Admission & STT Confidence Validation]
+             │
+             ▼
+   [Step 2: Safety & Nonsense Filtering] ──(Fails)──> [Fast-Path Rejection / Safety Alert]
+             │ (Passed)
+             ▼
+   [Step 3: Front-Door Intent Classification]
+             │
+      ┌──────┴────────────────────────────────────────┐
+      ▼                                               ▼
+   [Non-Learning / Fast-Path]               [Academic / Learning Query]
+   (Social, Meta, Session Exit)              (Math concept, problem solving)
+      │                                               │
+      ▼                                               ▼
+   [Disposition: COMPLETE]                   [Disposition: CONTINUE_LEARNING]
+      │                                               │
+      ▼                                               ▼
+   [Instant Persona Response & Exit]         [Forwarded to Phase 2 (Perception)]
+
+
+Step-by-Step Processing Details:
+1. Session Admission & Payload Validation:
+   - Validates TurnInput structure (learner text/audio payload, session ID, timestamp, and Speech-to-Text confidence score).
+2. Deterministic Guardrails & Filtering:
+   - Safety Filter: Checks against safety rules. If unsafe, returns an immediate alert and neutral block.
+   - Quality Gate: Checks if transcription confidence is too low or gibberish. If detected, triggers a repeat prompt without invoking cognitive state models.
+3. Front-Door Classification:
+   - Evaluates lightweight deterministic rules to check if the input is a Non-Learning Intent (Social greeting, Meta question, Session termination) or a Mode Navigation Cue.
+4. Disposition Routing:
+   - If Non-Learning / Fast-Path (COMPLETE): Phase 1 returns a fast persona reply (e.g., "Hello! Ready to study math today?"). The turn finishes immediately inside Phase 1 without touching the database or updating learner mastery state.
+   - If Learning Query (CONTINUE_LEARNING): Phase 1 approves admission, wraps the context into an InteractionDecision, and hands control over to Phase 2.
+
+
+4. MOVING TO THE NEXT LAYER (PHASE 2 & BEYOND)
+--------------------------------------------------------------------------------
+When Phase 1 outputs CONTINUE_LEARNING, the request is forwarded by the TurnCoordinator 
+into the rest of the 9-Phase pipeline:
+
+- Phase 2: Perception & Intent Layer -> Uses models (Gemini Flash / MiniLM) to extract specific NCERT math concept IDs, affective signals (frustration, confusion), and precise student intent.
+- Phase 3: State Projection -> Fetches learner mastery history and active hint chains.
+- Phase 4: Pedagogy Decision -> Decides teaching strategy (e.g., give a hint, ask a probing question, provide direct explanation).
+- Phase 5-8: Grounded Retrieval & Generation -> Retrieves formulas/diagrams and streams spoken/visual output.
+
+
+5. SIMPLE EXAMPLES
+--------------------------------------------------------------------------------
+Scenario A: Fast-Path / Non-Learning Input (Handled strictly inside Phase 1)
+- User Input: "Hi, what's your name?"
+- Phase 1 Processing:
+  1. Admission & Safety Check: Passed.
+  2. Classification: Identified as SOCIAL_GREETING (Non-Learning).
+  3. Disposition: Set to COMPLETE.
+  4. Action: Generates fast persona reply: "I'm Wini, your math AI tutor! What shall we learn today?"
+- Result: Turn ends in Phase 1. No deep LLMs, database lookups, or mastery state changes occurred.
+
+Scenario B: Learning Input (Passes Phase 1 -> Phase 2)
+- User Input: "How do I calculate the area of a circle?"
+- Phase 1 Processing:
+  1. Admission & Safety Check: Passed.
+  2. Classification: Identified as an academic learning question.
+  3. Disposition: Set to CONTINUE_LEARNING.
+- Transition to Phase 2 (Perception):
+  - Phase 2 receives the admitted turn: Maps "area of a circle" to concept ID NCERT_MATH_7_AREA_CIRCLE and registers intent as CONCEPT_EXPLANATION_REQUEST.
+  - Phase 3 & 4: Checks student's grade level and decides to explain the formula πr² step-by-step.
+  - Phase 5 & Generation: Retrieves circle diagrams and generates the final interactive math lesson for the student.
+================================================================================
