@@ -267,12 +267,13 @@ class LegacyTurnAdapter:
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
             response_plan_outcome=response_plan,
             generated_response_outcome=generated_response,
+            realization=realization,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
                  assessment_outcome=None, pedagogy_outcome=None,
                  retrieval_outcome=None, response_plan_outcome=None,
-                 generated_response_outcome=None):
+                 generated_response_outcome=None, realization=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 

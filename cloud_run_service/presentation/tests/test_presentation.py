@@ -60,6 +60,77 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(outcome.value.status, RealizationStatus.INTERRUPTED)
         self.assertEqual(outcome.failures[0].cause, "stream_interrupted")
 
+    def test_authored_board_delivers_progressive_segments(self):
+        shown = []
+        board = {
+            "kind": "board_buddy_payload",
+            "payload": [{"type": "text", "text": "one", "pos": [1, 1]}],
+            "segments": [
+                {"payload": [{"type": "text", "text": "one", "pos": [1, 1]}]},
+                {"payload": [{"type": "text", "text": "one", "pos": [1, 1]},
+                              {"type": "text", "text": "two", "pos": [1, 2]}]},
+            ],
+            "animated": False,
+        }
+        req = request(display=True, items=(board,))
+        req = PresentationRequest(**{**req.__dict__, "display": shown.append})
+        req = PresentationRequest(
+            **{**req.__dict__, "turn_input": TurnInput(
+                turn_id="t1", learner_id="l1", interaction={},
+                device=DeviceCapabilities(display=True, authored_visuals=True),
+                budgets=TurnBudgets(total_ms=1000),
+            )}
+        )
+
+        outcome = Presentation().realize(req)
+
+        self.assertEqual(outcome.value.status, RealizationStatus.COMPLETE)
+        self.assertEqual(outcome.value.delivered, ("speech", "display"))
+        self.assertEqual([len(item["payload"]) for item in shown], [1, 2])
+        self.assertEqual(outcome.value.details["display"][1]["segment_index"], 1)
+
+    def test_authored_visual_is_explicitly_degraded_on_unsupported_device(self):
+        board = {"kind": "board_buddy_payload", "payload": [{"type": "text"}]}
+        outcome = Presentation().realize(request(display=True, items=(board,)))
+
+        self.assertEqual(outcome.value.status, RealizationStatus.DEGRADED)
+        self.assertEqual(outcome.value.delivered, ("speech",))
+        self.assertEqual(outcome.failures[0].cause, "authored_visual_unsupported")
+
+    def test_device_variant_is_selected_before_delivery(self):
+        shown = []
+        item = {"kind": "authored_scene", "asset_ref": "base",
+                "variants": {"tablet": {"asset_ref": "tablet-scene"}}}
+        req = request(display=True, items=(item,))
+        req = PresentationRequest(**{**req.__dict__, "display": shown.append,
+                                     "device_profile": {"device_id": "tablet"},
+                                     "turn_input": TurnInput(
+                                         turn_id="t1", learner_id="l1", interaction={},
+                                         device=DeviceCapabilities(
+                                             display=True, authored_visuals=True),
+                                         budgets=TurnBudgets(total_ms=1000),
+                                     )})
+
+        Presentation().realize(req)
+
+        self.assertEqual(shown[0]["asset_ref"], "tablet-scene")
+
+    def test_animation_capability_is_honored(self):
+        board = {"kind": "board_buddy_payload", "animated": True,
+                 "payload": [{"type": "animate_param", "var": "x"}]}
+        req = request(display=True, items=(board,))
+        req = PresentationRequest(**{**req.__dict__, "turn_input": TurnInput(
+            turn_id="t1", learner_id="l1", interaction={},
+            device=DeviceCapabilities(
+                display=True, authored_visuals=True, attributes={"animation": False}),
+            budgets=TurnBudgets(total_ms=1000),
+        )})
+
+        outcome = Presentation().realize(req)
+
+        self.assertEqual(outcome.value.status, RealizationStatus.DEGRADED)
+        self.assertEqual(outcome.failures[0].cause, "animation_unsupported")
+
 
 if __name__ == "__main__":
     unittest.main()

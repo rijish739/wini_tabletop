@@ -28,6 +28,9 @@ class PresentationRequest:
     emit: Callable[[ProvisionalOutput], Any] | None = None
     interrupted: Callable[[], bool] | None = None
     display_items: tuple[Mapping[str, Any], ...] = ()
+    # Authored inputs cross the same realization seam as retrieved artifacts.
+    authored_scene: Mapping[str, Any] | None = None
+    device_profile: Mapping[str, Any] | None = None
 
 
 class PresentationInterface(Protocol):
@@ -69,10 +72,20 @@ class Presentation:
             elif not artifacts and "display" in intended:
                 failures.append(self._failure("invalid_asset", "asset_validation", True))
             else:
-                for artifact in artifacts:
+                for artifact in self._delivery_artifacts(request, artifacts):
                     if request.interrupted and request.interrupted():
                         failures.append(self._failure("stream_interrupted", "streaming", True))
                         break
+                    artifact = self._select_variant(artifact, request)
+                    if artifact.get("grounding_ok") is False:
+                        failures.append(self._failure("grounding_violation", "grounding", True))
+                        continue
+                    if self._is_authored(artifact) and not self._supports_authored(request):
+                        failures.append(self._failure("authored_visual_unsupported", "capability", True))
+                        continue
+                    if self._is_animated(artifact) and not self._supports_animation(request):
+                        failures.append(self._failure("animation_unsupported", "capability", True))
+                        continue
                     if not self._valid_artifact(artifact):
                         failures.append(self._failure("invalid_asset", "asset_validation", True, str(artifact.get("kind") or "display")))
                         continue
@@ -103,6 +116,12 @@ class Presentation:
     @staticmethod
     def _artifacts(request: PresentationRequest) -> list[dict[str, Any]]:
         artifacts = [dict(item) for item in request.display_items]
+        if request.authored_scene is not None:
+            artifacts.append({
+                "kind": "authored_scene",
+                "scene": dict(request.authored_scene),
+                "asset_ref": request.authored_scene.get("scene_id") or "authored_scene",
+            })
         for beat in request.response_plan.script.beats:
             intent = beat.visual_intent
             if intent is None or not intent.allowed or intent.visual_type.value == "none":
@@ -111,11 +130,82 @@ class Presentation:
                               "representation_target": intent.representation_target, "beat_id": beat.beat_id})
         return artifacts
 
+    @classmethod
+    def _delivery_artifacts(cls, request, artifacts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        """Expand cumulative authored board segments into display deliveries."""
+        delivered: list[dict[str, Any]] = []
+        for artifact in artifacts:
+            segments = artifact.get("segments")
+            if (artifact.get("kind") == "board_buddy_payload" and
+                    isinstance(segments, (list, tuple)) and segments):
+                for index, segment in enumerate(segments):
+                    if not isinstance(segment, Mapping):
+                        continue
+                    item = dict(artifact)
+                    item["payload"] = list(segment.get("payload") or [])
+                    item["segment_index"] = index
+                    item["segment_count"] = len(segments)
+                    delivered.append(item)
+            else:
+                delivered.append(artifact)
+        return delivered
+
+    @staticmethod
+    def _is_authored(artifact: Mapping[str, Any]) -> bool:
+        return str(artifact.get("kind") or "") in {
+            "authored_scene", "authored_scene_ref", "generated_declarative_scene_spec",
+            "board_buddy_payload", "scene_spec", "animation",
+        }
+
+    @staticmethod
+    def _supports_authored(request: PresentationRequest) -> bool:
+        device = request.turn_input.device
+        return bool(device.authored_visuals or device.attributes.get("supports_authored_scene"))
+
+    @staticmethod
+    def _is_animated(artifact: Mapping[str, Any]) -> bool:
+        if artifact.get("animated") or artifact.get("animation"):
+            return True
+        payload = artifact.get("payload")
+        return isinstance(payload, (list, tuple)) and any(
+            isinstance(item, Mapping) and item.get("type") in {"animation", "animate_param"}
+            for item in payload
+        )
+
+    @staticmethod
+    def _supports_animation(request: PresentationRequest) -> bool:
+        # Missing metadata means the renderer has its normal animation behavior;
+        # an explicit false is the device capability declaration to honor.
+        return request.turn_input.device.attributes.get("animation", True) is not False
+
+    @staticmethod
+    def _select_variant(artifact: Mapping[str, Any], request: PresentationRequest) -> dict[str, Any]:
+        """Select a precompiled device variant without changing authored content."""
+        selected = dict(artifact)
+        variants = selected.pop("variants", None)
+        if not isinstance(variants, Mapping):
+            return selected
+        keys = (
+            request.turn_input.device.attributes.get("device_id"),
+            request.turn_input.device.attributes.get("renderer"),
+            request.device_profile.get("device_id") if request.device_profile else None,
+            "default",
+        )
+        for key in keys:
+            if key and key in variants and isinstance(variants[key], Mapping):
+                selected.update(dict(variants[key]))
+                break
+        return selected
+
     @staticmethod
     def _valid_artifact(artifact: Mapping[str, Any]) -> bool:
         kind = str(artifact.get("kind") or "")
         if kind in {"question-card", "score-card", "formula", "static_text_formula"}:
             return bool(artifact.get("text") or artifact.get("question") or artifact.get("formula") or artifact.get("payload"))
+        if kind in {"authored_scene", "scene_spec", "generated_declarative_scene_spec"}:
+            return bool(artifact.get("scene") or artifact.get("asset_ref") or artifact.get("payload"))
+        if kind == "board_buddy_payload":
+            return isinstance(artifact.get("payload"), (list, tuple)) and bool(artifact.get("payload"))
         return bool(artifact.get("asset_ref") or artifact.get("image_path") or artifact.get("payload") or artifact.get("text"))
 
     @staticmethod
