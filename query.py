@@ -35,12 +35,10 @@ from typing import Any, Dict, List, Optional, Tuple
 import numpy as np
 import networkx as nx
 
-# faiss and python-dotenv are only needed by the standalone Gemini query path and
-# the FAISS index. They are imported lazily (in load_store / main) so tutor_loop
-# can import this module on the Jetson without installing them. rag_core's cloud
-# symbols are likewise lazy; importing the names below does not pull in google-genai.
-from rag_core import (GEN_MODEL, make_client, rank_hits, resolve_top_concepts,
-                      answer_with_gemini)
+# faiss, google-genai, and the standalone ranker dependencies are only needed by
+# the CLI path. Keep them genuinely lazy so the local runtime and extracted
+# Retrieval Interface can reuse the deterministic policy without cloud packages.
+GEN_MODEL = os.getenv("GEMINI_GEN_MODEL", "gemini-2.5-flash")
 from learner_state import (LearnerState, load_learner_state, mastery_to_band,
                            COLD_START_MASTERY)
 
@@ -152,7 +150,7 @@ class Snapshot:
                 if graph.nodes[m].get("type") != "misconception":
                     continue
                 st = learner.misconception_status(m)
-                if st in ("suspected", "active", "recurring"):
+                if st == "supported":
                     self.active_misconceptions[m] = st
 
     def summary(self) -> dict:
@@ -547,6 +545,9 @@ def cohesion_filter(graph: nx.DiGraph, evidence: List[dict], chunk_items: List[d
 def run_turn(store: Path, question: str, need: str, learner: LearnerState,
              top_k: int = 8, level_override=None, stuck_on: Optional[str] = None,
              use_judge: bool = True, want_answer: bool = True, mark_served: bool = False):
+    from rag_core import (answer_with_gemini, make_client, rank_hits,
+                          resolve_top_concepts)
+
     chunks, concepts, graph, index = load_store(store)
     concepts_by_id = {c["concept_id"]: c for c in concepts}
     chunks_by_id = {c["chunk_id"]: c for c in chunks}

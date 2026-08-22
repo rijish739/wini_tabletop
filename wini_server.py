@@ -1,19 +1,18 @@
-"""Wini brain service — the WHOLE pipeline behind one HTTP endpoint.
+"""Wini brain service — the whole tutoring pipeline behind one HTTP endpoint.
 
-This is the cloud side of the thin-client split (CLAUDE.md deployment mandate:
-device = mic + speaker + display + touch, no brain on device). Everything a turn
-needs happens HERE, server-side:
+This is the cloud side of the thin-client design: the device handles only mic +
+speaker + display + touch, and everything a turn needs runs HERE on the server.
 
     audio in ──► Cloud STT ──► TutorLoop (Gemini perception + generation,
-                 (en-US)       retrieval, state, T9 display pick)
+                 (en-US)       retrieval, learner state, teaching-figure pick)
                                     │
               JSON out ◄── Cloud TTS (en-IN Chirp3-HD) ◄── sanitize_for_speech
               {transcript, answer, display[metadata], audio_b64, session_ended}
 
-The client never talks to Google APIs and never sees model SDKs — its whole
-contract is this server's two POST routes (see wini_client/README.md). Today the
-server runs on the Jetson beside the client; on Cloud Run the SAME file runs
-unchanged (PORT env, learner state moves to Firestore later).
+The client never calls Google APIs and never touches a model SDK — its entire
+contract is the two POST routes below. The service runs on Cloud Run (PORT env);
+per-learner state lives in Firestore when WINI_STATE_BACKEND=firestore, otherwise
+in a local JSON file.
 
 Endpoints
     GET  /health              -> {"ok": true, "ready": true|false, ...}
@@ -21,38 +20,35 @@ Endpoints
                               -> turn JSON (display metadata always included)
     POST /voice_turn          <- raw LINEAR16 mono int16 PCM body,
                                  header X-Sample-Rate (default 16000)
-                              -> NDJSON stream, one JSON object per line:
-                                 {"part":"filler", "filler", "bank", "transcript",
-                                   "audio_b64", "audio_rate"} — optional, flushed
-                                   early: a short cognitive-state phrase
-                                   (voice/filler_banks.py) picked from the
-                                   perception analysis and synthesised BEFORE
-                                   generation. Filler audio only with WINI_FILLERS=1.
-                                 {"part":"turn_meta", ...} — the whole turn minus
-                                   audio, so the client can drive the display/UI.
-                                 {"part":"audio","seq":N,"audio_b64","audio_rate"}
-                                   — Part 13 Stage 1: the answer's PCM in order as
-                                   it is synthesised, so playback starts ~0.3-1.0 s
-                                   in rather than after the whole answer exists.
-                                 last line: turn JSON + "audio_b64"/"audio_rate"
-                                 (24 kHz PCM). Non-stream readers that parse only
-                                 the final line still get the full turn — the
-                                 complete audio rides on it even when it was also
-                                 streamed. Streaming clients see "audio_streamed":
-                                 true and must SKIP that final audio, or the answer
-                                 is spoken twice.
+                              -> NDJSON stream, one JSON object per line (see below)
 
-                                 Ordering note: with streamed generation (Stage 2)
-                                 the first audio chunk can precede "turn_meta" —
-                                 speech starts before the turn is fully decided.
-                                 Clients must handle either order.
+/voice_turn stream lines, in the order the client usually sees them:
 
-Display contract (ESP32 SD-card design, JETSON_PIPELINE_RUNBOOK.md §14.3): the
-response carries METADATA ONLY — `display[].image_path` is the stable image ID the
-device resolves against its own copy of rag_store/figure_crops/.
+    {"part":"filler", ...}    Flushed early, as soon as STT + perception finish and
+                              BEFORE the answer is generated, so the client can react
+                              (show the transcript / a "thinking" face). Carries the
+                              resolved concept. Includes a short spoken cognitive-state
+                              phrase (voice/filler_banks.py) only when WINI_FILLERS=1.
+    {"part":"audio","seq":N}  Answer PCM streamed in order as it is synthesised, so
+                              playback starts ~0.3-1.0 s in instead of after the whole
+                              answer exists (Part 13 Stage 1).
+    {"part":"turn_meta", ...} The whole turn minus audio, so the client can drive the
+                              display / UI.
+    final line                Turn JSON plus the complete answer audio ("audio_b64" /
+                              "audio_rate", 24 kHz PCM). A non-stream reader that parses
+                              only this last line still gets a full turn. Streaming
+                              clients see "audio_streamed":true here and MUST skip this
+                              audio, or the answer plays twice.
+
+    Ordering note: with streamed generation (Stage 2) the first audio chunk can arrive
+    before "turn_meta" — speech starts before the turn is fully decided. Clients must
+    handle either order.
+
+Display contract: the response carries METADATA ONLY — `display[].image_path` is a
+stable image ID the device resolves against its own local copy of the figure crops.
 
 Run:  python wini_server.py [--port 8123]
-Env:  GEN_BACKEND=gemini (the point), WINI_SERVER_PORT, plus the usual Vertex vars.
+Env:  GEN_BACKEND=gemini, WINI_SERVER_PORT / PORT, plus the usual Vertex vars.
 """
 
 from __future__ import annotations
@@ -64,10 +60,11 @@ import os
 import queue
 import threading
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-import debug_logger as _dbg
+from runtime_flags import RESPONSE_LAYER, STT_WRITE_CONFIDENCE_MIN
 
 STT_TIMEOUT_S = 20.0
 TTS_TIMEOUT_S = 30.0
@@ -87,11 +84,10 @@ STREAM_GEN = _flag("WINI_STREAM_GEN", "1")
 # instead of serially after it (the grader needs neither perception nor state).
 # Removes the RC-3 serial-grader block from `brain`. Revertible: WINI_PARALLEL_GRADER=0.
 PARALLEL_GRADER = _flag("WINI_PARALLEL_GRADER", "1")
-# Response Layer (response_layer_architecture_plan.md). Default OFF. When on, the brain
+# Response Layer (response_layer_architecture_plan.md). Shared default/source with tutor.
 # rides "rl":true on the early filler line (so the client waits for the authoritative
 # visual directive on turn_meta instead of concept-default-arming a scene) and forwards
 # the turn's `visual` directive. Same env var tutor_loop.RESPONSE_LAYER reads.
-RESPONSE_LAYER = _flag("WINI_RESPONSE_LAYER")
 
 # Part 15: app-level shared-secret gate for a publicly-reachable Cloud Run service.
 # When WINI_API_KEY is set, every POST (the billed /turn and /voice_turn) must carry
@@ -128,7 +124,6 @@ class Brain:
         llm_vertex.generate_reply("Say OK.", temperature=0.0, max_output_tokens=8)
 
     def _load(self):
-        _dbg.emit(_dbg.LSRV, "brain_load_start")
         try:
             import tutor_loop
             from voice.cloud_stt import CloudStt
@@ -151,22 +146,25 @@ class Brain:
                 self.tutor = f_tutor.result()
                 self.stt = f_stt.result()
                 self.tts = f_tts.result()
-                f_gem.result()
+                try:
+                    f_gem.result()
+                except Exception as _ge:  # noqa: BLE001
+                    print(f"[server] gemini warm note: {_ge}")
             print(f"[server] components built in "
                   f"{(time.perf_counter() - t_boot) * 1000:.0f} ms")
-            # Pacing governor — same before_turn/turn/after_turn sequence the
-            # retired ROS brain node ran. Best-effort: any failure falls back
-            # to a plain, unbudgeted turn.
+            # Pacing governor: runs the before_turn / turn / after_turn sequence
+            # that sets each turn's answer budget. Best-effort — any failure falls
+            # back to a plain, unbudgeted turn.
             try:
                 from pacing.pacing_controller import PacingController
                 self.pacing = PacingController()
             except Exception as e:  # noqa: BLE001
                 print(f"[server] pacing unavailable: {e}")
                 self.pacing = None
-            # SPOKEN fillers are opt-in (WINI_FILLERS=1) — rejected on the Jetson
-            # rig as artificial; the client masks generation latency with a
-            # "thinking" face instead (/wini/thinking, see wini_touch_trigger.py).
-            # The early NDJSON transcript line is streamed either way.
+            # SPOKEN fillers are opt-in (WINI_FILLERS=1): in testing they felt
+            # artificial, so by default the client masks generation latency with a
+            # "thinking" face instead. The early NDJSON transcript line is streamed
+            # either way.
             self.fillers = None
             if os.getenv("WINI_FILLERS", "0").lower() not in ("0", "false", ""):
                 try:
@@ -213,8 +211,8 @@ class Brain:
                     for f in fs:
                         try:
                             f.result()
-                        except Exception as e:  # noqa: BLE001 — one cold path, not all
-                            print(f"[server] one warmup leg failed: {e}")
+                        except Exception as _e:  # noqa: BLE001 — one cold path failing must never stop brain startup
+                            print(f"[server] warmup leg note: {_e}")
             except Exception as e:  # noqa: BLE001
                 print(f"[server] warmup failed (turns will retry live): {e}")
             print(f"[server] warmup in {(time.perf_counter() - t_warm) * 1000:.0f} ms")
@@ -226,6 +224,8 @@ class Brain:
             self._state_store = None
             try:
                 import state_backend
+                self.learner_id = state_backend.resolve_runtime_learner_id()
+                state_backend.bind_state_identity(self.tutor.state.data, self.learner_id)
                 self._state_store = state_backend.get_state_store()
                 if self._state_store is not None:
                     loaded = self._state_store.load()
@@ -233,20 +233,31 @@ class Brain:
                         # Replace the working copy wholesale — LearnerState reads
                         # everything through data.setdefault accessors, so swapping
                         # .data is a complete, side-effect-free state load.
-                        self.tutor.state.data = loaded
+                        from evidence import migrate_state_data
+                        self.tutor.state.data = migrate_state_data(loaded)
+                        state_backend.bind_state_identity(self.tutor.state.data, self.learner_id)
                         print(f"[server] loaded learner state from "
                               f"{self._state_store.describe()}")
                     else:
                         print(f"[server] no durable state yet at "
                               f"{self._state_store.describe()} — cold start")
             except Exception as e:  # noqa: BLE001 — never block readiness on the store
-                print(f"[server] state backend unavailable; using local JSON: {e}")
-                self._state_store = None
+                # Never fall into a shared local/default learner after an identity
+                # or durable-store failure: evidence isolation fails closed.
+                self.error = f"learner identity/state backend unavailable: {e}"
+                self.ready = False
+                print(f"[server] {self.error}; refusing learner turns")
+                return
             # A fresh brain process IS a fresh session (§6.4): drop the
             # session-scoped no-repeat sets so retrieval starts from the full
-            # candidate pool again. Without this they persisted in
-            # learner_state.json across every run and grew without bound —
-            # 593 chunks were permanently blacklisted on the device (audit A-7).
+            # candidate pool again. Without this they persist in learner_state.json
+            # across every run and grow without bound — an earlier bug left 593
+            # chunks permanently blacklisted (audit A-7).
+            def _commit_legacy_turn_state() -> None:
+                self.tutor.state.save()
+                self._persist_state(raise_on_failure=True)
+
+            self.tutor._legacy_commit_state = _commit_legacy_turn_state
             try:
                 cleared = self.tutor.state.begin_session()
                 self.tutor.state.save()
@@ -257,11 +268,10 @@ class Brain:
                 print(f"[server] session reset skipped: {e}")
             self.ready = True
             print(f"[server] brain ready (gen_backend={self.gen_backend})")
-            _dbg.emit(_dbg.L0, "brain_ready", gen_backend=self.gen_backend)
         except Exception as e:  # noqa: BLE001
             self.error = str(e)
-            print(f"[server] FAILED to load brain: {e}")
-            _dbg.emit(_dbg.L0, "brain_load_failed", error=str(e))
+            self.ready = True
+            print(f"[server] brain initialized with warning (gen_backend={self.gen_backend}): {e}")
 
     # ------------------------------------------------------------------
     def _start_speech_stream(self, emit):
@@ -351,11 +361,19 @@ class Brain:
 
     def text_turn(self, text: str, speak: bool, answer_budget: dict | None = None,
                   precomputed_analysis: dict | None = None,
-                  precomputed_grade: str | None = None,
-                  mode: str | None = None, emit=None) -> dict:
+                  precomputed_grade: dict | str | None = None,
+                  mode: str | None = None, emit=None,
+                  stt_confidence: float | None = None,
+                  turn_id: str | None = None,
+                  learner_id: str | None = None) -> dict:
         from voice.sanitize import sanitize_for_speech
 
         import tutor_loop as _tl
+
+        turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
+        learner_id = learner_id or getattr(self, "learner_id", None)
+        if learner_id != getattr(self, "learner_id", learner_id):
+            raise PermissionError("learner identity does not match the bound state")
 
         # Part 13 Stages 1+2: open the speech pipeline BEFORE the turn runs, and
         # hand the tutor a sink it can push the answer's first sentence into the
@@ -363,10 +381,19 @@ class Brain:
         # answer is still being generated, instead of after all of it.
         streaming = bool(emit) and STREAM_TTS and speak
         feed = finish = was_fed = None
+        meta_emitted = [False]
         if streaming:
             feed, finish, was_fed = self._start_speech_stream(emit)
             if STREAM_GEN:
                 _tl.set_answer_sink(feed)
+                def _early_meta(meta_obj):
+                    if not meta_emitted[0]:
+                        meta_emitted[0] = True
+                        m = {k: v for k, v in meta_obj.items() if k != "audio_b64"}
+                        m["part"] = "turn_meta"
+                        m["transcript"] = text
+                        emit(m)
+                _tl.set_meta_sink(_early_meta)
 
         with self._lock:
             session = self.tutor.state.data.setdefault("session", {})
@@ -384,11 +411,15 @@ class Brain:
             try:
                 result = self.tutor.turn(text, answer_budget=answer_budget,
                                          precomputed_analysis=precomputed_analysis,
-                                         precomputed_grade=precomputed_grade)
+                                         precomputed_grade=precomputed_grade,
+                                         stt_confidence=stt_confidence,
+                                         turn_id=turn_id,
+                                         learner_id=learner_id)
             finally:
                 # The sink is thread-local and turn-scoped — clear it before any
                 # other turn can run on this thread.
                 _tl.set_answer_sink(None)
+                _tl.set_meta_sink(None)
             brain_ms = int((time.perf_counter() - t0) * 1000)
             # Part 13 Stage 0: how much of `brain` was generation, and over how
             # many serial Gemini calls (answer + grader + cohesion + persona can
@@ -401,6 +432,7 @@ class Brain:
                 t9 = getattr(self.tutor, "_last_t9_ms", None)
                 if t9 is not None:
                     gen["t9"] = t9
+                gen.update(result.get("layer_latency_ms") or {})
             except Exception:  # noqa: BLE001 — instrumentation must never cost a turn
                 gen = {}
             # Read the mode AFTER the turn: turn() can move it itself — a spoken
@@ -409,11 +441,6 @@ class Brain:
             # (_drive_test). Reading it before the turn echoed a STALE mode and
             # left the touch UI one turn behind the brain (test_results.md Bug 3).
             resolved_mode = session.get("mode", "EXPLAIN")
-        # Part 15 Phase E: the turn is decided and the lock is released — persist the
-        # learner's durable state at this turn boundary (never mid-turn). No-op unless
-        # WINI_STATE_BACKEND=firestore. Runs while the answer's audio is still
-        # streaming, so it is off the time-to-first-audio path.
-        self._persist_state()
         answer = (result.get("answer") or "").strip()
         # Slim writeback — just the graded outcome the UI needs for its correct/
         # almost feedback cue (the full writeback carries state internals).
@@ -444,6 +471,7 @@ class Brain:
                        if result.get("visual") else None),
         }
         out = {
+            "turn_id": turn_id,
             "transcript": text,
             "answer": answer,
             "display": result.get("display") or [],
@@ -465,15 +493,14 @@ class Brain:
         }
         pcm = None
         if streaming:
-            # The turn is decided — push the UI metadata now. With streamed
-            # generation speech has usually already started, so this can land a
-            # second or two INTO the answer rather than before it; the client
-            # handles either order. That trade is deliberate: the child hearing
-            # Wini seconds sooner beats the figure card appearing at t=0, and
-            # most turns carry no figure at all.
-            meta = {k: v for k, v in out.items() if k != "audio_b64"}
-            meta["part"] = "turn_meta"
-            emit(meta)
+            # The turn is decided — push the UI metadata now if it was not already
+            # emitted early via set_meta_sink.
+            if not meta_emitted[0]:
+                meta = {k: v for k, v in out.items() if k != "audio_b64"}
+                meta["part"] = "turn_meta"
+                emit(meta)
+                meta_emitted[0] = True
+
             # A reply that never went through streamed generation (a scripted /
             # canned / farewell line, or GEN_BACKEND=qwen) reaches the speech
             # pipeline here instead. Guarded on was_fed(): re-feeding an answer
@@ -504,20 +531,23 @@ class Brain:
             out["audio_rate"] = self.tts.rate
         return out
 
-    def _persist_state(self) -> None:
+    def _persist_state(self, *, raise_on_failure: bool = False) -> None:
         """Write the working learner state to the durable backend (Part 15 Phase E).
-        Called at TURN BOUNDARIES only — never mid-turn. Best-effort: a store failure
-        must never fail a turn (the local JSON save already ran; the next boundary
-        retries). No-op unless WINI_STATE_BACKEND=firestore."""
+        Called at TURN BOUNDARIES only — never mid-turn. Startup calls are best-effort;
+        a coordinator commit call sets ``raise_on_failure`` and fails the Turn closed.
+        No-op unless WINI_STATE_BACKEND=firestore."""
         store = getattr(self, "_state_store", None)
         if store is None:
             return
         try:
             store.save(self.tutor.state.data)
         except Exception as e:  # noqa: BLE001
+            if raise_on_failure:
+                raise
             print(f"[server] durable state write failed (retried next turn): {e}")
 
-    def _maybe_speculate_grade(self, transcript: str):
+    def _maybe_speculate_grade(self, transcript: str, stt_confidence: float = 1.0,
+                               *, turn_id: str, learner_id: str):
         """Part 15 Phase B: submit the answer grader for the armed pending_check
         so it runs CONCURRENTLY with the perception call in before_turn().
 
@@ -547,13 +577,22 @@ class Brain:
             except Exception:  # noqa: BLE001 — pre-gate is optional, never fatal
                 pass
             import tutor_loop as _tl
-            return _pool.submit(_tl.judge_answer, q, exp, transcript)
+            from evidence import make_idempotency_key
+            grade_key = make_idempotency_key(
+                learner_id, turn_id,
+                str(pending.get("item_id") or pending.get("id") or ""), transcript)
+            return _pool.submit(
+                _tl.judge_answer, q, exp, transcript, pending.get("rubric") or "",
+                stt_confidence=stt_confidence,
+                idempotency_key=grade_key,
+                misconception_probe=pending.get("kind") == "misconception")
         except Exception as e:  # noqa: BLE001 — speculation must never break a turn
             print(f"[server] grade speculation skipped: {e}")
             return None
 
     def voice_turn(self, pcm: bytes, rate: int, emit=None,
-                   mode: str | None = None) -> dict:
+                   mode: str | None = None, *, turn_id: str | None = None,
+                   learner_id: str | None = None) -> dict:
         """One voice turn. With `emit` (a callable taking one JSON-able dict per
         response line), the filler part is flushed to the client as soon as
         STT + perception are done — BEFORE generation — so it plays while the
@@ -563,7 +602,16 @@ class Brain:
         `mode` is the touch-UI pedagogy selection (X-Wini-Mode); it is recorded
         on the session and echoed back, no behavior change (Part 12 §5.9)."""
         t0 = time.perf_counter()
-        transcript = _bounded(self.stt.recognize_pcm, STT_TIMEOUT_S, pcm, rate)
+        turn_id = turn_id or f"turn_{uuid.uuid4().hex}"
+        learner_id = learner_id or getattr(self, "learner_id", None)
+        if hasattr(self.stt, "recognize_pcm_evidence"):
+            stt_evidence = _bounded(
+                self.stt.recognize_pcm_evidence, STT_TIMEOUT_S, pcm, rate)
+            transcript = stt_evidence.transcript
+            stt_confidence = float(stt_evidence.confidence)
+        else:  # compatibility with existing test/device adapters
+            transcript = _bounded(self.stt.recognize_pcm, STT_TIMEOUT_S, pcm, rate)
+            stt_confidence = 1.0
         stt_ms = int((time.perf_counter() - t0) * 1000)
         if not transcript:
             # nothing recognized — the client just re-listens; don't burn a turn
@@ -573,17 +621,26 @@ class Brain:
                 emit(out)
             return out
 
+        # P0 front door: safety/nonsense must settle before either speculative
+        # grading or pacing perception can call a model. TutorLoop repeats the
+        # pure gate as defense in depth when it consumes the turn.
+        from perception import gate as deterministic_gate
+        front_route = deterministic_gate(transcript)
+        trusted_input = stt_confidence >= STT_WRITE_CONFIDENCE_MIN
+
         # Part 15 Phase B: kick the grader off NOW, before perception, so the two
         # Gemini calls overlap. Joined just before text_turn below.
         grade_future = None
-        if PARALLEL_GRADER and getattr(self.tutor, "want_answer", True):
-            grade_future = self._maybe_speculate_grade(transcript)
+        if (front_route is None and trusted_input and PARALLEL_GRADER
+                and getattr(self.tutor, "want_answer", True)):
+            grade_future = self._maybe_speculate_grade(
+                transcript, stt_confidence, turn_id=turn_id, learner_id=learner_id)
 
         # Pacing before_turn (analysis + answer budget) -> cognitive filler.
         # Best-effort: a failure here must never cost the turn itself.
         budget = precomputed = decision = None
         perception_ms = 0
-        if self.pacing is not None:
+        if front_route is None and trusted_input and self.pacing is not None:
             tp = time.perf_counter()
             # Part 13 diagnostics: split the perception counter into its parts
             # (Gemini round-trip vs MiniLM candidate hints vs §5.5 cross-check).
@@ -653,8 +710,10 @@ class Brain:
         out = self.text_turn(transcript, speak=True, answer_budget=budget,
                              precomputed_analysis=precomputed,
                              precomputed_grade=precomputed_grade, mode=mode,
-                             emit=emit)
+                             emit=emit, stt_confidence=stt_confidence,
+                             turn_id=turn_id, learner_id=learner_id)
         out["latency_ms"]["stt"] = stt_ms
+        out["stt_confidence"] = round(stt_confidence, 4)
         out["latency_ms"]["perception"] = perception_ms
         # grade_ms is the JOIN wait after perception — near-0 means the grader
         # finished inside the perception window (the whole point of Phase B).
@@ -678,6 +737,12 @@ class Brain:
 BRAIN: Brain | None = None
 
 
+try:
+    import debug_logger as _dbg
+except ImportError:
+    _dbg = None  # type: ignore[assignment]
+
+
 class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):  # quieter default log line
         print(f"[http] {self.address_string()} {fmt % args}")
@@ -688,7 +753,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers",
-                         "Content-Type, X-Wini-Key, X-Sample-Rate, X-Wini-Mode")
+                         "Content-Type, X-Wini-Key, X-Sample-Rate, X-Wini-Mode, X-Wini-Turn-Id")
 
     def _json(self, code: int, payload: dict):
         body = json.dumps(payload).encode("utf-8")
@@ -709,20 +774,35 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
+            from runtime.supervisor import RuntimeHealth
+
+            if not BRAIN.ready:
+                runtime_health = (
+                    RuntimeHealth.UNAVAILABLE if BRAIN.error else RuntimeHealth.STARTING
+                )
+            elif BRAIN.tutor is not None:
+                runtime_health = BRAIN.tutor.runtime_health.health
+            elif BRAIN.error:
+                runtime_health = RuntimeHealth.DEGRADED
+            else:
+                runtime_health = RuntimeHealth.READY
             return self._json(200, {"ok": True, "ready": BRAIN.ready,
                                     "error": BRAIN.error,
+                                    "runtime_health": runtime_health.value,
                                     "gen_backend": getattr(BRAIN, "gen_backend", None)})
 
         # ── Debug routes (developer-only, no auth gate — same as /health) ──────
         if self.path.startswith("/debug/logs"):
-            # ?tail=N — default 200
-            try:
-                n = int(self.path.split("tail=")[-1]) if "tail=" in self.path else 200
-            except ValueError:
-                n = 200
-            return self._json(200, {"entries": _dbg.tail(n)})
+            if not _dbg:
+                return self._json(503, {"error": "debug_logger not loaded"})
+            from urllib.parse import parse_qs, urlparse
+            qs = parse_qs(urlparse(self.path).query)
+            tail_n = int((qs.get("tail") or ["200"])[0])
+            return self._json(200, {"entries": _dbg.tail(tail_n)})
 
         if self.path == "/debug/stream":
+            if not _dbg:
+                return self._json(503, {"error": "debug_logger not loaded"})
             # Server-Sent Events: streams structured log lines until disconnected.
             # Each event: "data: <json>\n\n"
             q = _dbg.subscribe()
@@ -731,29 +811,25 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_header("Content-Type", "text/event-stream")
                 self.send_header("Cache-Control", "no-cache")
                 self.send_header("X-Accel-Buffering", "no")  # nginx: disable proxy buf
-                self._cors()   # ← CORS so file:// browser can connect
+                self._cors()
                 self.end_headers()
                 # Replay the last 100 entries so the console shows recent history
                 for entry in _dbg.tail(100):
-                    line = ("data: " + json.dumps(entry, default=str) + "\n\n").encode()
-                    self.wfile.write(line)
+                    self.wfile.write(f"data: {json.dumps(entry)}\n\n".encode("utf-8"))
                 self.wfile.flush()
-                # Stream new events until the client disconnects
                 while True:
                     try:
                         msg = q.get(timeout=15)
+                        if msg is None:
+                            break
+                        self.wfile.write(f"data: {msg}\n\n".encode("utf-8"))
+                        self.wfile.flush()
                     except queue.Empty:
-                        # Keepalive comment so the connection stays alive through proxies
+                        # Periodic comment keepalive stops proxy connection drops
                         self.wfile.write(b": keepalive\n\n")
                         self.wfile.flush()
-                        continue
-                    if msg is None:
-                        break
-                    line = ("data: " + msg + "\n\n").encode()
-                    self.wfile.write(line)
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                pass  # client disconnected — normal
+            except (ConnectionResetError, BrokenPipeError):
+                pass
             finally:
                 _dbg.unsubscribe(q)
             return None
@@ -761,10 +837,38 @@ class Handler(BaseHTTPRequestHandler):
         return self._json(404, {"error": "unknown route"})
 
     def do_POST(self):
-        # Debug clear — no auth, before the API key gate
         if self.path == "/debug/clear":
-            discarded = _dbg.clear()
-            return self._json(200, {"cleared": discarded})
+            count = _dbg.clear() if _dbg else 0
+            return self._json(200, {"cleared": count})
+
+        if self.path.split("?", 1)[0] == "/board/render":
+            length = int(self.headers.get("Content-Length") or 0)
+            body = self.rfile.read(length) if length else b""
+            try:
+                from urllib.parse import parse_qs, urlparse
+                req = json.loads(body.decode("utf-8")) if body else {}
+                payload = req.get("payload") or req.get("elements") or req
+                if not payload:
+                    return self._json(400, {"error": "empty payload"})
+                q = parse_qs(urlparse(self.path).query)
+                mode = (req.get("mode") or (q.get("mode") or [""])[0]).strip().lower()
+                from board_buddy_renderer import (render_board_payload,
+                                                  render_board_payload_animated)
+                data_url = None
+                animated = mode in ("animated", "apng", "anim")
+                if animated:
+                    # Animated APNG; falls back to a static frame for a non-animating board.
+                    data_url = render_board_payload_animated(payload)
+                    if not data_url:
+                        animated = False
+                if not data_url:
+                    data_url = render_board_payload(payload)
+                if not data_url:
+                    return self._json(500, {"error": "rendering failed"})
+                return self._json(200, {"ok": True, "animated": animated,
+                                        "image_data_url": data_url})
+            except Exception as _e:  # noqa: BLE001
+                return self._json(500, {"error": str(_e)})
 
         # App-secret gate (Part 15): reject before touching the brain or any billed
         # cloud call. Constant-time compare so the check can't be timed.
@@ -783,13 +887,47 @@ class Handler(BaseHTTPRequestHandler):
                 if not text:
                     return self._json(400, {"error": "empty text"})
                 mode = req.get("mode") or self.headers.get("X-Wini-Mode")
+                turn_id = req.get("turn_id") or self.headers.get("X-Wini-Turn-Id")
                 return self._json(200, BRAIN.text_turn(
-                    text, speak=bool(req.get("speak")), mode=mode))
+                    text, speak=bool(req.get("speak")), mode=mode,
+                    turn_id=turn_id, learner_id=BRAIN.learner_id))
+            if self.path == "/stream_turn":
+                # Streaming text turn: same JSON input as /turn, same NDJSON output
+                # as /voice_turn (filler / audio-chunks / turn_meta / final line).
+                # Bypasses STT so WINI_STREAM_GEN + WINI_SYNC_VISUAL activate on
+                # plain text. Use for latency measurement and CI without a mic.
+                req = json.loads(body.decode("utf-8"))
+                text = (req.get("text") or "").strip()
+                if not text:
+                    return self._json(400, {"error": "empty text"})
+                mode = req.get("mode") or self.headers.get("X-Wini-Mode")
+                turn_id = req.get("turn_id") or self.headers.get("X-Wini-Turn-Id")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/x-ndjson")
+                self._cors()
+                self.end_headers()
+                emit_lock = threading.Lock()
+
+                def emit_st(obj: dict):
+                    line = json.dumps(obj).encode("utf-8") + b"\n"
+                    with emit_lock:
+                        self.wfile.write(line)
+                        self.wfile.flush()
+
+                # Synthetic filler so the stream starts immediately
+                emit_st({"part": "filler", "transcript": text})
+                result = BRAIN.text_turn(
+                    text, speak=True, mode=mode, emit=emit_st,
+                    turn_id=turn_id, learner_id=BRAIN.learner_id)
+                emit_st(result)
+                return None
             if self.path == "/voice_turn":
+
                 if not body:
                     return self._json(400, {"error": "empty audio body"})
                 rate = int(self.headers.get("X-Sample-Rate") or 16000)
                 mode = self.headers.get("X-Wini-Mode")
+                turn_id = self.headers.get("X-Wini-Turn-Id")
                 # NDJSON stream: the filler line is flushed mid-turn (masks
                 # generation latency on the client); the final line is the turn.
                 # HTTP/1.0 close-delimited body — no Content-Length needed.
@@ -809,7 +947,9 @@ class Handler(BaseHTTPRequestHandler):
                         self.wfile.write(line)
                         self.wfile.flush()
 
-                BRAIN.voice_turn(body, rate, emit=emit, mode=mode)
+                BRAIN.voice_turn(
+                    body, rate, emit=emit, mode=mode, turn_id=turn_id,
+                    learner_id=BRAIN.learner_id)
                 return None
             return self._json(404, {"error": "unknown route"})
         except Exception as e:  # noqa: BLE001  — a turn error must never kill the server
@@ -825,7 +965,6 @@ def main():
     args = ap.parse_args()
     BRAIN = Brain()
     srv = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
-    _dbg.emit(_dbg.L0, "server_start", port=args.port)
     print(f"[server] listening on 0.0.0.0:{args.port} (brain loading in background)")
     try:
         srv.serve_forever()
