@@ -20,6 +20,7 @@ google-cloud-sdk/
 
 # IDE and local files
 .claude/
+.agents/
 .vscode/
 .idea/
 *.swp
