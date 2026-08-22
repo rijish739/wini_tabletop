@@ -1,6 +1,6 @@
 # Define the behavioral equivalence oracle
 
-Status: open
+Status: resolved
 Type: grilling
 Blocked by: 01
 
@@ -10,4 +10,10 @@ Which frozen Turn Inputs, sanitized state fixtures, recorded model-boundary resp
 
 Decide how known defects are represented and which integrity-critical behaviors may not be preserved.
 
-## Comments
+## Resolution
+
+- Defined the `baseline_oracle` subsystem for offline deterministic equivalence testing.
+- Created frozen representative Turn corpus and sanitized starting-state fixtures.
+- Implemented replay model gateway recording boundary calls without live cloud dependencies.
+- Established strict path-scoped normalization rules that prevent hiding numeric, evidence, or state differences while accommodating formatting variations.
+

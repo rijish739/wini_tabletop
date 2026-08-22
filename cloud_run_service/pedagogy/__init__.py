@@ -9,6 +9,7 @@ from .interface import (
     PedagogyRequest,
     PedagogyStateView,
     PedagogicalPacing,
+    rules_decide,
 )
 
 __all__ = [
@@ -20,4 +21,5 @@ __all__ = [
     "PedagogyRequest",
     "PedagogyStateView",
     "PedagogicalPacing",
+    "rules_decide",
 ]

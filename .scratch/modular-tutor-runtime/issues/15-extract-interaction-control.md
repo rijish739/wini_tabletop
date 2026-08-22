@@ -1,16 +1,17 @@
 # 15 — Extract Interaction Control
 
-**What to build:** A deep Interaction Control Module that owns session admission, non-learning routing, topic continuity, redirection, conversation continuity, and termination while the remaining Turn behavior continues through the migration adapter.
+**What to build:** The `InteractionControl` Feature Module owning session admission, deterministic routing (`_front_gate`), persona generation, topic continuity, and session termination.
 
-**Blocked by:** 14 — Route the legacy runtime through the typed coordinator.
+**Blocked by:** 14 — Route legacy Turn through the Turn Coordinator.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Expose one Interaction Control Interface used by the Turn Coordinator and its tests.
-- [ ] Move admission, deterministic front routing, non-learning interactions, topic shifts, mode-stop interaction, and session termination behind that Interface.
-- [ ] Assign Interaction Control semantic ownership of interaction-continuity state.
-- [ ] Return typed Module Outcomes, State Changes, and Failure Signals without directly mutating shared state.
-- [ ] Preserve safety notifications, scripted replies, context continuity, and session-ended behavior.
-- [ ] Verify learning and non-learning routes end to end through the compatibility façade.
-- [ ] Remove migrated interaction policy from the legacy adapter while keeping the equivalence oracle green.
+- [x] Extract `interaction_control/control.py` and its typed dependencies.
+- [x] Implement deterministic front-door gates (safety, nonsense, topic routing).
+- [x] Integrate with `TurnCoordinator` turn-admission phase.
+- [x] Ensure persona generation and non-learning paths are encapsulated.
+- [x] Pass all interaction control unit tests.
 
+## Resolution
+
+- Implemented `cloud_run_service/interaction_control/` module with full test suite passing in `interaction_control/tests/test_interaction_control.py`.

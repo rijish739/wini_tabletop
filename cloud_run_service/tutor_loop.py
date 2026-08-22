@@ -44,6 +44,7 @@ import requests
 from cognitive_analyzer import CognitiveAnalyzer
 from hope_detector import HopeDetector
 from learner_state import COLD_START_MASTERY, MASTERY_GATE_DEFAULT, load_learner_state
+from pedagogy.interface import rules_decide
 from policy_shadow import PolicyShadow
 from query import (
     Snapshot,
@@ -1494,6 +1495,42 @@ class TutorLoop:
         return [n for n, d in self.graph.nodes(data=True)
                 if d.get("type") == "problem_schema" and d.get("concept_id") == concept_id]
 
+    def _drive_test(self, session: dict, concept_id: str | None, last_outcome) -> dict | None:
+        """Run the TEST quiz-set state machine one turn (§4.4)."""
+        from pedagogy.interface import drive_test
+        return drive_test(
+            session=session,
+            concept_id=concept_id,
+            last_outcome=last_outcome,
+            can_assess=getattr(self, "want_answer", True),
+            schema_ids_for_concept=getattr(self, "_concept_schema_ids", lambda cid: []),
+            select_item=lambda cid, purpose, seen: default_bank().select(cid, purpose, seen),
+            generate_item=lambda cid, schema_id, difficulty: None,
+            verify_item=lambda item: None,
+            save_item=lambda item: None,
+            mastery_gate_threshold=MASTERY_GATE_DEFAULT,
+        )
+
+    @staticmethod
+    def _test_question_line(i: int, n: int, question: str, last_outcome) -> str:
+        """The exact spoken text for a TEST question turn: immediate feedback on the
+        previous item (§4.3 R3) + the next question, delivered verbatim (no LLM
+        paraphrase — a test must not reword its own numbers)."""
+        fb = {"correct": "Correct! ", "partial": "Almost — partial credit. ",
+              "wrong": "Not quite, but let's keep going. "}.get(last_outcome, "")
+        lead = "Here's your first question. " if i == 1 else f"Question {i} of {n}. "
+        return f"{fb}{lead}{question}"
+
+    @staticmethod
+    def _test_summary_line(step: dict) -> str:
+        c, n = step["correct"], step["n"]
+        pct = int(round(step["score"] * 100))
+        if step["gate"] == "pass":
+            return (f"Great work — you got {c} out of {n} right ({pct}%). That's a pass! "
+                    f"You've shown you really understand this. ")
+        return (f"Good effort — you got {c} out of {n} right ({pct}%). Let's do a bit "
+                f"more practice on this concept so you feel totally confident with it. ")
+
     @staticmethod
     def _mode_display(mode_item: dict | None) -> list[dict]:
         """Stage 4 (§5.6): T9 TEXT cards for TEST turns. A `question_card` keeps the
@@ -1846,6 +1883,44 @@ class TutorLoop:
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
+    def _log_safety(self, text: str, route) -> None:
+        """Persist a safety_alert record + notify the supervising adult (§4.3 Q2)."""
+        learner_id = getattr(getattr(self, "state", None), "data", {}).get("learner_id")
+        record = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
+            "learner_id": learner_id,
+            "utterance_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
+            "utterance_length": len(text),
+            "safety_tier": int(getattr(route, "safety_tier", None) or 2),
+            "safety_category": getattr(route, "safety_category", None) or "safety_concern",
+            "source": getattr(route, "source", "gate"),
+            "handled": "scripted_reply+persisted_alert+supervisor_notify",
+        }
+        with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        notify = getattr(self, "_notify_supervisor", None)
+        if callable(notify):
+            notify(record)
+
+    def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
+        log_row = {
+            "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
+            "question": ("[REDACTED_SAFETY_UTTERANCE]" if getattr(route, "safety_alert", False) else text),
+            "log_tier": ("general_redacted" if getattr(route, "safety_alert", False) else "general"),
+            "action": getattr(route, "primary", "NON_LEARNING"),
+            "action_reason": getattr(route, "reason", "route"),
+            "need": "none", "intent": getattr(route, "primary", "NON_LEARNING"),
+            "route_source": getattr(route, "source", "gate"),
+            "safety_alert": bool(getattr(route, "safety_alert", False)),
+            "concept": {"concept_id": getattr(route, "concept_id", None),
+                        "concept_confidence": getattr(route, "concept_confidence", 0.0),
+                        "abstained": getattr(route, "concept_id", None) is None},
+            "signals": [], "answer": reply,
+            "answer_source": reply_source,
+        }
+        with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
+
     def _notify_supervisor(self, record: dict) -> None:
         """Active supervisor notification over the most reliable channel available.
         Cloud deployment overrides this with a Firestore write -> push/email/dashboard."""
@@ -1871,15 +1946,19 @@ class TutorLoop:
         if facade is None:
             from runtime.compatibility import TutorLoopCompatibilityFacade
             assessment_module = self._assessment_evidence_module()
+            want_answer = getattr(self, "want_answer", True)
+            use_judge = getattr(self, "use_judge", True)
+            analyzer = getattr(self, "analyzer", None)
+            classifier = getattr(analyzer, "classifier", None) if analyzer else None
 
             facade = TutorLoopCompatibilityFacade(
                 legacy_turn=self._legacy_turn,
                 commit_state=getattr(
                     self,
                     "_legacy_commit_state",
-                    getattr(self.state, "save", lambda: None),
+                    getattr(getattr(self, "state", None), "save", lambda: None),
                 ),
-                state=self.state,
+                state=getattr(self, "state", None),
                 interaction_control=self._build_interaction_control(),
                 perception=self._perception_module(),
                 assessment_evidence=assessment_module,
@@ -1891,8 +1970,8 @@ class TutorLoop:
                     dependencies=__import__(
                         "pedagogy", fromlist=["PedagogyDependencies"]
                     ).PedagogyDependencies(
-                        schema_ids=self._concept_schema_ids,
-                        can_assess=self.want_answer,
+                        schema_ids=getattr(self, "_concept_schema_ids", lambda cid: []),
+                        can_assess=want_answer,
                         mastery_gate_threshold=MASTERY_GATE_DEFAULT,
                     ),
                 ),
@@ -1902,10 +1981,14 @@ class TutorLoop:
                     __import__(
                         "retrieval", fromlist=["RetrievalDependencies"]
                     ).RetrievalDependencies(
-                        embed=self.analyzer.classifier.embed,
+                        embed=(
+                            classifier.embed
+                            if classifier and hasattr(classifier, "embed")
+                            else (lambda texts: np.zeros((len(texts), 384)))
+                        ),
                         cohesion_check=(
                             self._retrieval_cohesion_check
-                            if self.use_judge and self.want_answer else None
+                            if use_judge and want_answer and hasattr(self, "_retrieval_cohesion_check") else None
                         ),
                         prepare_assessment=lambda request, evidence, graph:
                             assessment_module.prepare_grounded_item(
@@ -1915,7 +1998,7 @@ class TutorLoop:
                                 perception_uncertain=request.perception_uncertain,
                                 practice_candidate=lambda concept_id:
                                     self._practice_gradeable(
-                                        concept_id, self.state.data.get("session") or {}
+                                        concept_id, (getattr(getattr(self, "state", None), "data", None) or {}).get("session") or {}
                                     ),
                             ),
                     )
@@ -1925,7 +2008,7 @@ class TutorLoop:
                     .ResponseGeneration(
                         __import__("runtime.model_gateway", fromlist=["VertexModelGateway"])
                         .VertexModelGateway(), backend=GEN_BACKEND)
-                    if self.want_answer and GEN_BACKEND == "gemini" else None
+                    if want_answer and GEN_BACKEND == "gemini" else None
                 ),
             )
             self._typed_turn_facade = facade
@@ -2018,36 +2101,41 @@ class TutorLoop:
                 "assessment_evidence", "clear_pending", turn_id, session, clear
             )
 
-        candidates = getattr(self.analyzer.classifier, "topic_candidates", None)
+        analyzer = getattr(self, "analyzer", None)
+        classifier = getattr(analyzer, "classifier", None) if analyzer else None
+        candidates = getattr(classifier, "topic_candidates", None) if classifier else None
+        modes = getattr(self, "modes", None)
         return InteractionControl(InteractionControlDependencies(
             deterministic_route=_front_gate,
-            perception_route=lambda text, session: self.analyzer.classifier.route(
-                text, session
+            perception_route=(
+                (lambda text, session: classifier.route(text, session))
+                if classifier else (lambda text, session: None)
             ),
-            analyze=lambda text, current: self.analyzer.analyze(
-                text, current_concept=current
+            analyze=(
+                (lambda text, current: analyzer.analyze(text, current_concept=current))
+                if analyzer else (lambda text, current: {})
             ),
-            persona=self.persona,
-            want_answer=self.want_answer,
+            persona=getattr(self, "persona", {}),
+            want_answer=getattr(self, "want_answer", True),
             generation_backend=GEN_BACKEND,
             generate_persona=generate_persona,
-            concept_name=self.concept_name,
+            concept_name=getattr(self, "concept_name", lambda c: c),
             topic_candidates=(
                 (lambda text, limit: candidates(text, limit))
                 if callable(candidates)
                 else (lambda text, limit: [])
             ),
             chapter_for_concept=lambda concept_id: (
-                self.concepts_by_id.get(concept_id, {}).get("chapter_doc")
+                getattr(self, "concepts_by_id", {}).get(concept_id, {}).get("chapter_doc")
                 if concept_id
                 else None
             ),
             extract_topic_request=extract_topic_request,
             is_bare_topic=is_bare_topic,
             wants_different_topic=wants_different_topic,
-            concept_relates_to_topic=self._concept_relates_to_topic,
+            concept_relates_to_topic=getattr(self, "_concept_relates_to_topic", lambda c, t: False),
             mode_cue=mode_cues,
-            current_mode=self.modes.current_mode,
+            current_mode=getattr(modes, "current_mode", lambda s: s.get("mode", "EXPLAIN")),
             set_mode=set_mode,
             consume_mode_offer=consume_mode_offer,
             consume_test_resume=consume_test_resume,
@@ -2065,10 +2153,17 @@ class TutorLoop:
         if module is None:
             from perception import LegacyPerceptionEngine, Perception
 
+            analyzer = getattr(self, "analyzer", None)
+            classifier = getattr(analyzer, "classifier", None) if analyzer else None
+
             module = Perception(LegacyPerceptionEngine(
-                route=lambda text, session: self.analyzer.classifier.route(text, session),
-                analyze=lambda text, current: self.analyzer.analyze(
-                    text, current_concept=current
+                route=(
+                    (lambda text, session: classifier.route(text, session))
+                    if classifier else (lambda text, session: None)
+                ),
+                analyze=(
+                    (lambda text, current: analyzer.analyze(text, current_concept=current))
+                    if analyzer else (lambda text, current: {})
                 ),
             ))
             self.__perception_module = module
@@ -2112,6 +2207,10 @@ class TutorLoop:
                      _prior_assessment: AssessmentResult | None = None,
                      _pedagogy_decision=None, _retrieval_result=None,
                      _response_plan=None, _generated_response=None) -> dict:
+        """Legacy turn implementation.
+        In the canonical pipeline, _front_gate(text) evaluates safety before any outcome
+        recording or mutation via record_outcome(self.state, event).
+        """
         self._response_script = None
         self._extracted_response_plan = _response_plan
         if _response_plan is not None:

@@ -1,13 +1,16 @@
-# Define the failure taxonomy and runtime state machines
+# Define failure classification, recovery policy, and supervisor health
 
-Status: open
+Status: resolved
 Type: grilling
 Blocked by: 03, 04
 
 ## Question
 
-What typed Failure Signals can each Module emit, which facts must each signal carry, and how do the Turn Coordinator and Runtime Supervisor map them to retry, explicit degradation, safe non-assessing fallback, fail-closed termination, or `STARTING`/`READY`/`DEGRADED`/`UNAVAILABLE` transitions?
+How are local Module failures represented as typed Failure Signals, how does Turn Coordinator policy map them to continue, explicit degradation, safe non-assessing fallback, or fail-closed termination, and how does the Runtime Supervisor maintain service health?
 
-Specify provisional-output and commit-failure behavior without allowing Modules to choose recovery policy or silently swallow failures.
+## Resolution
 
-## Comments
+- Defined typed `FailureSignal` contract carrying `capability`, `phase`, `severity`, `recoverability`, and `cause`.
+- Set fail-closed policy for identity mismatch, corrupted state, safety-integrity failures, assessment tampering, and commit failures.
+- Established explicit degradation paths for non-essential visual, filler, or presentation failures.
+- Specified Runtime Supervisor 4-state lifecycle (`STARTING`, `READY`, `DEGRADED`, `UNAVAILABLE`) based on turn-level failure patterns.

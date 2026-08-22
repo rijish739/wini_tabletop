@@ -10,12 +10,12 @@ from typing import Any, Callable, Mapping, Protocol, Sequence
 import numpy as np
 import networkx as nx
 
+from learner_state import mastery_to_band
 from query import (
     Snapshot,
     bridge_evidence,
     cohesion_filter,
     ev,
-    mastery_to_band,
     misconception_evidence,
     need_evidence,
     snapshot_rerank,

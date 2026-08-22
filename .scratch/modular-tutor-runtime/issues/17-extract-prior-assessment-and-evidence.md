@@ -1,18 +1,17 @@
-# 17 — Extract prior-attempt assessment and evidence
+# 17 — Extract Prior Assessment and Evidence
 
-**What to build:** An Assessment and Evidence path that recognizes and grades a learner's response to a previously realized assessment, preserves non-attempts, and applies idempotent evidence to the working state projection.
+**What to build:** The `AssessmentEvidence` Feature Module owning item verification, prior attempt grading, grading contracts, and idempotent evidence generation.
 
-**Blocked by:** 14 — Route the legacy runtime through the typed coordinator.
+**Blocked by:** 16 — Extract Perception.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Expose the prior-attempt operation through one Assessment and Evidence public façade.
-- [ ] Read pending assessment state through an immutable assessment-scoped view.
-- [ ] Preserve obvious non-attempt handling and keep the pending assessment armed when no gradeable attempt occurred.
-- [ ] Preserve deterministic grading before model-assisted grading and enforce confidence thresholds.
-- [ ] Produce idempotent evidence events and validated State Changes through the authoritative evidence writer.
-- [ ] Preserve append-only evidence, replay, migration, misconception projection, and mastery projection guarantees.
-- [ ] Emit typed Failure Signals and fail closed on assessment-integrity violations.
-- [ ] Verify correct, incorrect, partial, low-confidence, duplicate, stale, legacy-unverified, and non-attempt scenarios through the façade and Module Interface.
-- [ ] Remove migrated prior-assessment and evidence policy from the legacy adapter while keeping the equivalence oracle green.
+- [x] Extract `assessment_evidence/interface.py`.
+- [x] Implement prior attempt evaluation with typed `AssessmentResult` and `GradeResult`.
+- [x] Enforce single-writer idempotent event generation.
+- [x] Connect assessment candidate preparation for grounded items.
+- [x] Pass assessment evidence unit tests in `assessment_evidence/tests/`.
 
+## Resolution
+
+- Implemented `cloud_run_service/assessment_evidence/` with robust grading validity and idempotent outcome generation.

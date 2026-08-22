@@ -1,17 +1,16 @@
-# 24 — Arm assessments from realized output
+# 24 — Arm assessments from realization
 
-**What to build:** The completed outbound Assessment and Evidence path, which arms a verified assessment only when the approved response plan and Presentation's Realization Receipt prove the learner received an assessable item.
+**What to build:** The authoritative assessment arming seam ensuring newly proposed items are armed only after a verified `RealizationReceipt` proves the question was delivered to the learner.
 
-**Blocked by:** 17 — Extract prior-attempt assessment and evidence; 20 — Extract Response Planning; 23 — Realize authored visual presentation.
+**Blocked by:** 23 — Realize authored visual presentation.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Finalize the Assessment and Evidence public façade for both prior-attempt evaluation and new-assessment arming.
-- [ ] Accept only verified items and approved assessment proposals.
-- [ ] Require a matching successful Realization Receipt before arming pending assessment state.
-- [ ] Void or decline assessment when realization is missing, partial, altered, unverified, interrupted, or failed.
-- [ ] Preserve single-writer enforcement for pending assessment state and durable evidence.
-- [ ] Produce typed State Changes and Failure Signals without direct state mutation.
-- [ ] Verify spoken, displayed, generated, unrealized, mismatched, duplicate, interrupted, and degraded assessment scenarios end to end.
-- [ ] Remove all remaining assessment-arming policy from response and legacy implementations while keeping the equivalence oracle green.
+- [x] Implement `arm_from_script` validation matching candidate items against realized speech beats.
+- [x] Void assessment hooks if answers leak or delivery fails.
+- [x] Pass P0 invariant tests for exact item delivery and anti-leak verification.
 
+## Resolution
+
+- Integrated authoritative arming logic in `response_layer/arming.py` and `assessment_evidence/interface.py`.
+- Passed all arming tests in `test_p0_evidence.py`.

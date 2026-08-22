@@ -1,13 +1,16 @@
-# Assign state ownership and transaction semantics
+# Assign exclusive semantic state ownership
 
-Status: open
+Status: resolved
 Type: grilling
 Blocked by: 03
 
 ## Question
 
-Which Module owns every Learner State and Session State field, which immutable typed view may each other Module read, which State Changes may it request, how are conflicts and invariants validated, and how does the one-Turn working projection become one atomic Turn Commit?
+Which semantic state fields, structures, persistence adapters, and update boundaries belong exclusively to each Feature Module, and how does State and Persistence enforce transactional projection, single ownership, and atomic Turn Commit?
 
-The resolution must eliminate raw shared-dictionary mutation and preserve the evidence ledger's single-writer and idempotency guarantees.
+## Resolution
 
-## Comments
+- Interaction Control owns session lifecycle, continuity, and topic state.
+- Pedagogy owns mode, strategy, and test/practice progress.
+- Assessment and Evidence exclusively owns item eligibility, pending assessment, and outcome evidence.
+- State and Persistence validates scoped views, prevents cross-module field writes, and executes atomic Turn Commit.

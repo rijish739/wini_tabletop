@@ -7,6 +7,14 @@ resolution, feeding the UNCHANGED derive_*/apply_deltas state machine.
 
 from .gates import gate, is_nonsense, is_safety
 from .route import INHERIT, INTENTS, RouteResult
+from .interface import (
+    LegacyPerceptionEngine,
+    Perception,
+    PerceptionInterface,
+    PerceptionObservation,
+    PerceptionRequest,
+    PerceptionTransportError,
+)
 
 __all__ = [
     "gate",
@@ -15,6 +23,10 @@ __all__ = [
     "RouteResult",
     "INTENTS",
     "INHERIT",
-    # GeminiPerception is imported lazily by callers to avoid pulling torch/genai
-    # into the model-free gate path.
+    "LegacyPerceptionEngine",
+    "Perception",
+    "PerceptionInterface",
+    "PerceptionObservation",
+    "PerceptionRequest",
+    "PerceptionTransportError",
 ]

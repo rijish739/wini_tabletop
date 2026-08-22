@@ -11,32 +11,54 @@ from types import SimpleNamespace
 
 
 def _stub_tutor_imports() -> None:
-    numpy = types.ModuleType("numpy")
-    numpy.ndarray = object
-    sys.modules.setdefault("numpy", numpy)
-    sys.modules.setdefault("requests", types.ModuleType("requests"))
+    try:
+        import numpy
+    except ImportError:
+        numpy = types.ModuleType("numpy")
+        numpy.ndarray = object
+        sys.modules.setdefault("numpy", numpy)
+    try:
+        import requests
+    except ImportError:
+        sys.modules.setdefault("requests", types.ModuleType("requests"))
 
-    cognitive = types.ModuleType("cognitive_analyzer")
-    cognitive.CognitiveAnalyzer = object
-    sys.modules.setdefault("cognitive_analyzer", cognitive)
-    hope = types.ModuleType("hope_detector")
-    hope.HopeDetector = object
-    sys.modules.setdefault("hope_detector", hope)
-    shadow = types.ModuleType("policy_shadow")
-    shadow.PolicyShadow = object
-    sys.modules.setdefault("policy_shadow", shadow)
+    try:
+        import cognitive_analyzer
+    except ImportError:
+        cognitive = types.ModuleType("cognitive_analyzer")
+        cognitive.CognitiveAnalyzer = object
+        sys.modules.setdefault("cognitive_analyzer", cognitive)
+    try:
+        import hope_detector
+    except ImportError:
+        hope = types.ModuleType("hope_detector")
+        hope.HopeDetector = object
+        sys.modules.setdefault("hope_detector", hope)
+    try:
+        import policy_shadow
+    except ImportError:
+        shadow = types.ModuleType("policy_shadow")
+        shadow.PolicyShadow = object
+        sys.modules.setdefault("policy_shadow", shadow)
 
-    query = types.ModuleType("query")
-    for name in ("Snapshot", "bridge_evidence", "cohesion_filter", "ev", "load_store",
-                 "misconception_evidence", "need_evidence", "resolve_band",
-                 "snapshot_rerank"):
-        setattr(query, name, object)
-    sys.modules.setdefault("query", query)
+    try:
+        import query
+    except ImportError:
+        query = types.ModuleType("query")
+        for name in ("Snapshot", "bridge_evidence", "cohesion_filter", "ev", "load_store",
+                     "misconception_evidence", "need_evidence", "resolve_band",
+                     "snapshot_rerank"):
+            setattr(query, name, object)
+        sys.modules.setdefault("query", query)
 
     perception = types.ModuleType("perception")
     perception.__path__ = []
     perception.gate = lambda text: None
+    from perception.interface import LegacyPerceptionEngine, Perception
+    perception.LegacyPerceptionEngine = LegacyPerceptionEngine
+    perception.Perception = Perception
     sys.modules.setdefault("perception", perception)
+    sys.modules["perception.interface"] = sys.modules.get("perception.interface") or perception
     perception_config = types.ModuleType("perception.config")
     perception_config.PERCEPTION_BACKEND = "test"
     sys.modules.setdefault("perception.config", perception_config)

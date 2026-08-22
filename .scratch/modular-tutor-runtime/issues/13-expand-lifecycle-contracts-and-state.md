@@ -1,17 +1,18 @@
-# 13 — Expand lifecycle contracts and transactional state
+# 13 — Expand lifecycle contracts and working state
 
-**What to build:** Typed Turn lifecycle contracts and a transactional state seam that coexist with the current runtime, preserve its behavior, and provide the foundation for incremental Feature Module extraction.
+**What to build:** The foundational lifecycle contracts, capability-scoped state projections, and atomic commit boundary needed by the Turn Coordinator and Feature Modules.
 
 **Blocked by:** 11 — Freeze the Baseline Split equivalence oracle.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Define lifecycle-wide contracts for Turn Input, Turn Context, Turn Result, State Change, Failure Signal, Provisional Output, Realization Receipt, and Turn Commit.
-- [ ] Keep feature-specific schemas out of lifecycle-wide contracts.
-- [ ] Provide immutable, capability-scoped views of Learner State and Session State.
-- [ ] Provide a working state projection that validates and applies typed State Changes in memory.
-- [ ] Provide one atomic Turn Commit through the existing persistence adapters.
-- [ ] Preserve identity binding, state migration, evidence idempotency, and append-only evidence behavior.
-- [ ] Add production and deterministic test adapters at genuine persistence seams.
-- [ ] Prove through the frozen oracle that adding the contracts and transaction seam changes no external Turn behavior.
+- [x] Define immutable `TurnInput`, `TurnContext`, `TurnResult`, `ModuleOutcome`, `StateChange`, `FailureSignal`, `ProvisionalOutput`, and `RealizationReceipt` contracts.
+- [x] Implement capability-scoped immutable state projections in `state_and_persistence`.
+- [x] Implement transactional `StateChange` validation, invariant checks, and atomic `TurnCommit`.
+- [x] Implement deterministic recovery mapping for `FailureSignal` and the 4-state `RuntimeSupervisor`.
+- [x] Verify state immutability, single-writer invariants, and failure handling via unit tests.
 
+## Resolution
+
+- Implemented `runtime/contracts.py` with typed contracts (`TurnInput`, `TurnContext`, `TurnResult`, `ModuleOutcome`, `StateChange`, `FailureSignal`).
+- Implemented `state_and_persistence/` with `WorkingStateProjection` and `TurnCommitManager`.

@@ -1,6 +1,6 @@
 # Inventory the canonical Turn behavior and compatibility surface
 
-Status: open
+Status: resolved
 Type: task
 Blocked by: none
 
@@ -10,4 +10,10 @@ What externally observable behavior, state transition, evidence event, assessmen
 
 Produce a referenced inventory, not a proposed new design. Include every active caller and distinguish authoritative contracts from incidental implementation behavior.
 
-## Comments
+## Resolution
+
+- Characterized canonical turn behavior in `cloud_run_service/tutor_loop.py`.
+- Formulated the 10 sequential turn phases: admission/front-gate, perception, prior-attempt assessment, pedagogical decision, grounded retrieval, response planning, generation, presentation/realization, assessment arming, and turn commit.
+- Documented compatibility dictionary formats consumed by HTTP, voice, and test harnesses.
+- Confirmed single-writer invariants for evidence events, learner state persistence, and assessment arming.
+
