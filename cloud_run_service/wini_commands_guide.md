@@ -52,7 +52,7 @@ Invoke-RestMethod -Uri "http://localhost:8123/health"
 The HTML Debug Console provides a real-time SSE stream of all brain layers (L1–L8), latency breakdowns, raw JSON event inspection, and a live 600×800 **Board Buddy Canvas Preview**.
 
 ### File Locations
-- **Voice & Debug Console**: [`file:///d:/cloud%20CLI/cloud_workspace_v8/voice/test.html`](file:///d:/cloud%20CLI/cloud_workspace_v8/voice/test.html)
+- **Voice & Debug Console**: use the retained client/debug-console asset under the active device package; the retired duplicate workspace is not a deployment source.
 - **Standalone Tools Console**: [`file:///d:/cloud%20CLI/tools/debug_console.html`](file:///d:/cloud%20CLI/tools/debug_console.html)
 
 > Simply double-click or open either file in Google Chrome / Edge. The console automatically connects to `http://localhost:8123`.
@@ -189,5 +189,5 @@ Get-NetTCPConnection -LocalPort 8123 -ErrorAction SilentlyContinue
 
 ### C. Sync `test.html` to `debug_console.html`
 ```powershell
-python -c "import shutil; shutil.copy2(r'd:\cloud CLI\cloud_workspace_v8\voice\test.html', r'd:\cloud CLI\tools\debug_console.html'); print('Synced successfully')"
+python -c "import shutil; shutil.copy2(r'd:\cloud CLI\pi_client_package\voice\test.html', r'd:\cloud CLI\tools\debug_console.html'); print('Synced successfully')"
 ```

@@ -253,11 +253,11 @@ class Brain:
             # candidate pool again. Without this they persist in learner_state.json
             # across every run and grow without bound — an earlier bug left 593
             # chunks permanently blacklisted (audit A-7).
-            def _commit_legacy_turn_state() -> None:
+            def _commit_turn_state() -> None:
                 self.tutor.state.save()
                 self._persist_state(raise_on_failure=True)
 
-            self.tutor._legacy_commit_state = _commit_legacy_turn_state
+            self.tutor._turn_commit_state = _commit_turn_state
             try:
                 cleared = self.tutor.state.begin_session()
                 self.tutor.state.save()

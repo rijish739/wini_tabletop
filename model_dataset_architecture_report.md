@@ -1435,3 +1435,9 @@ quality number changed in this extraction.
 The existing MiniLM embeddings and seven-term reranker are now consumed through a
 typed Retrieval Interface. This is an ownership/interface extraction only: no model,
 dataset, label space, store artifact, index, prompt, or measured quality number changed.
+
+# Ownership Handoff verification (2026-08-21)
+
+No model or dataset metric is reclassified as measured. The frozen oracle currently
+has 7 of 32 expected model-boundary calls replayable; latency gates require a complete
+candidate capture.

@@ -3,7 +3,7 @@ import os
 b64 = open(r'd:\cloud CLI\cloud_run_service\default_board_b64.txt').read().strip()
 data_url = 'data:image/png;base64,' + b64
 
-html_path = r'd:\cloud CLI\cloud_workspace_v8\voice\test.html'
+html_path = r'd:\cloud CLI\cloud_run_service\test.html'
 with open(html_path, 'r', encoding='utf-8') as f:
     content = f.read()
 

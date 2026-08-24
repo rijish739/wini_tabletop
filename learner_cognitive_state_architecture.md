@@ -1629,6 +1629,11 @@ mode, practice/test progression, pacing, and pending pedagogical offers. It retu
 an immutable pedagogical decision plus authorized State Changes and Failure Signals;
 grading, assessment arming, and evidence writing remain Assessment and Evidence work.
 
+# Ownership Handoff verification (2026-08-21)
+
+The public Module seams are checked offline, while the artifact-complete equivalence
+capture and live/performance evidence remain required before handoff.
+
 # Retrieval Feature Module extraction (2026-08-17)
 
 The Turn Coordinator now invokes one typed Retrieval Interface after Pedagogy.

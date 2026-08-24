@@ -1389,3 +1389,9 @@ served-history-aware ranking, cohesion, provenance, and safe non-assessing failu
 Measured verification: 93/93 discoverable tests passed; focused interface/coordinator/
 façade tests passed; compilation and diff checks passed. The frozen 27-case oracle
 self-check reports zero differences, with its pre-existing missing-artifact status.
+
+# Ownership Handoff verification (2026-08-21)
+
+The verifier and owner/review matrix are checked in. Current status is blocked:
+oracle validation passes, while equivalence, duplicate deletion, live smoke, and
+performance gates require their documented evidence.

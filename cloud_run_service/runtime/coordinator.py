@@ -7,7 +7,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Mapping, Protocol
 
 from .contracts import FailureSeverity, FailureSignal, TurnInput, TurnResult, deep_thaw
-from .legacy_adapter import LegacyAdapterFailure
+from .turn_runtime import TurnRuntimeFailure
 from .supervisor import RuntimeSupervisor
 
 if TYPE_CHECKING:
@@ -90,15 +90,20 @@ class RecoveryPolicy:
 
 
 @dataclass(frozen=True)
-class LegacyExecution:
-    """Measurable result from the temporary, explicitly removable legacy seam."""
+class TurnExecution:
+    """Lifecycle result produced by the canonical Turn runtime."""
 
     result: TurnResult
     phase_trace: tuple[TurnPhase, ...]
     measurements: Mapping[str, int | float] = field(default_factory=dict)
 
 
-class TemporaryLegacyAdapter(Protocol):
+# Import compatibility for fixtures written before the runtime contract was
+# named.  The coordinator itself only uses TurnExecution.
+LegacyExecution = TurnExecution
+
+
+class TurnRuntimePort(Protocol):
     name: str
 
     def interaction_request(
@@ -125,7 +130,7 @@ class TemporaryLegacyAdapter(Protocol):
     def execute(self, turn_input: TurnInput, interaction, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
                 generated_response=None, realization=None,
-                assessment_arming=None) -> LegacyExecution: ...
+                assessment_arming=None) -> TurnExecution: ...
 
 
 @dataclass(frozen=True)
@@ -140,12 +145,13 @@ class CoordinatedTurn:
 
 
 class TurnCoordinator:
-    """Sequence a Turn while leaving all tutoring policy behind adapter interfaces."""
+    """Sequence a Turn while leaving tutoring policy behind Module interfaces."""
 
     def __init__(
         self,
         *,
-        adapter: TemporaryLegacyAdapter,
+        runtime: TurnRuntimePort | None = None,
+        adapter: TurnRuntimePort | None = None,
         supervisor: RuntimeSupervisor,
         interaction_control: "InteractionControlInterface",
         perception: "PerceptionInterface | None" = None,
@@ -157,7 +163,9 @@ class TurnCoordinator:
         presentation: "PresentationInterface | None" = None,
         recovery_policy: RecoveryPolicy | None = None,
     ) -> None:
-        self._adapter = adapter
+        self._runtime = runtime or adapter
+        if self._runtime is None:
+            raise TypeError("runtime is required")
         self._supervisor = supervisor
         self._interaction_control = interaction_control
         self._perception = perception
@@ -170,11 +178,11 @@ class TurnCoordinator:
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
-        interaction_request = self._adapter.interaction_request(turn_input)
+        interaction_request = self._runtime.interaction_request(turn_input)
         perception_failures: tuple[FailureSignal, ...] = ()
         if self._perception is not None:
             perception = self._perception.perceive(
-                self._adapter.perception_request(turn_input)
+                self._runtime.perception_request(turn_input)
             )
             perception_failures = perception.failures
             perception_actions = tuple(
@@ -215,7 +223,7 @@ class TurnCoordinator:
         assessment = None
         if self._assessment_evidence is not None:
             assessment = self._assessment_evidence.evaluate_prior_attempt(
-                self._adapter.assessment_request(turn_input, interaction)
+                self._runtime.assessment_request(turn_input, interaction)
             )
             actions = tuple(
                 self._recovery_policy.decide(failure)
@@ -236,7 +244,7 @@ class TurnCoordinator:
             if self._perception is None or perception.value is None:
                 raise RuntimeError("Pedagogy requires a validated Perception observation")
             pedagogical = self._pedagogy.decide(
-                self._adapter.pedagogy_request(
+                self._runtime.pedagogy_request(
                     turn_input, perception.value, assessment
                 )
             )
@@ -253,7 +261,7 @@ class TurnCoordinator:
         retrieved = None
         if self._retrieval is not None and pedagogical is not None:
             retrieved = self._retrieval.retrieve(
-                self._adapter.retrieval_request(
+                self._runtime.retrieval_request(
                     turn_input, perception.value, pedagogical.value
                 )
             )
@@ -271,7 +279,7 @@ class TurnCoordinator:
         if (self._response_planning is not None and retrieved is not None
                 and not retrieved.failures):
             planned = self._response_planning.plan(
-                self._adapter.response_planning_request(
+                self._runtime.response_planning_request(
                     turn_input, perception.value, pedagogical.value, retrieved.value
                 )
             )
@@ -287,7 +295,7 @@ class TurnCoordinator:
         planned_for_execution = planned
         if self._response_generation is not None and planned is not None:
             generated = self._response_generation.generate(
-                self._adapter.response_generation_request(
+                self._runtime.response_generation_request(
                     turn_input, perception.value, pedagogical.value,
                     retrieved.value, planned.value,
                 )
@@ -323,7 +331,7 @@ class TurnCoordinator:
         if (self._assessment_evidence is not None and planned_for_execution is not None
                 and planned_for_execution.value.assessment_proposal is not None):
             assessment_arming = self._assessment_evidence.arm_after_realization(
-                self._adapter.assessment_arming_request(
+                self._runtime.assessment_arming_request(
                     turn_input, planned_for_execution.value, realization.value
                     if realization is not None else None
                 )
@@ -346,7 +354,7 @@ class TurnCoordinator:
                 execute_kwargs = dict(
                     assessment_arming=assessment_arming,
                 )
-                execution = self._adapter.execute(
+                execution = self._runtime.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
                     response_plan=planned_for_execution,
@@ -355,27 +363,27 @@ class TurnCoordinator:
                     **execution_kwargs,
                 )
             elif retrieved is not None:
-                execution = self._adapter.execute(
+                execution = self._runtime.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
                 )
             elif pedagogical is not None:
-                execution = self._adapter.execute(
+                execution = self._runtime.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical,
                 )
             elif assessment is not None:
-                execution = self._adapter.execute(
+                execution = self._runtime.execute(
                     turn_input, interaction=interaction, assessment=assessment
                 )
             else:
-                execution = self._adapter.execute(turn_input, interaction=interaction)
-        except LegacyAdapterFailure as failure:
+                execution = self._runtime.execute(turn_input, interaction=interaction)
+        except TurnRuntimeFailure as failure:
             self._supervisor.observe_turn((failure.signal,))
             action = self._recovery_policy.decide(failure.signal)
             if action is not RecoveryAction.FAIL_CLOSED:
                 raise RuntimeError(
-                    "temporary legacy failures may only use fail-closed recovery"
+                    "Turn runtime failures may only use fail-closed recovery"
                 ) from failure
             raise failure.original.with_traceback(failure.original.__traceback__)
         self._validate_phase_trace(execution)
@@ -432,6 +440,6 @@ class TurnCoordinator:
         )
 
     @staticmethod
-    def _validate_phase_trace(execution: LegacyExecution) -> None:
+    def _validate_phase_trace(execution: TurnExecution) -> None:
         if execution.phase_trace != LOGICAL_TURN_PHASES:
-            raise RuntimeError("Turn adapter did not traverse the logical phase sequence")
+            raise RuntimeError("Turn runtime did not traverse the logical phase sequence")

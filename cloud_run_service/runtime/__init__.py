@@ -21,13 +21,14 @@ from .contracts import (
 from .coordinator import (
     LOGICAL_TURN_PHASES,
     CoordinatedTurn,
-    LegacyExecution,
+    TurnExecution,
     RecoveryAction,
     RecoveryCapability,
     RecoveryPolicy,
     TurnCoordinator,
     TurnPhase,
 )
+from .turn_runtime import TurnRuntime, TurnRuntimeFailure
 from .supervisor import RuntimeHealth, RuntimeHealthSnapshot, RuntimeSupervisor
 from .compatibility import TutorLoopCompatibilityFacade
 
@@ -50,7 +51,9 @@ __all__ = [
     "deep_thaw",
     "LOGICAL_TURN_PHASES",
     "CoordinatedTurn",
-    "LegacyExecution",
+    "TurnExecution",
+    "TurnRuntime",
+    "TurnRuntimeFailure",
     "RecoveryAction",
     "RecoveryCapability",
     "RecoveryPolicy",

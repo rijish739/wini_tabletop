@@ -336,6 +336,13 @@ the extracted Interaction Control Feature Module for admission, non-learning rou
 topic/conversation continuity, redirection, mode-stop interaction, and termination.
 Completed interactions commit directly; admitted learning interactions continue through
 the temporary legacy adapter while later Feature Modules are extracted.
+
+## Ownership Handoff verification (2026-08-21)
+
+Run `python -m cloud_run_service.handoff_verification` for the reproducible gate.
+Oracle validation passes (27 cases, 9 states, 7 recordings), but handoff remains
+blocked by incomplete equivalence capture, retained duplicate runtime, and missing
+live/performance evidence. See `OWNERSHIP_HANDOFF.md`.
 # 2026-08-16 runtime module update
 
 The Turn Coordinator now invokes a typed Pedagogy Feature Module between validated

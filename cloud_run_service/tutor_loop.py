@@ -1873,10 +1873,10 @@ class TutorLoop:
             assessment_module = self._assessment_evidence_module()
 
             facade = TutorLoopCompatibilityFacade(
-                legacy_turn=self._legacy_turn,
+                turn_behavior=self._canonical_turn,
                 commit_state=getattr(
                     self,
-                    "_legacy_commit_state",
+                    "_turn_commit_state",
                     getattr(self.state, "save", lambda: None),
                 ),
                 state=self.state,
@@ -2100,7 +2100,7 @@ class TutorLoop:
             _allow_shift=_allow_shift,
         )
 
-    def _legacy_turn(self, text: str, answer_budget: dict | None = None,
+    def _canonical_turn(self, text: str, answer_budget: dict | None = None,
                      precomputed_analysis: dict | None = None,
                      precomputed_grade: dict | str | None = None,
                      stt_confidence: float | None = None, turn_id: str | None = None,

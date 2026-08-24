@@ -7,7 +7,7 @@ from typing import Any, Callable, Mapping
 
 from .contracts import DeviceCapabilities, TurnBudgets, TurnInput
 from .coordinator import TurnCoordinator
-from .legacy_adapter import LegacyTurnAdapter
+from .turn_runtime import TurnRuntime
 from .supervisor import RuntimeHealthSnapshot, RuntimeSupervisor
 
 
@@ -17,7 +17,8 @@ class TutorLoopCompatibilityFacade:
     def __init__(
         self,
         *,
-        legacy_turn: Callable[..., Mapping[str, Any]],
+        turn_behavior: Callable[..., Mapping[str, Any]] | None = None,
+        legacy_turn: Callable[..., Mapping[str, Any]] | None = None,
         commit_state: Callable[[], None],
         state: Any,
         interaction_control: Any,
@@ -38,9 +39,12 @@ class TutorLoopCompatibilityFacade:
 
             response_planning = ResponsePlanning()
         self._supervisor = RuntimeSupervisor()
+        behavior = turn_behavior or legacy_turn
+        if behavior is None:
+            raise TypeError("turn_behavior is required")
         self._coordinator = TurnCoordinator(
-            adapter=LegacyTurnAdapter(
-                legacy_turn=legacy_turn,
+            runtime=TurnRuntime(
+                turn_behavior=behavior,
                 commit_state=commit_state,
                 state=state,
             ),
@@ -87,8 +91,8 @@ class TutorLoopCompatibilityFacade:
                 "allow_topic_shift": _allow_shift,
             },
             device=DeviceCapabilities(),
-            # The legacy API has no lifecycle deadline. This sentinel is descriptive
-            # only; the adapter preserves all existing timeout behavior unchanged.
+            # The caller-compatible API has no lifecycle deadline. This sentinel
+            # is descriptive only; the runtime preserves existing timeout behavior.
             budgets=TurnBudgets(total_ms=2_147_483_647),
             trusted_observations={
                 "precomputed_analysis": precomputed_analysis,

@@ -606,3 +606,9 @@ relevance abstention, and provenance-manifest construction now sit behind the ty
 Retrieval Interface. The coordinator passes Pedagogy's decision and immutable store
 and learner views. Retrieval proposes served-history changes; it does not persist the
 learning log or learner state directly. No store, index, embedding, or dataset was rebuilt.
+
+# Ownership Handoff verification (2026-08-21)
+
+Retrieval ownership is documented in `cloud_run_service/retrieval/README.md` and
+covered by the handoff verifier. No store, index, embedding, or dataset was rebuilt;
+performance evidence remains blocked pending an artifact-complete capture.
