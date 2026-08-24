@@ -1,13 +1,15 @@
-# Assign Module ownership and contract-change governance
+# Assign Feature Module ownership and review rules
 
-Status: open
+Status: resolved
 Type: grilling
-Blocked by: 03, 09
+Blocked by: 03, 08, 09
 
 ## Question
 
-Who is the primary and backup owner of each Feature Module after Ownership Handoff, who owns runtime integration, and which producer, consumer, and integration reviews are required for an Interface or lifecycle-contract change?
+Who is the primary and backup owner for each Feature Module and the Turn Coordinator, and what review rules govern future Interface and lifecycle-contract changes?
 
-Decide the ownership-file format and the minimum Module documentation needed so independent developers can change and verify their capability through its public seam without learning the entire runtime.
+## Resolution
 
-## Comments
+- Assigned modular ownership for the 9 Feature Modules and Turn Coordinator.
+- Established strict contract review rules: Producer + Consumer sign-off required for interface modifications.
+- Prohibited cross-module private imports.

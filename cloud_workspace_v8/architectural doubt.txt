@@ -1,6 +1,0 @@
-if i ask a question on prime factors, expressing a number as a number of prime factor for ex:3825 if a student get question why he has to do it, what should be the reply for the 15years old kid. 
-can it be changing dynamically for the IQ of each student because one might feel one concept as very basic and for a different kid it might be very difficult
-how to manage these cases? imagine this is generalised for all concept. questions like why I have to learn this, what is the use of this, I dont understand the word itself
-what are the different way to see this, give more different ways for this, everything is going as bouncer to me. in my text book a concept is this way and I think it is this way (explicitly not informing the topic but just saying this and that) 
-calling concept like parabola as u shape and ulta U shape and asking questions with half knowledge. asking questions with representation shift kind of question, pronouncing wrong, having grammatical issue. wrong sentecne formation
-having broken sentence for the STT. asking how should i curse my friend and unrelated to studies, sharing personal information about feelings, informing they are going through mental trauma. 

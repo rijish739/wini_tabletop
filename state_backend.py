@@ -32,11 +32,63 @@ from __future__ import annotations
 
 import json
 import os
+import hashlib
+import re
 from typing import Optional
 
 
 def _backend_name() -> str:
     return os.getenv("WINI_STATE_BACKEND", "json").strip().lower()
+
+
+def resolve_learner_id() -> str:
+    """Resolve a non-shared learner key from deployment-authenticated identity.
+
+    ``WINI_LEARNER_ID`` remains the explicit compatibility override. Otherwise a
+    per-device or per-session identity injected by the authenticated deployment is
+    pseudonymized before it becomes a document ID. Firestore fails closed instead
+    of putting unrelated children in the historical ``default`` document.
+    """
+    explicit = os.getenv("WINI_LEARNER_ID", "").strip()
+    if explicit and explicit.lower() != "default":
+        return re.sub(r"[^A-Za-z0-9_.-]", "_", explicit)[:120]
+    identity = (os.getenv("WINI_AUTHENTICATED_DEVICE_ID", "").strip()
+                or os.getenv("WINI_AUTHENTICATED_SESSION_ID", "").strip())
+    if not identity:
+        raise RuntimeError(
+            "Firestore requires WINI_LEARNER_ID or an authenticated device/session identity")
+    digest = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
+    return f"learner_{digest}"
+
+
+def resolve_runtime_learner_id() -> str:
+    """Resolve the learner bound to this in-process brain.
+
+    Multi-learner deployments must provide authenticated identity. The historical
+    local one-device deployment remains explicit through ``single_learner`` mode;
+    it never uses the ambiguous ``default`` key.
+    """
+    try:
+        return resolve_learner_id()
+    except RuntimeError:
+        identity_mode = os.getenv("WINI_IDENTITY_MODE", "single_learner").strip().lower()
+        if _backend_name() == "json" and identity_mode == "single_learner":
+            return "local_single_learner"
+        raise RuntimeError(
+            "WINI_IDENTITY_MODE requires authenticated device/session identity; "
+            "refusing to bind a shared default learner")
+
+
+def bind_state_identity(data: dict, learner_id: str) -> dict:
+    """Bind loaded state to one learner and reject cross-learner reuse."""
+    existing = str(data.get("learner_id") or "").strip()
+    if existing.lower() == "default":
+        existing = ""
+    if existing and existing != learner_id:
+        raise RuntimeError(
+            f"learner state identity mismatch: loaded={existing!r}, request={learner_id!r}")
+    data["learner_id"] = learner_id
+    return data
 
 
 def get_state_store() -> "Optional[FirestoreStateStore]":
@@ -59,7 +111,7 @@ class FirestoreStateStore:
 
         project = os.getenv("GOOGLE_CLOUD_PROJECT") or None
         self.collection = os.getenv("WINI_FIRESTORE_COLLECTION", "learner_state")
-        self.learner_id = os.getenv("WINI_LEARNER_ID", "default")
+        self.learner_id = resolve_learner_id()
         # A named database is allowed (regional Firestore is created with a name);
         # "(default)" is the unnamed default database.
         database = os.getenv("WINI_FIRESTORE_DATABASE", "(default)")

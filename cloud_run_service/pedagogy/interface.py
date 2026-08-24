@@ -326,3 +326,27 @@ class Pedagogy:
         if float(update.get("confusion", 0.0)) >= 0.4 or abstained:
             return "EXPLAIN", "explain", "confusion or unresolved concept -> explain"
         return "EXPLAIN", "explain", "default grounded explanation"
+
+
+def rules_decide(update: Mapping[str, Any], signals: Any, flags: Any,
+                 abstained: bool, *, acknowledged: bool = False,
+                 clarification: bool = False, learning_start: bool = False,
+                 visual: bool = False, purpose: bool = False,
+                 student_problem: bool = False, transfer_ready: bool = True) -> tuple[str, str, str]:
+    """Compatibility helper for rule-based pedagogical decision."""
+    sig_set = set(signals) if isinstance(signals, (list, tuple, set)) else set()
+    flag_set = set(flags) if isinstance(flags, (list, tuple, set)) else set()
+    return Pedagogy._teaching_action(
+        update=update or {},
+        signals=sig_set,
+        flags=flag_set,
+        abstained=bool(abstained),
+        acknowledged=bool(acknowledged),
+        clarification=bool(clarification),
+        learning_start=bool(learning_start),
+        visual=bool(visual),
+        purpose=bool(purpose),
+        student_problem=bool(student_problem),
+        transfer_ready=bool(transfer_ready),
+    )
+

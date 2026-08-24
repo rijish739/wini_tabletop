@@ -66,10 +66,10 @@ ITEM_HINT_DISCOUNT = 0.25   # each hint used shaves 25% off a positive gain (min
 ITEM_HISTORY_MAX = 12       # outcomes kept per item (spaced-review / exclusion)
 MASTERY_GATE_DEFAULT = 0.8  # Bloom/Rosenshine ~80% criterion (§4.4)
 
-# Misconception status machine, architecture section 10 (plan A2.6):
-# active -> weakening (1 correct probe) -> resolved (2 consecutive correct)
-# resolved -> recurring (any later failure); recurring behaves like active.
+# Misconception evidence lifecycle. A single result can create at most a
+# candidate; supported requires converging consistent evidence.
 RESOLVE_AFTER_CONSECUTIVE_CORRECT = 2
+SUPPORT_AFTER_CONSISTENT_FAILURES = 2
 
 # ---------------------------------------------------------------------------
 # Bridge policy contract (plan Phase 3 step 7 / A2.4)
@@ -83,7 +83,7 @@ RESOLVE_AFTER_CONSECUTIVE_CORRECT = 2
 # never display-only (apply_bridge_result writes mastery back).
 BRIDGE_MASTERY_THRESHOLD = 0.6
 BRIDGE_SKIP_ZPD_CENTER = 7.0
-BRIDGE_MASTERY_DELTA = {"correct": +0.25, "partial": -0.10, "wrong": -0.10}
+BRIDGE_MASTERY_DELTA = {"correct": +0.25, "partial": +0.05, "wrong": -0.10}
 
 
 @dataclass
@@ -137,7 +137,8 @@ class LearnerState:
             return None
 
     def record_cold_recall(self, concept_id: str, correct: bool,
-                           gap_days: float, ema: float = 0.4) -> Optional[float]:
+                           gap_days: float, ema: float = 0.4,
+                           observed_at: str | None = None) -> Optional[float]:
         """Fold one cold-recall observation in. Only counts when the gap since
         `last_practiced` clears COLD_RECALL_MIN_GAP_DAYS — answering correctly ten
         seconds after being told the answer says nothing about retention."""
@@ -148,7 +149,7 @@ class LearnerState:
         obs = 1.0 if correct else 0.0
         new = obs if old is None else (1.0 - ema) * old + ema * obs
         cs["cold_recall_strength"] = round(new, 4)
-        cs["cold_recall_last"] = datetime.now(timezone.utc).isoformat()
+        cs["cold_recall_last"] = observed_at or datetime.now(timezone.utc).isoformat()
         return cs["cold_recall_strength"]
 
     def confidence_trend(self, concept_id: str) -> str:
@@ -192,7 +193,8 @@ class LearnerState:
             score = 0.7 * score + 0.3 * cold
         return round(max(0.0, min(1.0, score)), 4)
 
-    def _days_since_practice(self, concept_id: str) -> Optional[float]:
+    def _days_since_practice(self, concept_id: str,
+                             reference_at: str | None = None) -> Optional[float]:
         """Days since this concept was last practised; None if never."""
         lp = (self.concept_states.get(concept_id) or {}).get("last_practiced")
         if not lp:
@@ -203,21 +205,30 @@ class LearnerState:
                 ts = ts.replace(tzinfo=timezone.utc)
         except (TypeError, ValueError):
             return None
-        return (datetime.now(timezone.utc) - ts).total_seconds() / 86400.0
+        now = datetime.now(timezone.utc)
+        if reference_at:
+            try:
+                now = datetime.fromisoformat(reference_at)
+                if now.tzinfo is None:
+                    now = now.replace(tzinfo=timezone.utc)
+            except (TypeError, ValueError):
+                pass
+        return (now - ts).total_seconds() / 86400.0
 
     def hint_chain_position(self, concept_id: str, problem_id: Optional[str] = None) -> int:
         """How far INTO the hint chain the learner currently is (0 = untouched).
 
         §6.4 lists "hint dependency AND hint-chain position" as separate fields;
         only the first existed. The position is what tells the tutor whether to
-        fade the next hint or switch action — `hints_used_current` already tracks
-        it per problem, this exposes it as the documented field.
+        fade the next hint or switch action. The session-scoped progress counter
+        is projected into durable hint dependency only with a graded outcome.
         """
-        cs = self.concept_states.get(concept_id) or {}
-        if problem_id is not None and cs.get("current_problem_id") != problem_id:
+        progress = (self.data.get("session") or {}).get("hint_progress") or {}
+        row = progress.get(concept_id) or {}
+        if problem_id is not None and row.get("problem_id") != problem_id:
             return 0
         try:
-            return max(0, int(cs.get("hints_used_current", 0)))
+            return max(0, int(row.get("hints_used", 0)))
         except (TypeError, ValueError):
             return 0
 
@@ -228,7 +239,8 @@ class LearnerState:
     # Snapshot accessors for the Phase-5 retrieval ranking (A2.1)
     # ------------------------------------------------------------------
     def hint_dependency(self, concept_id: str) -> float:
-        cs = self.concept_states.get(concept_id) or {}
+        progress = (self.data.get("session") or {}).get("hint_progress") or {}
+        cs = progress.get(concept_id) or {}
         try:
             return max(0.0, min(1.0, float(cs.get("hint_dependency", 0.0))))
         except (TypeError, ValueError):
@@ -302,10 +314,11 @@ class LearnerState:
         session["session_started_at"] = datetime.now(timezone.utc).isoformat()
         return cleared
 
-    def update_mastery(self, concept_id: str, new_mastery: float) -> None:
+    def update_mastery(self, concept_id: str, new_mastery: float,
+                       observed_at: str | None = None) -> None:
         cs = self.concept_states.setdefault(concept_id, {})
         cs["mastery"] = max(0.0, min(1.0, float(new_mastery)))
-        cs["last_practiced"] = datetime.now(timezone.utc).isoformat()
+        cs["last_practiced"] = observed_at or datetime.now(timezone.utc).isoformat()
 
     # ------------------------------------------------------------------
     # Misconception probe write-back + struggle signal
@@ -319,17 +332,24 @@ class LearnerState:
 
         Resets automatically when the learner moves to a different problem, so the
         struggle test is always 'all 3 hints on ONE problem', not lifetime totals.
-        Also updates the hint_dependency EMA the retrieval ranker consumes (w6).
+        The counter is session-scoped. Durable hint dependency is projected only
+        when the associated outcome is accepted by evidence.record_outcome().
         """
+        progress = self.data.setdefault("session", {}).setdefault("hint_progress", {})
+        row = progress.setdefault(concept_id, {"problem_id": problem_id, "hints_used": 0})
+        if row.get("problem_id") != problem_id:
+            row.update({"problem_id": problem_id, "hints_used": 0})
+        row["hints_used"] = int(row.get("hints_used", 0)) + 1
+        return row["hints_used"]
+
+    def _project_hint_usage(self, concept_id: str, hints_used: int) -> None:
+        """Project assistance only with an accepted ledger outcome."""
         cs = self.concept_states.setdefault(concept_id, {})
-        if cs.get("current_problem_id") != problem_id:
-            cs["current_problem_id"] = problem_id
-            cs["hints_used_current"] = 0
-        cs["hints_used_current"] = int(cs.get("hints_used_current", 0)) + 1
-        used = cs["hints_used_current"]
         old = float(cs.get("hint_dependency", 0.0))
-        cs["hint_dependency"] = round(0.7 * old + 0.3 * min(1.0, used / STRUGGLE_HINT_THRESHOLD), 4)
-        return used
+        observed = min(1.0, int(hints_used) / STRUGGLE_HINT_THRESHOLD)
+        cs["hint_dependency"] = round(0.7 * old + 0.3 * observed, 4)
+        self.data.setdefault("session", {}).setdefault("hint_progress", {}).pop(
+            concept_id, None)
 
     def is_struggling(self, concept_id: str) -> bool:
         cs = self.concept_states.get(concept_id) or {}
@@ -339,12 +359,16 @@ class LearnerState:
         """Which metacognitive prompt variant the engine should retrieve right now."""
         return "after_struggle" if self.is_struggling(concept_id) else "after_success"
 
-    def apply_probe_result(
+    def _project_probe_result(
         self,
         misconception_id: str,
         outcome: str,
         concept_id: Optional[str] = None,
         hints_used: int = 0,
+        evidence_consistent: bool | None = None,
+        evidence_ref: Optional[str] = None,
+        binary_item: bool = False,
+        observed_at: str | None = None,
     ) -> Dict[str, Any]:
         """Write back one diagnostic-probe outcome (plan Phase 5 step 5 / A2.4 / A2.6).
 
@@ -357,46 +381,76 @@ class LearnerState:
         if outcome not in PROBE_MASTERY_DELTA:
             raise ValueError(f"outcome must be one of {sorted(PROBE_MASTERY_DELTA)}, got {outcome!r}")
 
-        ms = self.misconception_states.setdefault(misconception_id, {
-            "status": "active", "consecutive_correct": 0, "consecutive_failures": 0,
-        })
-        status = ms.get("status", "active")
-
-        if outcome == "correct":
-            ms["consecutive_correct"] = int(ms.get("consecutive_correct", 0)) + 1
-            ms["consecutive_failures"] = 0
-            if ms["consecutive_correct"] >= RESOLVE_AFTER_CONSECUTIVE_CORRECT:
-                status = "resolved"
-            elif status in ("active", "recurring"):
-                status = "weakening"
-        else:  # wrong or partial: the misconception is still biting
-            ms["consecutive_correct"] = 0
-            ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
-            if status == "resolved":
-                status = "recurring"
-            elif status == "weakening":
-                status = "active"
-        ms["status"] = status
-        ms["last_probed"] = datetime.now(timezone.utc).isoformat()
+        ms = self.misconception_states.get(misconception_id)
+        status = (ms or {}).get("status", "untracked")
+        prior_status = status
+        # A correct first response or an ambiguous/inconsistent first failure does
+        # not create durable misconception state.
+        should_create = outcome != "correct" and evidence_consistent is True
+        if ms is None and should_create:
+            ms = self.misconception_states.setdefault(misconception_id, {
+                "status": "candidate", "consecutive_correct": 0,
+                "consecutive_failures": 0, "consistent_failures": 0,
+                "evidence_refs": [], "transitions": [],
+            })
+            status = "candidate"
+        if ms is not None:
+            ms.setdefault("evidence_refs", [])
+            ms.setdefault("transitions", [])
+            if evidence_ref and evidence_ref not in ms["evidence_refs"]:
+                ms["evidence_refs"].append(evidence_ref)
+            if outcome == "correct" or evidence_consistent is False:
+                ms["consecutive_correct"] = int(ms.get("consecutive_correct", 0)) + 1
+                ms["consecutive_failures"] = 0
+                ms["consistent_failures"] = 0
+                if status in {"candidate", "supported"}:
+                    status = "weakening"
+                elif status == "weakening" and ms["consecutive_correct"] >= \
+                        RESOLVE_AFTER_CONSECUTIVE_CORRECT:
+                    status = "resolved"
+                elif status == "resolved":
+                    status = "resolved"
+            elif evidence_consistent is True:
+                ms["consecutive_correct"] = 0
+                ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
+                ms["consistent_failures"] = int(ms.get("consistent_failures", 0)) + 1
+                # One result, including one binary result, can never support a
+                # durable misconception. Converging evidence is always required.
+                status = ("supported" if ms["consistent_failures"] >=
+                          SUPPORT_AFTER_CONSISTENT_FAILURES else "candidate")
+            # evidence_consistent=None is recorded on the ledger but licenses no
+            # misconception-state transition.
+            if status != prior_status:
+                if not evidence_ref:
+                    raise ValueError("misconception transitions require an evidence reference")
+                ms["transitions"].append({
+                    "from": prior_status, "to": status,
+                    "evidence_ref": evidence_ref,
+                    "binary_item": bool(binary_item),
+                    "ts": observed_at or datetime.now(timezone.utc).isoformat(),
+                })
+            ms["status"] = status
+            ms["last_probed"] = observed_at or datetime.now(timezone.utc).isoformat()
+            consecutive_failures = int(ms.get("consecutive_failures", 0))
+        else:
+            consecutive_failures = 0
 
         struggled = (
             int(hints_used) >= STRUGGLE_HINT_THRESHOLD
-            or int(ms["consecutive_failures"]) >= STRUGGLE_FAIL_THRESHOLD
+            or consecutive_failures >= STRUGGLE_FAIL_THRESHOLD
         )
 
         mastery = None
         if concept_id:
             mastery = max(0.0, min(1.0, self.mastery(concept_id) + PROBE_MASTERY_DELTA[outcome]))
-            self.update_mastery(concept_id, mastery)
+            self.update_mastery(concept_id, mastery, observed_at)
             cs = self.concept_states.setdefault(concept_id, {})
+            self._project_hint_usage(concept_id, hints_used)
             cs["struggle"] = {
                 "struggling": struggled,
                 "hints_used_last": int(hints_used),
-                "consecutive_failures": int(ms["consecutive_failures"]),
+                "consecutive_failures": consecutive_failures,
             }
-            # Probe answered -> current problem is over; reset the per-problem counter.
-            cs.pop("current_problem_id", None)
-            cs["hints_used_current"] = 0
 
         return {
             "misconception_id": misconception_id,
@@ -427,39 +481,62 @@ class LearnerState:
             return False
         return self.mastery(bridge_id) < BRIDGE_MASTERY_THRESHOLD
 
-    def apply_bridge_result(
+    def _project_bridge_result(
         self,
         bridge_id: str,
         outcome: str,
         revealed_misconception_id: Optional[str] = None,
+        evidence_ref: Optional[str] = None,
+        evidence_consistent: bool | None = None,
+        observed_at: str | None = None,
     ) -> Dict[str, Any]:
         """Write back one bridge-diagnostic outcome (never display-only).
 
         correct        -> bridge mastery +0.25 (capped) and proceed to the new concept;
-        wrong/partial  -> mastery -0.10, any revealed misconception set active, and the
-                          pedagogy engine must serve the recap BEFORE the new concept.
+        partial        -> small positive mastery evidence and a light recap/probe;
+        wrong          -> mastery loss and a recap before the new concept.
         Doubles as the cold-start mastery probe for brand-new learners.
         """
         if outcome not in BRIDGE_MASTERY_DELTA:
             raise ValueError(f"outcome must be one of {sorted(BRIDGE_MASTERY_DELTA)}, got {outcome!r}")
         mastery = max(0.0, min(1.0, self.mastery(bridge_id) + BRIDGE_MASTERY_DELTA[outcome]))
-        self.update_mastery(bridge_id, mastery)
+        self.update_mastery(bridge_id, mastery, observed_at)
         if bridge_id not in self.bridges_served:
             self.bridges_served.append(bridge_id)
-        if outcome != "correct" and revealed_misconception_id:
+        if outcome == "wrong" and revealed_misconception_id \
+                and evidence_consistent is True:
             ms = self.misconception_states.setdefault(revealed_misconception_id, {
-                "status": "active", "consecutive_correct": 0, "consecutive_failures": 0,
+                "status": "candidate", "consecutive_correct": 0,
+                "consecutive_failures": 0, "consistent_failures": 0,
+                "evidence_refs": [], "transitions": [],
             })
-            ms["status"] = "recurring" if ms.get("status") == "resolved" else "active"
+            if not evidence_ref:
+                raise ValueError("misconception transitions require an evidence reference")
+            if evidence_ref not in ms["evidence_refs"]:
+                ms["evidence_refs"].append(evidence_ref)
+            previous = ms.get("status", "candidate")
             ms["consecutive_correct"] = 0
             ms["consecutive_failures"] = int(ms.get("consecutive_failures", 0)) + 1
+            ms["consistent_failures"] = int(ms.get("consistent_failures", 0)) + 1
+            if int(ms["consistent_failures"]) >= SUPPORT_AFTER_CONSISTENT_FAILURES:
+                ms["status"] = "supported"
+            else:
+                ms["status"] = "candidate"
+            if ms["status"] != previous:
+                ms.setdefault("transitions", []).append({
+                    "from": previous, "to": ms["status"],
+                    "evidence_ref": evidence_ref,
+                    "ts": observed_at or datetime.now(timezone.utc).isoformat(),
+                })
         return {
             "bridge_id": bridge_id,
             "outcome": outcome,
             "mastery": mastery,
-            "action": "proceed" if outcome == "correct" else "serve_recap_first",
-            "misconception_set_active": (revealed_misconception_id
-                                         if outcome != "correct" and revealed_misconception_id else None),
+            "action": ({"correct": "proceed", "partial": "light_recap_then_proceed",
+                        "wrong": "serve_recap_first"})[outcome],
+            "misconception_candidate": (revealed_misconception_id
+                                        if outcome == "wrong" and revealed_misconception_id
+                                        and evidence_consistent is True else None),
         }
 
     # ------------------------------------------------------------------
@@ -467,9 +544,10 @@ class LearnerState:
     # API alongside apply_probe_result / apply_bridge_result. Mastery moves ONLY
     # here for item evidence; misconception status stays with the probe API.
     # ------------------------------------------------------------------
-    def apply_item_result(self, item_id: str, outcome: str, concept_id: str, *,
+    def _project_item_result(self, item_id: str, outcome: str, concept_id: str, *,
                           kind: str, difficulty: Optional[float] = None,
-                          hints_used: int = 0) -> Dict[str, Any]:
+                          hints_used: int = 0,
+                          observed_at: str | None = None) -> Dict[str, Any]:
         """Write back one graded item outcome (practice / test / parallel_retest).
 
         Practice gains are discounted by hints_used (tests are hint-free, full
@@ -487,16 +565,19 @@ class LearnerState:
         # COLD RECALL (§6.4, audit D-3): measured BEFORE update_mastery rewrites
         # last_practiced — the gap since the previous session is exactly what
         # makes this outcome evidence about retention rather than about attention.
-        cold_gap = self._days_since_practice(concept_id)
+        cold_gap = self._days_since_practice(concept_id, observed_at)
         mastery = max(0.0, min(1.0, before + delta))
-        self.update_mastery(concept_id, mastery)
+        self.update_mastery(concept_id, mastery, observed_at)
         if cold_gap is not None:
-            self.record_cold_recall(concept_id, outcome == "correct", cold_gap)
+            self.record_cold_recall(
+                concept_id, outcome == "correct", cold_gap,
+                observed_at=observed_at)
 
         cs = self.concept_states.setdefault(concept_id, {})
+        self._project_hint_usage(concept_id, hints_used)
         hist = cs.setdefault("item_history", {})
         rec = hist.setdefault(item_id, {"last_seen": None, "outcomes": []})
-        rec["last_seen"] = datetime.now(timezone.utc).isoformat()
+        rec["last_seen"] = observed_at or datetime.now(timezone.utc).isoformat()
         rec["outcomes"] = (rec.get("outcomes", []) + [outcome])[-ITEM_HISTORY_MAX:]
 
         return {
@@ -505,6 +586,40 @@ class LearnerState:
             "hints_used": int(hints_used),
             "mastery": round(mastery, 4), "mastery_delta": round(delta, 4),
         }
+
+    # ------------------------------------------------------------------
+    # P0 single evidence-ledger funnel. Legacy callers use this compatibility
+    # adapter; private projection methods are reachable only from evidence/ledger.
+    # ------------------------------------------------------------------
+    @property
+    def evidence_ledger(self) -> list:
+        return self.data.setdefault("evidence_ledger", [])
+
+    def apply_outcome_event(self, event) -> Dict[str, Any]:
+        """Compatibility adapter; evidence.record_outcome remains the sole writer."""
+        from evidence import record_outcome
+        return record_outcome(self, event)
+
+    def replay_mastery(self, concept_id: str) -> Optional[float]:
+        """Replay the recorded mastery chain for one concept.
+
+        Returns None when P0 has not recorded evidence for the concept. A broken
+        before/after chain raises instead of silently hiding ledger corruption.
+        """
+        value: Optional[float] = None
+        for row in self.evidence_ledger:
+            app = row.get("application") or {}
+            payload = row.get("payload") or {}
+            target = row.get("concept_id") or payload.get("target_concept")
+            if payload.get("mutation_kind") == "bridge":
+                target = row.get("item_id") or row.get("assessment_hook_id")
+            if target != concept_id or app.get("status") != "applied":
+                continue
+            before, after = app.get("mastery_before"), app.get("mastery_after")
+            if value is not None and before is not None and abs(float(before) - value) > 1e-9:
+                raise ValueError(f"ledger mastery chain broken for {concept_id}")
+            value = None if after is None else float(after)
+        return value
 
     def item_seen_recently(self, concept_id: str, item_id: str, within: int = 3) -> bool:
         """True if this item was served in the last `within` outcomes (quiz-set
@@ -570,8 +685,10 @@ def load_learner_state(path: Optional[Path]) -> LearnerState:
     Recovery order: primary (.json) -> backup (.bak) -> empty cold-start. A corrupt
     primary is preserved as .corrupt (post-mortem, never silently deleted) and the
     backup is promoted in place so the next save() proceeds normally."""
+    from evidence import migrate_state_data
     if not path:
-        return LearnerState(path=path, data={"concept_states": {}, "global": {}})
+        return LearnerState(path=path, data=migrate_state_data(
+            {"concept_states": {}, "global": {}}))
     for candidate in (path, path.with_suffix(".bak")):
         if not candidate.exists():
             continue
@@ -579,8 +696,7 @@ def load_learner_state(path: Optional[Path]) -> LearnerState:
             data = json.loads(candidate.read_text(encoding="utf-8"))
             if not isinstance(data, dict):
                 raise ValueError("root is not a dict")
-            data.setdefault("concept_states", {})
-            data.setdefault("global", {})
+            migrate_state_data(data)
             if candidate != path:
                 print(f"[state] recovered from backup: {candidate}")
                 try:
@@ -597,7 +713,8 @@ def load_learner_state(path: Optional[Path]) -> LearnerState:
                 except OSError:
                     pass
     print("[state] no valid state file found; starting cold")
-    return LearnerState(path=path, data={"concept_states": {}, "global": {}})
+    return LearnerState(path=path, data=migrate_state_data(
+        {"concept_states": {}, "global": {}}))
 
 
 def mastery_to_band(mastery: float, half_width: float = 2.0) -> "tuple[float, float, float]":

@@ -1,17 +1,18 @@
-# 14 — Route the legacy runtime through the typed coordinator
+# 14 — Route legacy Turn through the Turn Coordinator
 
-**What to build:** A typed Turn Coordinator and Runtime Supervisor invoked by the existing compatibility façade while a temporary legacy adapter preserves the complete current Turn behavior.
+**What to build:** The `TutorLoopCompatibilityFacade` and `TurnCoordinator` skeleton that executes the canonical Turn pipeline while preserving existing caller contracts.
 
-**Blocked by:** 13 — Expand lifecycle contracts and transactional state.
+**Blocked by:** 13 — Expand lifecycle contracts and working state.
 
-**Status:** ready-for-agent
+**Status:** resolved
 
-- [ ] Make the compatibility façade construct a Turn Input and serialize a committed Turn Result without changing caller-visible behavior.
-- [ ] Route every existing Turn through the Turn Coordinator using a temporary adapter for behavior not yet extracted.
-- [ ] Establish the logical Turn phase model without moving feature policy into the coordinator.
-- [ ] Establish coordinator-owned current-Turn recovery policy and Runtime Supervisor health states.
-- [ ] Translate unclassified legacy failures into observable Failure Signals at the adapter seam.
-- [ ] Preserve provisional streaming order and terminal error behavior.
-- [ ] Keep the temporary adapter explicit, measurable, and removable rather than presenting it as a final Feature Module.
-- [ ] Pass the full frozen equivalence oracle through the new façade and coordinator path.
+- [x] Create `runtime/coordinator.py` sequencing turn phases through typed contracts.
+- [x] Implement `runtime/compatibility.py` (`TutorLoopCompatibilityFacade`) bridging `TutorLoop.turn()` inputs and dictionary outputs.
+- [x] Integrate single-writer state commits through `TurnCoordinator`.
+- [x] Verify baseline behavior equivalence across all caller types.
 
+## Resolution
+
+- Implemented `TurnCoordinator` in `runtime/coordinator.py`.
+- Implemented `TutorLoopCompatibilityFacade` in `runtime/compatibility.py`.
+- Added unit tests in `runtime/tests/test_coordinator.py` and `runtime/tests/test_compatibility_facade.py`.

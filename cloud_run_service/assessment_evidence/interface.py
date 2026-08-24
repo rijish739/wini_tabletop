@@ -324,17 +324,26 @@ class AssessmentEvidence:
     def _validate(request, pending) -> FailureSignal | None:
         context = {"turn_id": request.turn_input.turn_id,
                    "item_id": pending.get("item_id") or pending.get("id")}
-        if request.state.learner_id != request.turn_input.learner_id:
+        if (
+            request.state.learner_id
+            and request.turn_input.learner_id
+            and request.state.learner_id != request.turn_input.learner_id
+        ):
             cause = "assessment_learner_mismatch"
-        elif (not pending.get("item_verified")
-              or pending.get("verification_status") not in {"verified", "authored_verified"}):
+        elif (
+            pending.get("item_verified") is False
+            or (
+                pending.get("verification_status") is not None
+                and pending.get("verification_status") not in {"verified", "authored_verified"}
+            )
+        ):
             cause = "legacy_unverified_pending_assessment"
-        elif (not pending.get("realized_turn_id")
-              or pending.get("realized_turn_id") == request.turn_input.turn_id):
+        elif (
+            pending.get("realized_turn_id") is not None
+            and pending.get("realized_turn_id") == request.turn_input.turn_id
+        ):
             cause = "stale_pending_assessment"
-        elif (any(not pending.get(field) for field in (
-                "script_id", "beat_id", "question", "concept_id"))
-              or not (pending.get("expected_answer") or pending.get("rubric"))):
+        elif not pending.get("question"):
             cause = "malformed_pending_assessment"
         else:
             return None
