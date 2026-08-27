@@ -1,28 +1,27 @@
 # Wini Pedagogical System — Project Rules
 
-> **Entry point:** `WINI_ARCHITECTURE.md` is the end-to-end overview and index to every
-> document below. It sits *above* the lockstep set; update it when the system's external
-> shape changes (it does not carry authoritative contracts, so it is not part of the
-> lockstep propagation requirement).
+## Source of truth (replaces the former 4-doc lockstep rule)
 
-## The 4-doc lockstep rule (MANDATORY)
+The lockstep set (`learner_cognitive_state_architecture.md`, `RAG_upgrade_plan.md`,
+`model_dataset_architecture_report.md`, `complete_architecture_build_plan.md`) has been
+**archived** (`docs/archive/`). Four-way manual propagation is unmaintainable; those
+documents drifted apart while all four still claimed authority. Their replacement:
 
-These four documents describe one system and MUST stay consistent. Any change to one
-must be propagated to the others in the same work session, plus the work log:
+| What you need | Where to find it |
+|---|---|
+| Layer boundaries, per-layer contracts, system-wide invariants | **`docs/architecture/WINI_ARCHITECTURE.md`** (normative) |
+| Safety taxonomy, detection architecture, evaluation floors | **`docs/architecture/SAFETY_ROUTE_TAXONOMY.md`** (normative) |
+| Personal-data detection, redaction, sinks, retention | **`docs/architecture/PERSONAL_DATA_CONTRACT.md`** (normative) |
+| Domain vocabulary (Utterance, Feature Module, Turn, …) | **`CONTEXT.md`** |
+| Measured numbers (store, datasets, eval scores) | The dated record that measured them — never restated in the above |
+| Append-style work log | `docs/archive/rag_memory.md` |
 
-| # | Document | Role |
-|---|---|---|
-| 1 | `learner_cognitive_state_architecture.md` | WHAT the system models (source of truth for schemas, signals, contracts) |
-| 2 | `RAG_upgrade_plan.md` | HOW the store carries those structures (build/verify plan; executed, see rag_memory.md) |
-| 3 | `model_dataset_architecture_report.md` | datasets + neural models that realize the architecture |
-| 4 | `complete_architecture_build_plan.md` | execution status of every Part (1–10) with measured results |
+**Precedence rule (when two documents disagree):** `CONTEXT.md` vocabulary > `WINI_ARCHITECTURE.md`
+> the two contracts (each is authoritative in its own area) > dated measurement records. Among
+measurement records, the most recently measured date wins.
 
-- `rag_memory.md` is the append-style WORK LOG for store work; major incidents and
-  lessons go there too.
-- Propagation checklist when you change behavior/schema: update the build plan's Part
-  section with measured results → check the architecture doc still describes the
-  contract correctly → check the report's dataset/model numbers → log gotchas.
-- Never edit a number in a doc without re-measuring it.
+**The propagation obligation is gone.** A number lives in exactly one place. Re-measuring means
+writing a new record; it does not mean editing a sentence in the architecture document.
 
 ## Hard mandates
 
@@ -111,13 +110,74 @@ must be propagated to the others in the same work session, plus the work log:
   out-of-catalog concept/signal/intent — but it can still pick a wrong-but-valid one. Keep the
   local validation belt (coerce OOV→INHERIT/drop) AND gate signal firing on
   `PERCEPTION_SIGNAL_THRESHOLD` (calibrated on the frozen TEST split), never on the raw score.
-- **The deterministic SAFETY gate must be near-total on its own** (Part 11) — the Gemini
-  `safety` flag may only *add* recall, never remove it. First-pass lexicon scored 0.75 recall
-  (missed gerunds "ending my life" vs "end my life" and oblique phrasings); broaden and
-  **measure gate recall directly** (`python -m eval.perception_eval --gates`), don't lean on
-  the model for the safety floor. `perception/gemini_perception.py` `score_matrix` is
-  turn-scoped (policy-shadow use), and one Gemini call/turn is memoized by *normalized* text —
-  keep `InputProcessor.normalize_input` idempotent.
+- **SAFETY: the architecture was inverted on 2026-08-26 — DECIDED, NOT YET IMPLEMENTED.**
+  Read `docs/architecture/SAFETY_ROUTE_TAXONOMY.md` (normative) before touching anything on
+  the safety path; decision log in
+  `.scratch/deterministic-input-layer/issues/07-decide-the-safety-route-taxonomy.md`.
+  - **What the code does TODAY** (unchanged until the implementation lands): the regex
+    lexicon in `perception/gates.py` is the primary detector and the floor, and Gemini's
+    `safety` boolean is an additive net. `gates.py:5-9`'s docstring still describes this.
+  - **What was decided:** a dedicated Gemini call in a new `cloud_run_service/child_safety/`
+    package becomes the **primary** detector (every turn, parallel to perception, its own
+    prompt/schema/context-cache/eval, `VERTEX_SAFETY_MODEL`/`VERTEX_SAFETY_LOCATION`
+    defaulting to `gemini-2.5-flash@asia-south1` with the version **pinned**, 5s hard
+    wall-clock + one retry, late verdicts still count). The lexicon survives **only** as the
+    degraded-mode outage net: axis-only, `{UNSPECIFIED_CONCERN}`/`ELEVATED`, never
+    `CRITICAL`, frozen and CI-maintained.
+  - **The invariant that survives, retargeted:** *nothing may ever remove a finding, whatever
+    made it.* Model verdict is the verdict; perception's bit unions in; the net contributes
+    only on failure; a late verdict unions; **severity is derived at exactly one site** and
+    written by no detector.
+  - **Do not trust the shipped "SAFETY recall 1.0."** MEASURED 2026-08-26: it is computed on
+    a 20-phrase corpus that mirrors the lexicon (`eval/perception_eval.py:120-141` and
+    `eval/perception_eval_safety.jsonl` are the same 20 phrases), and the promotion gate
+    hard-codes `>= 1.0` against it. `python -m eval.perception_eval --gates` does not even run
+    from the repo root (imports `perception.gates`; there is no root `perception/`). Real
+    holes measured: peer-at-risk and online solicitation are **total misses**, 6 of 9
+    self-harm probes land in the tier-2 catch-all, and `i do not want to die in this level` is
+    a tier-3 **false positive**.
+  - **The measurement rule replaces "measure gate recall directly":** measure **model** recall
+    on **blind per-class corpora** (written against the taxonomy doc's definitions, never
+    against the patterns), **publish no aggregate safety number anywhere**, and re-run
+    `eval/safety_eval.py` before any prompt / schema / model / region / cache / version change
+    — a model's safety recall moves silently in ways a regex's never did.
+  - Unrelated but still true: `perception/gemini_perception.py` `score_matrix` is turn-scoped
+    (policy-shadow use), and one Gemini call/turn is memoized by *normalized* text — keep
+    `InputProcessor.normalize_input` idempotent. (Ticket 02 moves that memo key to
+    `utterance_id`; until then, idempotency still matters.)
+- **PERSONAL DATA: contract DECIDED 2026-08-27, NOT YET IMPLEMENTED.** Read
+  `docs/architecture/PERSONAL_DATA_CONTRACT.md` (normative) before touching redaction, logging
+  of learner text, or the generation prompt; decision log in
+  `.scratch/deterministic-input-layer/issues/09-decide-the-personal-data-contract.md`. Three
+  things to know before you touch anything nearby: today there is **no detector at all** and
+  `_log_shift`/`_log_nonlearning` write the child's raw turn to `learning_log.jsonl`
+  (`tutor_loop.py:1856`, `:1884` — the latter redacts only on a `safety_alert` turn); detection
+  is decided as **model-only with no regex fallback**, because a pattern detector scores
+  F1 0.379 on maths dialogue by eating the maths; and personal data is **off the safety axis**
+  (annotation, never a route) with the §3 write boundary landing on **fields, not turns** —
+  there is no do-not-learn-from-this-turn flag.
+- **CONCEPT INHERITANCE: partly executed, resolution UNOWNED (2026-08-27).** Read
+  `cloud_run_service/concept_resolver/CONCEPT_RESOLUTION_HANDOVER.md` before touching anything
+  that decides which concept an utterance is about; decision log in
+  `.scratch/deterministic-input-layer/issues/12-decide-where-coreference-confidence-lives.md`.
+  - **Measure first, always:** **35.5%** of the frozen hardened run predicts
+    `INHERIT_CURRENT_CONCEPT`, and **gold says 39.2% should** (`eval/perception_eval_raw2.jsonl`,
+    1019 rows, offline). "Carry the session's concept" is the *correct* answer for ~2 in 5
+    utterances. Deleting inheritance globally breaks the common case to fix a rare one — do not
+    treat docx §8/§14 as license to rip it out.
+  - **`INHERIT_CURRENT_CONCEPT` is a historical name.** It means *the model declined to name a
+    concept*. It stays welded to the response schema, prompt-of-record, context cache, dataset
+    gold and `eval/perception_eval.py:64`; do not rename it.
+  - **Five silent-inherit sites existed.** Three are deleted by the input-layer effort (the drift
+    guard `control.py:427-436`, and the duplicate suppliers `legacy_adapter.py:102` / `:215` /
+    `:245`). **Two survive on purpose** — `perception/interface.py:151-153` (abstain) and
+    `_degraded` (outage) — and are the concept resolver's first two deletions, not yours.
+  - **Concept resolution is bigger than `concept_resolver/resolver.py`.** That file is a
+    stateless MiniLM scorer and becomes a *component* of the layer; the layer owes chat-history
+    reading and a follow-up question requested from pedagogy. It does not exist yet.
+  - **Invariant:** `concept_id is None` ⇒ no learner-state write and no mastery movement.
+  - Docx §8's three bands, §14's coreference row and §16's clarification-UI item are **unmet and
+    unowned**. Do not describe the system as satisfying them.
 
 ## Quick commands
 

@@ -1,5 +1,9 @@
 # RAG Store Upgrade Plan — HOPE Metrics + Cognitive-State Architecture Alignment
 
+**Status: ARCHIVED 2026-08-27 (ticket 18).** Was lockstep doc 2 (store build/verify plan).
+Now a **dated measurement record**; the build results it contains are the measurements, not
+the current architecture.
+
 **Goal:** Upgrade the `rag_store/` Graph-RAG data so it fully supports the
 [learner cognitive state architecture](learner_cognitive_state_architecture.md) and the HOPE
 learning-quality metrics (KI — knowledge integration, KT — knowledge transfer, CT — critical

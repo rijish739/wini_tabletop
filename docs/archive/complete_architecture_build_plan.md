@@ -1,5 +1,9 @@
 # Complete Architecture — Build Plan
 
+**Status: ARCHIVED 2026-08-27 (ticket 18).** Was lockstep doc 4 (execution status of every
+Part 1–10 with measured results). Now a **dated measurement record**; results here are from
+the time of writing. See `docs/archive/rag_memory.md` for the ongoing work log.
+
 Execution plan for implementing `learner_cognitive_state_architecture.md` end-to-end.
 Derived from the architecture doc, `model_dataset_architecture_report.md`, and the finished
 RAG store work (`rag_memory.md`: 18/18 scorecard PASS, schema v2, 1,017 chunks, 3,562 nodes).
@@ -1013,6 +1017,19 @@ joins are smoother than ordinary speech transitions. No clicks, no gaps, no reor
 | gate | result |
 |---|---|
 | `perception_eval --build --gates` | safety recall **1.0** (20/20), nonsense **1.0** (9/9), `learning_false_gate` 0 |
+
+> **SAFETY superseded 2026-08-26 (ticket 07) — DECIDED, NOT YET IMPLEMENTED.** That
+> "safety recall 1.0 (20/20)" grades the lexicon against a 20-phrase corpus that mirrors it,
+> so it is memorization rather than evidence; measured holes include peer-at-risk and online
+> solicitation (total misses) and a tier-3 false positive on `i do not want to die in this
+> level`. The decided architecture makes a dedicated Gemini call
+> (`cloud_run_service/child_safety/`) the **primary** detector and demotes the lexicon to a
+> degraded-mode outage net, with per-class blind-corpus floors and **no aggregate safety
+> number permitted anywhere**. Contract of record:
+> `docs/architecture/SAFETY_ROUTE_TAXONOMY.md`; decision log
+> `.scratch/deterministic-input-layer/issues/07-decide-the-safety-route-taxonomy.md`.
+> Numbers in this plan stand as historical measurements of the shipped code and are not
+> re-stated until the implementation lands.
 | `behavioral_eval --hardened --replay` | **PASS** — G1 0.8571, G2 0.8889, G3 0.0000 |
 | `perception.test_perception --integration` | **PASS** — shapes, session policy, visual/purpose routing, topic shift, gates + belt + front door |
 
