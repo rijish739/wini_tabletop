@@ -282,8 +282,11 @@ code are **unmodified** — `GeminiPerception` is injected as classifier+resolve
   `safety_alerts` + supervisor console alert; NONSENSE → scripted; both preserve `pending_check`
   and move **no** cognitive state; a LEARNING utterance passes through to the normal pipeline
   unchanged. `python -m perception.test_perception --integration` passes.
-- **8-row live Gemini smoke:** 0 parse/transport errors, intent macro-F1 1.0, safety recall 1.0
-  (full concept/signal numbers pending the 999-row run — `eval/perception_eval_report.md`).
+- **8-row live Gemini smoke:** 0 parse/transport errors, intent macro-F1 1.0. (The
+  "safety recall 1.0" figure once reported here was deleted 2026-08-27: it was measured
+  on a corpus that mirrors the lexicon it grades. Safety recall is measured per-class
+  against blind corpora — see `docs/architecture/SAFETY_ROUTE_TAXONOMY.md` §10. Full
+  concept/signal numbers pending the 999-row run — `eval/perception_eval_report.md`.)
 
 ### 10.3 Gotchas (new this increment)
 - **G9 — Enums stop *invented* concepts, not *wrong* ones.** `response_schema` enum-masks

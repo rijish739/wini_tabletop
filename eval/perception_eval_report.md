@@ -10,7 +10,6 @@
 | Concept top-3 | 0.9900 | ≥ 0.971 | PASS |
 | Signals — behavioral state-trajectory eval (`behavioral_eval_report.md`) | PASS | 3 pre-fixed gates | PASS |
 | Intent macro-F1 (non-safety) | 1.0000 | ≥ 0.9 | PASS |
-| SAFETY recall (gate floor) | 1.0000 | ~1.0 | PASS |
 | No LEARNING falsely gated | 0 | 0 | PASS |
 | Concept rows graded | 600 | — | — |
 
@@ -56,8 +55,12 @@ Calibrated operating point **t=0.5**: micro **0.3896** / macro **0.2927** (max m
 | 0.9 | 0.1513 | 0.0624 |
 | 0.95 | 0.0007 | 0.0050 |
 
-## Deterministic gate coverage (offline, model-independent — the safety floor, §4.2)
-- SAFETY gate recall: **1.0** (20/20)
+## Deterministic gate coverage (offline, model-independent)
+> Raw coverage over the fixed gate corpora, **not** a validated recall figure:
+> the safety corpus mirrors the lexicon it grades, so its coverage is
+> memorization. Safety recall is measured per-class against blind corpora —
+> see `docs/architecture/SAFETY_ROUTE_TAXONOMY.md` §10.
+- SAFETY gate coverage over the mirror corpus: 20/20 (memorization, not recall)
 - NONSENSE gate recall: **1.0** (9/9)
 - LEARNING utterances falsely gated: **0** (must be 0)
 
@@ -76,5 +79,5 @@ python -m eval.perception_eval --collect --limit 8  # small smoke
 1. Full `--collect` (all 999 TEST rows) then `--score`.
 2. Concept top-1 ≥ 0.895 and top-3 ≥ 0.971 (near-miss now; empty-secondary artifact — recoverable via §5.5 concept hardening).
 3. Signals: the state-material-vs-heads gate above is a **label-reproduction proxy the heads win by construction** — supersede it with a **behavioral state-trajectory eval** before promoting (see the honest note).
-4. Intent macro-F1 acceptable; SAFETY gate recall ~1.0. (Both PASS.)
+4. Intent macro-F1 acceptable (PASS). Safety recall is measured per-class against blind corpora (SAFETY_ROUTE_TAXONOMY.md §10), not as an aggregate here.
 5. Re-measure, then edit the four lockstep docs with the measured numbers.

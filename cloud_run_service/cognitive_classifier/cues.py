@@ -1,5 +1,16 @@
 """Deterministic surface cues shared by dataset curation and the runtime classifier.
 
+--------------------------------------------------------------------------
+FROZEN — OFFLINE TOOLING ONLY (ticket 17, 2026-08-27).
+The 9-cue feature vector no longer runs at runtime: `score_matrix()` zero-fills
+the cue dims so the shipped logreg keeps working without a re-fit (the rebuild
+path was lost in `5b847a1`). `cue_features` / `cue_matrix` below remain for
+offline tooling and dataset curation ONLY — do NOT add them back to any runtime
+scoring path. A re-fit would require restoring `build_bank.py` from `5b847a1^`
+first. PolicyShadow, the vector's only other consumer, is retired from the
+runtime. See CLAUDE.md "Known gotchas".
+--------------------------------------------------------------------------
+
 Two consumers:
   1. curate_dataset.py uses the regexes as GOLD RULES for the three
      rule-governed labels (question, request_hint, simplification_request),

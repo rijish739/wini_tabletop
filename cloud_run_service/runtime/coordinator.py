@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 
 class TurnPhase(str, Enum):
     ADMISSION_AND_ROUTING = "admission_and_routing"
+    UTTERANCE_INTAKE = "utterance_intake"
     PERCEPTION_AND_PRIOR_GRADING = "perception_and_prior_grading"
     STATE_PROJECTION_AND_PEDAGOGY = "state_projection_and_pedagogy"
     GROUNDED_RETRIEVAL = "grounded_retrieval"
@@ -143,6 +144,7 @@ class TurnCoordinator:
         adapter: TemporaryLegacyAdapter,
         supervisor: RuntimeSupervisor,
         interaction_control: "InteractionControlInterface",
+        utterance_intake: Any = None,
         perception: "PerceptionInterface | None" = None,
         assessment_evidence: "AssessmentEvidenceInterface | None" = None,
         pedagogy: "PedagogyInterface | None" = None,
@@ -154,6 +156,7 @@ class TurnCoordinator:
         self._adapter = adapter
         self._supervisor = supervisor
         self._interaction_control = interaction_control
+        self._utterance_intake = utterance_intake
         self._perception = perception
         self._assessment_evidence = assessment_evidence
         self._pedagogy = pedagogy
@@ -164,11 +167,23 @@ class TurnCoordinator:
 
     def run(self, turn_input: TurnInput) -> CoordinatedTurn:
         interaction_request = self._adapter.interaction_request(turn_input)
+        # TurnPhase.UTTERANCE_INTAKE — runs before PERCEPTION_AND_PRIOR_GRADING.
+        # Total, write-free, session-pure: it can only add a typed observation.
+        observation = None
+        if self._utterance_intake is not None and turn_input.utterance is not None:
+            from utterance_intake import UtteranceIntakeRequest
+
+            observation = self._utterance_intake.observe(
+                UtteranceIntakeRequest(turn_input=turn_input)
+            ).value
         perception_failures: tuple[FailureSignal, ...] = ()
         if self._perception is not None:
-            perception = self._perception.perceive(
-                self._adapter.perception_request(turn_input)
-            )
+            perception_request = self._adapter.perception_request(turn_input)
+            if observation is not None:
+                perception_request = replace(
+                    perception_request, observation=observation
+                )
+            perception = self._perception.perceive(perception_request)
             perception_failures = perception.failures
             perception_actions = tuple(
                 self._recovery_policy.decide(failure)

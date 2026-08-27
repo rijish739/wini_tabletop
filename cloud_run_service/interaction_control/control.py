@@ -24,6 +24,8 @@ from runtime.contracts import (
     deep_thaw,
 )
 
+from .safety_composition import compose_safety_alert
+
 
 class InteractionDisposition(str, Enum):
     COMPLETE = "complete"
@@ -226,7 +228,9 @@ class InteractionControl:
             else self._dependencies.deterministic_route(text)
         )
         if route is not None:
-            if bool(getattr(route, "safety_alert", False)):
+            if compose_safety_alert(
+                perception_safety_alert=bool(getattr(route, "safety_alert", False))
+            ):
                 route.primary = "SAFETY"
                 self._record_safety(request.turn_input, text, route, session)
             compatibility, failures = self._complete_nonlearning(
@@ -307,7 +311,9 @@ class InteractionControl:
             if perception is not None
             else getattr(route, "uncertain", False)
         )
-        if route is not None and bool(getattr(route, "safety_alert", False)):
+        if route is not None and compose_safety_alert(
+            perception_safety_alert=bool(getattr(route, "safety_alert", False))
+        ):
             route.primary = "SAFETY"
             self._record_safety(request.turn_input, text, route, session)
         if (

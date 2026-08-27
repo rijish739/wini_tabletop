@@ -1,0 +1,42 @@
+name: ci
+
+# The deterministic-input-layer verification gate, executable form. See
+# .scratch/deterministic-input-layer/spec.md ("The verification gate") and
+# cloud_run_service/utterance_intake/VERIFICATION.md — the "what a green run does
+# NOT mean" statement lives at the top of that document, verbatim.
+#
+# Ticket 01 ships the `offline` job only. The billed jobs (`billed-safety`,
+# `billed-personal-data`) arrive with the child_safety (ticket 12) and
+# personal_data (ticket 13) cutovers, behind a GitHub Environment with required
+# reviewers and a WIF_PROVIDER secret (ticket 10). Every check named in the
+# spec's pass set corresponds to a step here; a check with no step is a spec bug.
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  offline:
+    # Free lane: no credentials, no network at run time, runs in seconds. Always
+    # safe to run. Any external model in Intake sits behind an injected
+    # dependency, so the suite passes with GOOGLE_APPLICATION_CREDENTIALS unset.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install offline test dependencies
+        # numpy + networkx are declared runtime deps exercised by the coordinator
+        # tests; pytest is installed only so unittest discover can import the
+        # legacy cognitive_input_processor spike module (deleted by ticket 11).
+        run: python -m pip install --upgrade pip numpy networkx pytest
+      - name: Utterance Intake contract + conformance + corpus integrity
+        working-directory: cloud_run_service
+        run: python -m unittest discover -s utterance_intake/tests -v
+      - name: Runtime coordinator, phase trace, and turn-level properties
+        working-directory: cloud_run_service
+        run: python -m unittest discover -s runtime/tests -v
+      - name: Full offline suite across every cloud_run_service module
+        working-directory: cloud_run_service
+        run: python -m unittest discover -s . -p "test_*.py" -v

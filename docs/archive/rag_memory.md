@@ -1149,3 +1149,37 @@ because the repository lacks the documented runtime artifacts.
 - Verification: 93/93 full discovery passed; the 27-case frozen oracle self-check
   found zero differences (known incomplete model-artifact replay status unchanged).
 - No store, index, embedding, dataset, prompt, or measured model result changed.
+
+# 2026-08-27 — Deterministic input layer, slice 01 (contract freeze + walking skeleton + CI)
+
+- Froze the Utterance Intake output contract as final shapes: `Utterance` /
+  `UtteranceSource` / `UtteranceProvenance` / `WordConfidence` in `runtime/contracts.py`;
+  `UtteranceObservation` + `Authorization` + `SafetySignals` + `Legibility` / `Problem` /
+  `Reference` readings + `TranscriptReading` / `MathParse` / `ParseOutcome` / `DoubtCause` /
+  `Span` in `utterance_intake/observation.py`. Invariants raise, never clamp. Five required
+  non-defaulted readings (no `privacy` slot — personal-data detection is model-only). No
+  `cue_matrix` field; no float fields except on the embedded `Utterance`.
+- Shipped a shared golden-fixture conformance harness
+  (`utterance_intake/tests/fixtures/intake_observations.jsonl` + `tests/harness.py`): any
+  `observe()` implementation passes it and any consumer imports `stub_observation` from it.
+- Froze the safety-verdict composition entry point
+  (`interaction_control/safety_composition.py`); its body today is the LEXICON reading ∪
+  perception's bit. The legacy-20 regression test calls it and is never edited at the
+  child_safety cutover (slice 12 changes only the body).
+- Walking skeleton wired: `TurnPhase.UTTERANCE_INTAKE` inserted before
+  `PERCEPTION_AND_PRIOR_GRADING` (`_validate_phase_trace` green); `TurnInput.utterance` added;
+  `runtime/compatibility.py` mints TYPED provenance; `gate()` reads the observation as a pure
+  translation; Perception reads `observation.normalized_text` end-to-end. Legacy
+  `interaction["text"]` / `stt_confidence` stay live until slice 11.
+- CI `offline` job (`.github/workflows/ci.yml`) runs `unittest discover` across the modules,
+  the conformance suite, and the corpus-integrity shell — green from day one.
+- Docs truth pass: deleted the false `SAFETY recall 1.0` figure at its retraction-manifest
+  sites (`eval/perception_eval.py`, `eval/perception_eval_report.md`,
+  `cloud_run_service/eval/perception_stress{.py,_report.md}`,
+  `docs/runbooks/CLOUD_VOICE_STATUS_AND_GOTCHAS.md`), replacing it with a pointer to
+  `SAFETY_ROUTE_TAXONOMY.md` §10; added the `cues.py` frozen header; added the `gates.py`
+  docstring notice that the lexicon is no longer the primary detector.
+- Gotcha: the safety corpus (`eval/perception_eval_safety.jsonl`, 20 phrases) mirrors the
+  lexicon it grades, so its coverage is memorization, not recall — never publish it as a
+  safety-recall figure.
+- Measured: full offline suite green (152 tests) with `numpy networkx pytest` installed.

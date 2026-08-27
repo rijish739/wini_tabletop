@@ -42,6 +42,10 @@ class PerceptionRequest:
     turn_input: TurnInput
     session: Mapping[str, Any]
     learner_state: Mapping[str, Any] | None = None
+    # The Utterance Intake observation, threaded by the Turn Coordinator when the
+    # UTTERANCE_INTAKE phase ran. Perception reads its `normalized_text`; the
+    # legacy interaction["text"] channel stays live until legacy deletion.
+    observation: Any = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -98,8 +102,17 @@ class Perception:
         self, request: PerceptionRequest
     ) -> ModuleOutcome[PerceptionObservation]:
         interaction = deep_thaw(request.turn_input.interaction)
-        text = str(interaction.get("text") or "")
-        deterministic = gate(text)
+        # Walking skeleton (ticket 01): when the UTTERANCE_INTAKE phase produced
+        # an observation, read the one published normalized form and translate
+        # the front-door gate from the observation's readings. The legacy
+        # interaction["text"] channel stays live for turns without an observation.
+        observation = getattr(request, "observation", None)
+        if observation is not None:
+            text = observation.normalized_text
+            deterministic = gate(observation)
+        else:
+            text = str(interaction.get("text") or "")
+            deterministic = gate(text)
         if deterministic is not None:
             return ModuleOutcome(value=self._from_route(deterministic, {}))
 
