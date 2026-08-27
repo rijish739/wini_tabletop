@@ -154,7 +154,7 @@ class MathParse:
         object.__setattr__(self, "competing", tuple(self.competing))
         if (self.span is None) != (self.outcome is ParseOutcome.PASSTHROUGH):
             raise ValueError("span is None iff outcome is PASSTHROUGH")
-        if (self.interpretation is not None) and self.outcome is not ParseOutcome.ACCEPT:
+        if (self.interpretation is not None) != (self.outcome is ParseOutcome.ACCEPT):
             raise ValueError("interpretation is set iff outcome is ACCEPT")
         if self.competing and self.outcome is not ParseOutcome.REFUSE_AMBIGUOUS:
             raise ValueError("competing readings only on REFUSE_AMBIGUOUS")

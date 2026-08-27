@@ -196,9 +196,11 @@ writing a new record; it does not mean editing a sentence in the architecture do
 
 ## Quick commands
 
-- Rebuild classifier: `python -m cognitive_classifier.build_bank` (curate first if rules changed)
+- Rebuild classifier / policy shadow / curate dataset: **UNREPRODUCIBLE** — `build_bank.py`,
+  `build_policy.py` and `curate_dataset.py` were deleted by `5b847a1` and no longer exist. The
+  shipped logreg + policy artifacts are frozen; a re-fit requires restoring `build_bank.py` from
+  `5b847a1^` first (see the `cues.py` gotcha). PolicyShadow is retired from the runtime.
 - Rebuild resolver: `python -m concept_resolver.build_resolver`
-- Rebuild policy shadow: `python -m policy_shadow.build_policy`
 - Analyzer tests: `python -m cognitive_analyzer.test_analyzer --integration`
 - Rebuild perception schema/cache: `python -m perception.build_perception` (regen enums + cached block from artifacts)
 - Perception tests: `python -m perception.test_perception [--integration]` (gates + belt + front door)

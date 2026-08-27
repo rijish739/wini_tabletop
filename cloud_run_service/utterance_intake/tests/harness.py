@@ -101,7 +101,8 @@ def stub_observation(
             illegible=legibility_cue is not LegibilityCue.LEGIBLE, cue=legibility_cue
         )
     elif illegible:
-        legibility = _legibility(normalized) if _legibility(normalized).illegible else (
+        computed = _legibility(normalized)
+        legibility = computed if computed.illegible else (
             LegibilityReading(illegible=True, cue=LegibilityCue.NO_LEXICAL_CONTENT)
         )
     else:
