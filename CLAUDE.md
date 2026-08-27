@@ -93,6 +93,14 @@ writing a new record; it does not mean editing a sentence in the architecture do
   back to any runtime scoring path. If a rebuild ever becomes possible, re-fit requires
   restoring `build_bank.py` from `5b847a1^` first. **PolicyShadow** is retired from the
   runtime entirely — its only consumer was a log line.
+  **Zero-fill scope (decided 2026-08-27):** the zero-fill only affects
+  `ExemplarCognitiveClassifier.score_matrix()`. In the Gemini runtime `TutorLoop.__init__`
+  passes `GeminiPerception` as both classifier and resolver to `CognitiveAnalyzer`, so
+  `GeminiPerception.classify()` — not `ExemplarCognitiveClassifier` — feeds
+  `derive_cognitive_update` / `derive_state_deltas`. `ExemplarCognitiveClassifier` is called
+  only in offline evals and the §5.5 cross-check (where score bias is bounded and acceptable).
+  **The legacy classifier is offline-only.** Do not wire it back into any production turn
+  path — use `GeminiPerception` for all runtime signal/state-math inputs.
 - Bulk-LLM scripts need hard wall-clock timeouts around every call (ThreadPoolExecutor
   `.result(timeout=...)` for SDK clients, `requests(timeout=...)` for the Qwen server);
   SDK-level HttpOptions timeouts have stalled for hours.

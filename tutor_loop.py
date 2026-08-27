@@ -1,3 +1,6 @@
+# FIXME(shotgun-surgery): this file is duplicated at cloud_run_service/tutor_loop.py.
+# Every logical change must currently be applied to both files.  Track the
+# consolidation work in a dedicated ticket — do NOT fold it into feature work.
 """Tutor loop v1 (build plan Part 7, architecture section 7) — fully local.
 
 Wires the runtime described in architecture section 19:
@@ -1356,25 +1359,49 @@ class TutorLoop:
     def current_concept(self):
         return self.state.data.setdefault("session", {}).get("current_concept")
 
-    @property
-    def processor(self):
-        proc = getattr(self, "_processor", None)
-        if proc is None:
-            from cognitive_input_processor.input_processor import InputProcessor
-            proc = InputProcessor()
-            self._processor = proc
-        return proc
+    _ANAPHORA_RE = re.compile(r"\b(this|that|it|these|those|the same|here)\b", re.I)
 
     def _is_anaphoric_followup(self, text: str) -> bool:
-        """Delegate to the deep InputProcessor module."""
-        return self.processor.is_anaphoric_followup(text)
+        """A short utterance that back-references the current topic ("solve this with
+        graph", "why is it a parabola"). A longer utterance likely names its own topic,
+        so it is not treated as a follow-up (the context-drift guard stays conservative)."""
+        t = (text or "").strip()
+        if not t or len(t.split()) > 12:
+            return False
+        return bool(self._ANAPHORA_RE.search(t))
+
+    #: An explicit request for a *fresh* example ("give me another example",
+    #: "a different sum") — the one follow-up shape that must NOT reuse the old
+    #: numbers. Everything else that back-references the current problem should.
+    _NEW_EXAMPLE_RE = re.compile(
+        r"\b(another|different|other|new|fresh|one more)\b.*"
+        r"\b(example|sum|problem|question|one)\b", re.I)
 
     def _is_same_problem_followup(self, text: str, session: dict,
                                   is_followup: bool) -> bool:
-        """Delegate to the deep InputProcessor module."""
-        return self.processor.is_same_problem_followup(
-            text, (session or {}).get("context", []), is_followup=is_followup
-        )
+        """True when this turn is a follow-up about the SAME worked example already
+        under discussion, so the generator must reuse the exact same numbers instead
+        of inventing a fresh sum (the "follow-up changes the question" bug).
+
+        Guarded so it fires ONLY on a genuine continuation:
+          * ``is_followup`` — the caller already saw a clarification / anaphoric
+            follow-up (not a fresh question, not an answer attempt),
+          * the student stated no new numbers of their own this turn (≥2 digits ⇒
+            they brought a new sum — let SOLVE_STUDENT_PROBLEM use theirs),
+          * they did not explicitly ask for a *different* example, and
+          * the recent conversation actually contains a worked example to preserve
+            (a WINI reply carrying digits)."""
+        if not is_followup:
+            return False
+        t = (text or "").strip()
+        if not t or len(re.findall(r"\d", t)) >= 2:
+            return False
+        if self._NEW_EXAMPLE_RE.search(t):
+            return False
+        ctx = session.get("context", []) or []
+        return any(
+            c.get("role") == "wini" and len(re.findall(r"\d", c.get("text") or "")) >= 2
+            for c in ctx[-4:])
 
     def _concept_chapters(self, cid: str) -> set:
         """Chapters the concept is edge-connected to (cached). Used to tell a related
@@ -2462,7 +2489,6 @@ class TutorLoop:
         except Exception:  # noqa: BLE001
             pass
         intro = bool(_pedagogy_decision.introduction)
-        shadow = None  # PolicyShadow retired (ticket 17, 2026-08-27)
 
         # 4. Retrieval is mandatory on coordinated learning turns. The legacy
         # runtime consumes its typed result but owns none of its selection policy.
@@ -3033,7 +3059,7 @@ class TutorLoop:
         # 7. log + persist (section 12.2; rules + shadow logged side by side)
         # (The Stage-1 perception shadow hook was removed with the heads at Stage 6 —
         # Gemini IS the authoritative perception now; _log keeps the field for old rows.)
-        self._log(text, action, why, need, shadow, analysis, manifest, writeback,
+        self._log(text, action, why, need, None, analysis, manifest, writeback,
                   hope_update, mode=mode)
         if _retrieval_result is None:
             self.state.mark_served([e["id"] for e in evidence])
