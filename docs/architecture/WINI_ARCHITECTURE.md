@@ -649,7 +649,25 @@ equivalent is not yet tested.
 
 ---
 
-## §8 What this document does not cover
+## §8 Other files in `docs/architecture/`
+
+These live alongside this document. They are **not** normative architecture; the one-line
+status on each says what it is.
+
+| File | Status |
+|---|---|
+| `SAFETY_ROUTE_TAXONOMY.md` | normative — safety detection architecture and evaluation contract |
+| `PERSONAL_DATA_CONTRACT.md` | normative — personal-data detection, redaction, and sinks |
+| `AUDIO_END_TO_END_FLOW.md` | explainer — the only end-to-end walk of the audio path |
+| `CODEBASE_ARCHITECTURE_AND_COUPLING_REPORT.md` | research (dated 2026-08-25; superseded by ticket 13) |
+| `INPUT_LAYER_SEMANTIC_INTENT_RESEARCH.md` | research (dated; decisions resolved — tickets 07, 13) |
+| `MATH_AWARE_STT_NORMALIZATION_RESEARCH.md` | research (dated; feeds ticket 11 / ticket 14) |
+| `PERSONAL_DATA_DETECTION_RESEARCH.md` | research (dated; feeds ticket 09) |
+| `CHILD_SAFETY_RISK_TAXONOMIES_RESEARCH.md` | research (dated; feeds ticket 07) |
+
+---
+
+## §9 What this document does not cover (full table)
 
 The following are decided and documented elsewhere; this document cites them and never
 restates them.

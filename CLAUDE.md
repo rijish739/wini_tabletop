@@ -17,8 +17,10 @@ documents drifted apart while all four still claimed authority. Their replacemen
 | Append-style work log | `docs/archive/rag_memory.md` |
 
 **Precedence rule (when two documents disagree):** `CONTEXT.md` vocabulary > `WINI_ARCHITECTURE.md`
-> the two contracts (each is authoritative in its own area) > dated measurement records. Among
-measurement records, the most recently measured date wins.
+> dated measurement records. Among measurement records, the most recently measured date wins.
+The two contracts (`SAFETY_ROUTE_TAXONOMY.md`, `PERSONAL_DATA_CONTRACT.md`) are each
+**authoritative in their own area** and do not conflict with the architecture document — the
+architecture doc defers to them for their topics and never restates their content.
 
 **The propagation obligation is gone.** A number lives in exactly one place. Re-measuring means
 writing a new record; it does not mean editing a sentence in the architecture document.
