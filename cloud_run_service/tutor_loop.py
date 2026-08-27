@@ -5,7 +5,7 @@ Wires the runtime described in architecture section 19:
     student text
     -> CognitiveAnalyzer (Part 1 classifier + Part 2 resolver, MiniLM, local)
     -> learner state update (EMA globals + flags)
-    -> rule-based pedagogy decision (v1 rules below) + PolicyShadow suggestion (logged)
+    -> rule-based pedagogy decision (v1 rules below)
     -> evidence retrieval reusing query.py's machinery (bridge gate, misconception
        probe-first mechanics, need evidence, 7-term snapshot rerank, cohesion check)
        over a LOCAL MiniLM chunk index (the Gemini FAISS index is not touched)
@@ -45,7 +45,9 @@ from cognitive_analyzer import CognitiveAnalyzer
 from hope_detector import HopeDetector
 from learner_state import COLD_START_MASTERY, MASTERY_GATE_DEFAULT, load_learner_state
 from pedagogy.interface import rules_decide
-from policy_shadow import PolicyShadow
+# PolicyShadow retired (ticket 17, 2026-08-27): its only runtime consumer was a
+# log line; the per-turn MiniLM embed + score pass for a single log field was
+# the sole remaining reason cue_matrix ran at all.
 from query import (
     Snapshot,
     bridge_evidence,
@@ -1261,7 +1263,7 @@ class TutorLoop:
         self.analyzer = CognitiveAnalyzer(classifier=gp, resolver=gp)
         # Persona / scripted replies for the non-learning intents (front door).
         self.persona = json.loads((ROOT / "persona.json").read_text(encoding="utf-8"))
-        self.shadow = PolicyShadow.load()
+        # self.shadow was PolicyShadow — retired (ticket 17, 2026-08-27)
         # HOPE detector shares the analyzer's MiniLM embedder (one model in VRAM)
         # HOPE shares the analyzer's MiniLM (one model in memory) — and shares it
         # LAZILY. Assigning `gp.embedder` here would resolve the property and pull
@@ -1354,49 +1356,25 @@ class TutorLoop:
     def current_concept(self):
         return self.state.data.setdefault("session", {}).get("current_concept")
 
-    _ANAPHORA_RE = re.compile(r"\b(this|that|it|these|those|the same|here)\b", re.I)
+    @property
+    def processor(self):
+        proc = getattr(self, "_processor", None)
+        if proc is None:
+            from cognitive_input_processor.input_processor import InputProcessor
+            proc = InputProcessor()
+            self._processor = proc
+        return proc
 
     def _is_anaphoric_followup(self, text: str) -> bool:
-        """A short utterance that back-references the current topic ("solve this with
-        graph", "why is it a parabola"). A longer utterance likely names its own topic,
-        so it is not treated as a follow-up (the context-drift guard stays conservative)."""
-        t = (text or "").strip()
-        if not t or len(t.split()) > 12:
-            return False
-        return bool(self._ANAPHORA_RE.search(t))
-
-    #: An explicit request for a *fresh* example ("give me another example",
-    #: "a different sum") — the one follow-up shape that must NOT reuse the old
-    #: numbers. Everything else that back-references the current problem should.
-    _NEW_EXAMPLE_RE = re.compile(
-        r"\b(another|different|other|new|fresh|one more)\b.*"
-        r"\b(example|sum|problem|question|one)\b", re.I)
+        """Delegate to the deep InputProcessor module."""
+        return self.processor.is_anaphoric_followup(text)
 
     def _is_same_problem_followup(self, text: str, session: dict,
                                   is_followup: bool) -> bool:
-        """True when this turn is a follow-up about the SAME worked example already
-        under discussion, so the generator must reuse the exact same numbers instead
-        of inventing a fresh sum (the "follow-up changes the question" bug).
-
-        Guarded so it fires ONLY on a genuine continuation:
-          * ``is_followup`` — the caller already saw a clarification / anaphoric
-            follow-up (not a fresh question, not an answer attempt),
-          * the student stated no new numbers of their own this turn (≥2 digits ⇒
-            they brought a new sum — let SOLVE_STUDENT_PROBLEM use theirs),
-          * they did not explicitly ask for a *different* example, and
-          * the recent conversation actually contains a worked example to preserve
-            (a WINI reply carrying digits)."""
-        if not is_followup:
-            return False
-        t = (text or "").strip()
-        if not t or len(re.findall(r"\d", t)) >= 2:
-            return False
-        if self._NEW_EXAMPLE_RE.search(t):
-            return False
-        ctx = session.get("context", []) or []
-        return any(
-            c.get("role") == "wini" and len(re.findall(r"\d", c.get("text") or "")) >= 2
-            for c in ctx[-4:])
+        """Delegate to the deep InputProcessor module."""
+        return self.processor.is_same_problem_followup(
+            text, (session or {}).get("context", []), is_followup=is_followup
+        )
 
     def _concept_chapters(self, cid: str) -> set:
         """Chapters the concept is edge-connected to (cached). Used to tell a related
@@ -2484,7 +2462,7 @@ class TutorLoop:
         except Exception:  # noqa: BLE001
             pass
         intro = bool(_pedagogy_decision.introduction)
-        shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
+        shadow = None  # PolicyShadow retired (ticket 17, 2026-08-27)
 
         # 4. Retrieval is mandatory on coordinated learning turns. The legacy
         # runtime consumes its typed result but owns none of its selection policy.

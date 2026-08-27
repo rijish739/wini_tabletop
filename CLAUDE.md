@@ -86,8 +86,13 @@ writing a new record; it does not mean editing a sentence in the architecture do
 - Concept-card `misconceptions` field is free TEXT; real misconception nodes hang off
   `has_misconception` graph edges — always walk the edges.
 - sklearn `OneVsRestClassifier(n_jobs=-1)` crashes on Windows (joblib loky) — keep sequential.
-- `cognitive_classifier/cues.py` CUE_NAMES length is baked into the shipped logreg widths —
-  adding a cue feature requires rebuilding BOTH the classifier bank and the policy shadow.
+- **`cognitive_classifier/cues.py` cue vector retired (ticket 17, 2026-08-27):** the 9-cue
+  feature vector no longer runs at runtime. `score_matrix()` zero-fills the cue dims so the
+  shipped logreg weights keep working without a re-fit (rebuild path was lost in `5b847a1`).
+  `cue_features` / `cue_matrix` remain in `cues.py` for offline tooling only; do NOT add them
+  back to any runtime scoring path. If a rebuild ever becomes possible, re-fit requires
+  restoring `build_bank.py` from `5b847a1^` first. **PolicyShadow** is retired from the
+  runtime entirely — its only consumer was a log line.
 - Bulk-LLM scripts need hard wall-clock timeouts around every call (ThreadPoolExecutor
   `.result(timeout=...)` for SDK clients, `requests(timeout=...)` for the Qwen server);
   SDK-level HttpOptions timeouts have stalled for hours.

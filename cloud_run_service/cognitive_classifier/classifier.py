@@ -28,8 +28,6 @@ from typing import Dict, List, Optional, Sequence
 
 import numpy as np
 
-from .cues import cue_matrix
-
 DEFAULT_MODEL_DIR = Path(__file__).resolve().parent.parent / "models" / "exemplar_classifier"
 MODEL_NAME = "sentence-transformers/all-MiniLM-L6-v2"
 
@@ -153,10 +151,15 @@ class ExemplarCognitiveClassifier:
             dtype=np.float32,
         )
 
-    def score_matrix(self, query_emb: np.ndarray, query_cues: Optional[np.ndarray] = None) -> np.ndarray:
-        """Dispatch to the scorer selected at build time. The logreg head was
-        trained on [embedding | 9 cue features]; cues are appended when the
-        stored coefficient width requires them."""
+    def score_matrix(self, query_emb: np.ndarray) -> np.ndarray:
+        """Dispatch to the scorer selected at build time.
+
+        The logreg head was trained on [embedding | 9 cue features].  The 9-cue
+        vector has been retired from the runtime (ticket 17, 2026-08-27): the
+        rebuild path was lost in commit 5b847a1, so the shipped weights are used
+        with zero-filled cue dims rather than a fresh re-fit.  The knn/evidence
+        heads are unaffected.
+        """
         parts = []
         for name in self.scorer.split("+"):
             if name == "knn":
@@ -167,22 +170,22 @@ class ExemplarCognitiveClassifier:
                 if self.logreg_coef is None:
                     raise RuntimeError("scorer includes 'logreg' but logreg.npz was not loaded")
                 features = query_emb
-                if self.logreg_coef.shape[1] > query_emb.shape[1]:
-                    if query_cues is None:
-                        raise RuntimeError("logreg head expects cue features — pass query_cues")
-                    features = np.hstack([query_emb, query_cues])
+                extra = self.logreg_coef.shape[1] - query_emb.shape[1]
+                if extra > 0:
+                    # Zero-fill the retired cue dims; see ticket 17.
+                    features = np.hstack([query_emb, np.zeros((query_emb.shape[0], extra), dtype=np.float32)])
                 parts.append(score_labels_logreg(features, self.logreg_coef, self.logreg_intercept))
             else:
                 raise ValueError(f"unknown scorer component: {name}")
         return np.mean(parts, axis=0)
 
     def score_texts(self, texts: Sequence[str]) -> np.ndarray:
-        return self.score_matrix(self.embed(texts), cue_matrix(texts))
+        return self.score_matrix(self.embed(texts))
 
     def classify(self, text: str, top_evidence: int = 3) -> dict:
         """Score one utterance; return scores, thresholded signals, evidence."""
         query = self.embed([text])
-        scores_vec = self.score_matrix(query, cue_matrix([text]))[0]
+        scores_vec = self.score_matrix(query)[0]
         scores = {label: round(float(s), 4) for label, s in zip(self.labels, scores_vec)}
         signals = [
             label for label, s in scores.items()

@@ -88,8 +88,13 @@ CUE_NAMES = [
     "q_form", "hint_ask", "simplify_ask", "example_ask", "modality_ask",
     "self_corr", "answer_try", "move_next", "confident",
 ]
-# NOTE: CUE_NAMES length is baked into the shipped logreg widths (classifier +
-# policy shadow). Extend it only with a full rebuild of both.
+# NOTE (ticket 17, 2026-08-27): the 9-cue feature vector has been retired from
+# the runtime.  classifier.py's score_matrix() zero-fills the cue dims when the
+# shipped logreg coef width is wider than the embedding alone, so the heads keep
+# running without a re-fit (no rebuild path in the tree — build_bank.py was lost
+# in commit 5b847a1).  cue_features / cue_matrix remain in this file for any
+# offline tooling that still needs them.  PolicyShadow no longer calls them at
+# all (also ticket 17).
 
 # Standalone cue (NOT part of the feature vector): the student confirms they
 # understood the previous explanation. Used by tutor_loop rules so an
