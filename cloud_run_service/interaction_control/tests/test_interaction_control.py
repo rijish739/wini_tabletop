@@ -25,6 +25,7 @@ from runtime.contracts import (
 @dataclass
 class _Route:
     primary: str
+    also_learning: bool = False
     reason: str = "fixture route"
     source: str = "fixture"
     concept_id: str | None = None
@@ -562,6 +563,42 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(changed[("break_requested",)].operation, StateOperation.DELETE)
         self.assertEqual(changed[("leave_requests",)].operation, StateOperation.DELETE)
 
+    def test_social_greeting_with_also_learning_continues_learning(self) -> None:
+        dependencies = _dependencies(
+            perception_route=lambda text, session: _Route(
+                primary="SOCIAL",
+                also_learning=True,
+                concept_id="circles",
+            ),
+        )
+        outcome = InteractionControl(dependencies).control(
+            InteractionControlRequest(
+                turn_input=_turn("hi, explain area of circle"),
+                session={"current_concept": "circles", "context": []},
+            )
+        )
+        self.assertEqual(outcome.value.disposition, InteractionDisposition.CONTINUE_LEARNING)
+        self.assertEqual(outcome.value.text, "hi, explain area of circle")
+
+    def test_low_stt_confidence_triggers_confirmation(self) -> None:
+        turn_input = TurnInput(
+            turn_id="turn-low-conf",
+            learner_id="learner-15",
+            interaction={"text": "garbled noisy transcript", "answer_budget": {"max_words": 20}},
+            device=DeviceCapabilities(),
+            budgets=TurnBudgets(total_ms=10_000),
+            trusted_observations={"stt_confidence": 0.42},
+        )
+        outcome = InteractionControl(_dependencies()).control(
+            InteractionControlRequest(
+                turn_input=turn_input,
+                session={"current_concept": "quadratics", "context": []},
+            )
+        )
+        self.assertEqual(outcome.value.disposition, InteractionDisposition.COMPLETE)
+        self.assertEqual(outcome.value.compatibility["action"], "CONFIRM_LOW_CONFIDENCE")
+
 
 if __name__ == "__main__":
     unittest.main()
+

@@ -65,6 +65,7 @@ class PerceptionObservation:
     source: str
     route: RouteResult
     analysis: Mapping[str, Any]
+    also_learning: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "secondary_concepts", tuple(self.secondary_concepts))
@@ -135,9 +136,12 @@ class Perception:
     ) -> PerceptionObservation:
         if not isinstance(route, RouteResult) or route.primary not in INTENT_SET:
             raise ValueError("invalid route")
-        if route.primary != "LEARNING":
+        is_also_learning = bool(getattr(route, "also_learning", False))
+        if route.primary != "LEARNING" and not is_also_learning:
             return self._from_route(route, {})
         if not isinstance(analysis, Mapping) or not self._REQUIRED_ANALYSIS <= analysis.keys():
+            if is_also_learning:
+                return self._from_route(route, analysis if isinstance(analysis, Mapping) else {})
             raise ValueError("invalid analysis")
         mutable = deep_thaw(analysis)
         concept = mutable.get("concept")
@@ -169,6 +173,7 @@ class Perception:
             source=route.source,
             route=route,
             analysis=mutable,
+            also_learning=is_also_learning,
         )
 
     def _from_route(
@@ -188,6 +193,7 @@ class Perception:
             source=route.source,
             route=route,
             analysis=analysis,
+            also_learning=bool(getattr(route, "also_learning", False)),
         )
 
     @staticmethod

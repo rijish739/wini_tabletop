@@ -353,8 +353,13 @@ class InteractionControl:
             self._dependencies.pedagogy_owns_modes
             and self._dependencies.mode_cue(text) is not None
         )
+        is_also_learning = bool(
+            getattr(perception, "also_learning", False)
+            or getattr(route, "also_learning", False)
+        )
         if (route is not None and str(route.primary) != "LEARNING"
-                and not pedagogical_mode_control):
+                and not pedagogical_mode_control
+                and not (is_also_learning and str(route.primary) in {"SOCIAL", "EMOTIONAL"})):
             compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
