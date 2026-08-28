@@ -123,6 +123,20 @@ class Brain:
         import llm_vertex
         llm_vertex.generate_reply("Say OK.", temperature=0.0, max_output_tokens=8)
 
+    def _warm_child_safety(self):
+        """Warm the safety detector's gateway, schema and context-cache handle.
+
+        Separate from `_warm_gemini` because `llm_vertex` memoizes its client **per
+        location**, and `VERTEX_SAFETY_LOCATION` is deliberately its own flag
+        (SAFETY_ROUTE_TAXONOMY.md §7.2). While it matches perception's region this
+        is nearly free; the moment someone moves the safety model, it is the
+        difference between a warm first turn and a guaranteed 5s timeout — the
+        client build alone exceeds the whole safety envelope.
+        """
+        from child_safety import ChildSafetyDetector
+
+        ChildSafetyDetector().warm()
+
     def _load(self):
         try:
             import tutor_loop
@@ -136,13 +150,14 @@ class Brain:
             # is file loads — so serialising them made boot the SUM of the waits
             # instead of the longest one.
             t_boot = time.perf_counter()
-            with ThreadPoolExecutor(max_workers=4) as boot:
+            with ThreadPoolExecutor(max_workers=5) as boot:
                 f_tutor = boot.submit(tutor_loop.TutorLoop)
                 f_stt = boot.submit(CloudStt)
                 f_tts = boot.submit(CloudTts)
                 # Warming Gemini here also builds the shared Vertex client that
                 # perception will reuse (the memo is lock-guarded for exactly this).
                 f_gem = boot.submit(self._warm_gemini)
+                f_safety = boot.submit(self._warm_child_safety)
                 self.tutor = f_tutor.result()
                 self.stt = f_stt.result()
                 self.tts = f_tts.result()
@@ -150,6 +165,10 @@ class Brain:
                     f_gem.result()
                 except Exception as _ge:  # noqa: BLE001
                     print(f"[server] gemini warm note: {_ge}")
+                try:
+                    f_safety.result()
+                except Exception as _se:  # noqa: BLE001
+                    print(f"[server] child_safety warm note: {_se}")
             print(f"[server] components built in "
                   f"{(time.perf_counter() - t_boot) * 1000:.0f} ms")
             # Pacing governor: runs the before_turn / turn / after_turn sequence

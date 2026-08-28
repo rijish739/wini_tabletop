@@ -10,10 +10,22 @@ from .control import (
     InteractionDecision,
     InteractionDisposition,
 )
-from .safety_composition import compose_safety_alert
+from .safety_composition import (
+    SafetySeverity,
+    SafetyVerdict,
+    compose_safety_alert,
+    compose_safety_verdict,
+    derive_severity,
+    union_late,
+)
 
 __all__ = [
+    "SafetySeverity",
+    "SafetyVerdict",
     "compose_safety_alert",
+    "compose_safety_verdict",
+    "derive_severity",
+    "union_late",
     "CapabilityTransition",
     "InteractionControl",
     "InteractionControlDependencies",

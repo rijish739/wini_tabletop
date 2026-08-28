@@ -38,9 +38,16 @@ SESSION_CONTROL_MODE_SET = set(SESSION_CONTROL_MODES)
 class RouteResult:
     primary: str                                  # one of INTENTS
     also_learning: bool = False                   # a non-LEARNING turn that also carries a maths ask
-    safety_alert: bool = False                    # deterministic-gate or model safety flag
-    safety_tier: int | None = None                # 1 concern, 2 protected, 3 urgent
-    safety_category: str | None = None             # redacted human-review category
+    safety_alert: bool = False                    # the axis bit: outage net or model
+    # The composed SafetyVerdict, attached by interaction_control once the sources
+    # have been unioned. None until then, and None on every turn that did not trip.
+    #
+    # `safety_tier` / `safety_category` were DELETED here at the safety inversion
+    # (slice 12). They were a second severity author -- three incompatible in-tree
+    # tier vocabularies grew around them -- and SAFETY_ROUTE_TAXONOMY.md §5 allows
+    # exactly one derivation site, which is
+    # `interaction_control/safety_composition.py`. Read `safety.severity`.
+    safety: Any = None
     perception_degraded: bool = False             # fallback has no state-write authority
     answer_attempt: bool = False                  # attempts the open pending_check question
     concept_id: Optional[str] = None              # catalog id or None (INHERIT collapses to current)

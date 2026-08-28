@@ -5,11 +5,11 @@ name: ci
 # cloud_run_service/utterance_intake/VERIFICATION.md — the "what a green run does
 # NOT mean" statement lives at the top of that document, verbatim.
 #
-# Ticket 01 ships the `offline` job only. The billed jobs (`billed-safety`,
-# `billed-personal-data`) arrive with the child_safety (ticket 12) and
-# personal_data (ticket 13) cutovers, behind a GitHub Environment with required
-# reviewers and a WIF_PROVIDER secret (ticket 10). Every check named in the
-# spec's pass set corresponds to a step here; a check with no step is a spec bug.
+# Ticket 01 shipped the `offline` job. `billed-safety` is REAL as of ticket 12
+# (child_safety/ Stage 2); `billed-personal-data` is still a stub awaiting ticket
+# 13. Both sit behind a GitHub Environment with required reviewers and a
+# WIF_PROVIDER secret (ticket 10). Every check named in the spec's pass set
+# corresponds to a step here; a check with no step is a spec bug.
 
 on:
   push:
@@ -93,33 +93,77 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      # ── ticket 12 inserts steps here ──────────────────────────────────────────
-      # (child_safety/ Stage 2: eval/safety_eval.py --collect / --score,
-      #  per-class recall against blind corpora, no aggregate number published)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install eval dependencies
+        run: python -m pip install --upgrade pip numpy networkx google-genai python-dotenv
+
       - name: Cost notice — one Vertex call per uncached eval row
-        # Kept in stub state so a reviewer approving the billed-eval gate has a cost
-        # signal before committing spend. When ticket 12 ships it replaces this step
-        # with the real --collect invocation, which prints the exact row count and
-        # estimated cost before making any Vertex calls.
+        # A reviewer approving the billed-eval gate gets the row count BEFORE any
+        # spend. `--collect` is resumable and caches per prompt hash, so an
+        # interrupted run never re-bills and a re-run of an unchanged prompt is free.
+        working-directory: cloud_run_service
         shell: bash
         run: |
           echo "======================================================================"
           echo "  billed-safety cost notice"
           echo "======================================================================"
-          echo "  This job calls eval/safety_eval.py --collect (ticket 12)."
-          echo "  Cost: one Vertex AI call per UNCACHED row in the blind safety corpora."
-          echo "  Cached rows (same prompt hash) are free."
-          echo "  Row counts and per-run cost estimate will be printed here once"
-          echo "  ticket 12 ships the eval steps."
+          python - <<'EOF'
+          import sys; sys.path.insert(0, ".")
+          from eval import safety_eval
+          rows = safety_eval._all_rows()
+          cached = safety_eval.load_cache()
+          pending = [r for r in rows if r["id"] not in cached]
+          print(f"  prompt hash : {safety_eval.prompt_hash()}")
+          print(f"  corpus rows : {len(rows)}")
+          print(f"  cached      : {len(cached)} (free)")
+          print(f"  TO BE BILLED: {len(pending)} Vertex calls")
+          EOF
           echo "======================================================================"
-      - name: Stub — eval steps arrive with ticket 12
-        # Remove this step when ticket 12 fills in the real eval steps above.
-        shell: bash
+
+      - name: Degraded-net freeze + eval harness discipline (offline)
+        # Runs before the billed half on purpose: if the frozen outage net has
+        # drifted or the harness would publish an aggregate number, there is no
+        # point paying for a collection.
+        working-directory: cloud_run_service
+        run: python -m unittest eval.tests.test_safety_eval -v
+
+      - name: Collect model verdicts against the blind corpora (BILLED, resumable)
+        working-directory: cloud_run_service
+        env:
+          VERTEX_SAFETY_MODEL: ${{ vars.VERTEX_SAFETY_MODEL || 'gemini-2.5-flash' }}
+          VERTEX_SAFETY_LOCATION: ${{ vars.VERTEX_SAFETY_LOCATION || 'asia-south1' }}
+          VERTEX_SAFETY_MODEL_VERSION: ${{ vars.VERTEX_SAFETY_MODEL_VERSION }}
+        run: python -m eval.safety_eval --collect
+
+      - name: Score per-class recall (offline, from the cache)
+        # Three numbers per class — model, incremental, union — published
+        # separately and never fused. A report that prints one aggregate number is
+        # a bug: that is exactly what hid PEER_AT_RISK and UNSAFE_CONTACT at zero
+        # behind a shipped "SAFETY recall 1.0".
+        working-directory: cloud_run_service
         run: |
-          echo "billed-safety eval steps will be added by ticket 12 (child_safety/ Stage 2)."
-          echo "WIF auth succeeded — the environment gate and federation wiring are proven."
-          echo "Exiting non-zero so this job does not silently pass before the eval exists."
-          exit 1
+          python -m eval.safety_eval --score --report eval/records/safety_eval_report.md
+          cat eval/records/safety_eval_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the eval cache and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: safety-eval-records
+          path: |
+            cloud_run_service/eval/records/safety_eval_cache/
+            cloud_run_service/eval/records/safety_eval_report.md
+
+      - name: Cutover gate (stop-ship)
+        # Non-blocking until the corpora are signed off and the model version is
+        # pinned — both are deliberate hard blocks inside the gate, and both are
+        # human acts this job cannot perform for itself. It reports; it does not
+        # pretend the gate passed.
+        continue-on-error: true
+        working-directory: cloud_run_service
+        run: python -m eval.safety_eval --cutover
 
   billed-personal-data:
     # Billed lane: authenticates to Vertex AI via Workload Identity Federation and

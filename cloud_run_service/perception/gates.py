@@ -1,43 +1,45 @@
-"""Stage A deterministic front-door gates: SAFETY + NONSENSE (Part 11 §4.2).
+"""Stage A deterministic front-door gates: SAFETY + NONSENSE.
 
-These run FIRST, before any model call, and short-circuit to a fully scripted
-reply. They own their decisions absolutely:
+`gate()` returns a RouteResult when a gate fires, else None (pass through to the
+Gemini route / learning pipeline). It is pure and model-free.
 
-* SAFETY is a high-recall, human-reviewed lexicon. Gemini may *add* a safety
-  flag as a secondary recall net but may NEVER downgrade a gate-flagged case
-  (§4.2). The child-safety guarantee must never depend on a model being
-  available, fast, or correct.
 * NONSENSE is kept deliberately CONSERVATIVE: a wrongly-gated real answer ("5",
   "yes", "x=2") is a pedagogy failure, so it fires only on empty / pure-symbol /
   obvious keyboard-mash input and otherwise defers to the model.
-
-`gate()` returns a RouteResult when a gate fires, else None (pass through to the
-Gemini route / learning pipeline). It is pure and model-free, so it runs
-regardless of PERCEPTION_BACKEND.
+* SAFETY here is **the degraded-mode outage net, not the detector**. See below.
 
 --------------------------------------------------------------------------
-SUPERSEDED BY A DECISION, 2026-08-26 -- DECIDED, NOT YET IMPLEMENTED.
-Everything above still describes what this file DOES. It no longer describes
-what this file is FOR.
+THE SAFETY INVERSION LANDED (slice 12). `_SAFETY_RE` IS NO LONGER PRIMARY.
 
-`docs/architecture/SAFETY_ROUTE_TAXONOMY.md` (normative) inverts the SAFETY
-arrangement: a dedicated Gemini call in a new `cloud_run_service/child_safety/`
-package becomes the PRIMARY safety detector, and this lexicon is demoted to the
-DEGRADED-MODE OUTAGE NET -- it runs only when that call fails or times out, may
-emit the axis only (`{UNSPECIFIED_CONCERN}` / `ELEVATED`, never `CRITICAL`,
-never a class), and is FROZEN: never edited toward the model, never edited by
-reading a missed-corpus row.
+`docs/architecture/SAFETY_ROUTE_TAXONOMY.md` (normative) is implemented:
+`cloud_run_service/child_safety/` issues a dedicated Gemini call on **every turn,
+unconditionally**, and **that call makes the verdict** -- classes and imminence.
+This lexicon is demoted to the DEGRADED-MODE OUTAGE NET (§8):
+
+  * it is read by Utterance Intake, which publishes it as `SafetySignals`;
+  * it contributes a finding ONLY when the model call failed or timed out;
+  * it may emit the axis only -- `{UNSPECIFIED_CONCERN}` / `ELEVATED`, never a
+    class, NEVER `CRITICAL`;
+  * it is FROZEN: never edited toward the model, never edited by reading a
+    missed-corpus row. Its freeze is CI-maintained
+    (`eval/corpora/safety/degraded_net.jsonl`).
+
+Why the inversion: `_SAFETY_RE` was measured producing a tier-3 false positive on
+`i do not want to die in this level` (negation-blind, subject-blind) while missing
+peer-at-risk, online solicitation, threats and `things are bad at home` outright.
+A regex is a poor primary detector for a domain whose defining property is that
+the highest-risk disclosures are the least lexically explicit.
 
 The "may only add recall, never remove" rule survives, retargeted: nothing may
-ever remove a finding, whatever made it.
+ever remove a finding, whatever made it. Severity is derived at exactly one site
+(`interaction_control/safety_composition.py`) and written by no detector -- which
+is why `classify_safety`'s tier/category pair was DELETED here rather than left
+as a second, quieter severity author.
 
-Before editing this file, read that document. Two things it records that are
-easy to rediscover the hard way:
-  * the 1.0 SAFETY recall reported by `eval.perception_eval --gates` is measured
-    on a 20-phrase corpus that mirrors these patterns -- it is memorization, not
-    evidence, and peer-at-risk / online-solicitation disclosures are total misses;
-  * `classify_safety`'s tier-3 regex is much narrower than `_SAFETY_RE`, so 6 of
-    9 self-harm probes land in the tier-2 catch-all.
+The 1.0 SAFETY recall once reported by `eval.perception_eval --gates` is measured
+on a 20-phrase corpus that mirrors these patterns -- memorization, not evidence.
+Real recall is measured by `eval/safety_eval.py` against blind per-class corpora,
+and no aggregate safety number is published anywhere.
 --------------------------------------------------------------------------
 """
 
@@ -103,19 +105,16 @@ def is_safety(text: str) -> bool:
     return bool(_SAFETY_RE.search(text or ""))
 
 
-def classify_safety(text: str) -> tuple[int, str] | None:
-    """Return a redaction-safe tier/category; never retain the matched phrase."""
-    value = text or ""
-    if not is_safety(value):
-        return None
-    if re.search(r"\b(?:kill(?:ing)? myself|suicid|slit my|end(?:ing)? my life|"
-                 r"want to die|i'?m in danger|bring a (?:knife|gun|weapon)|"
-                 r"kill (?:him|her|them|everyone))\b", value, re.I):
-        return 3, "urgent_danger"
-    if re.search(r"\b(?:abused|bad touch|wrong touch|touch(?:ed|es|ing)? me|"
-                 r"hit(?:s|ting)? me|beat(?:s|ing)? me|hurt(?:s|ing)? me)\b", value, re.I):
-        return 2, "protected_disclosure"
-    return 2, "safety_concern"
+# `classify_safety` was DELETED at the safety inversion (slice 12).
+#
+# It returned a `(tier, category)` pair, which made this file a second severity
+# author -- and the taxonomy's §5 allows exactly one, in the composition step. Its
+# tier-3 regex was also much narrower than `_SAFETY_RE`, so 6 of 9 self-harm probes
+# landed in the tier-2 catch-all: a measured miscalibration nothing depended on
+# except a log line and a dashboard column. Both now read `severity`.
+#
+# Do not reintroduce a tier here. If you need severity, read the composed
+# `SafetyVerdict`; if you need to know whether the net tripped, call `is_safety`.
 
 
 def is_nonsense(text: str) -> bool:
@@ -171,18 +170,17 @@ def gate(text_or_observation) -> Optional[RouteResult]:
         safety_tripped = is_safety(text)
         illegible = is_nonsense(text)
     if safety_tripped:
-        # tier/category are a transitional detail the safety inversion (ticket 12)
-        # removes; recomputed here so the RouteResult stays byte-identical.
-        tier, category = classify_safety(text) or (2, "safety_concern")
+        # The gate reports the axis and nothing else. No tier, no category, no
+        # severity: the composition step derives severity from the unioned findings
+        # at the one site allowed to (§5, §6.5), and this net is not allowed to
+        # produce CRITICAL at all (§8).
         if _dbg:
             _dbg.emit(_dbg.L2, "gate_fired", gate="SAFETY", text_len=len(text))
         return RouteResult(
             primary="SAFETY",
             safety_alert=True,
-            safety_tier=tier,
-            safety_category=category,
             source="gate",
-            reason="deterministic SAFETY lexicon match",
+            reason="degraded-net SAFETY lexicon match",
         )
     if illegible:
         if _dbg:

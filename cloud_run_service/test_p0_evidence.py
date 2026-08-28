@@ -401,12 +401,17 @@ def test_safety_alert_store_is_tiered_and_contains_no_raw_child_text() -> None:
             loop = tl.TutorLoop.__new__(tl.TutorLoop)
             loop.state = SimpleNamespace(data={"learner_id": "learner-a"})
             loop._notify_supervisor = lambda _record: None
-            route = SimpleNamespace(source="gate", safety_tier=3,
-                                    safety_category="urgent_danger")
+            from interaction_control import compose_safety_verdict
+            verdict = compose_safety_verdict(perception_safety_alert=True)
+            route = SimpleNamespace(source="gate", safety=verdict)
             raw = "private child safety disclosure"
             loop._log_safety(raw, route)
             row = json.loads((tl.STORE / "safety_alerts.jsonl").read_text().strip())
-            assert row["safety_tier"] == 3 and row["safety_category"] == "urgent_danger"
+            # No model verdict: degraded, so the outage net's ceiling applies —
+            # the axis only, ELEVATED, never CRITICAL (taxonomy §8).
+            assert row["severity"] == "ELEVATED"
+            assert row["classes"] == ["UNSPECIFIED_CONCERN"]
+            assert row["degraded"] is True
             assert "utterance" not in row and raw not in json.dumps(row)
             assert len(row["utterance_sha256"]) == 64
     finally:

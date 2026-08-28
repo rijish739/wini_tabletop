@@ -25,12 +25,99 @@ from runtime.contracts import (
     deep_thaw,
 )
 
-from .safety_composition import compose_safety_alert
+from .safety_composition import (
+    MODEL_STATUS_UNAVAILABLE,
+    SafetyVerdict,
+    compose_safety_alert,
+    compose_safety_verdict,
+)
 
 
 class InteractionDisposition(str, Enum):
     COMPLETE = "complete"
     CONTINUE_LEARNING = "continue_learning"
+
+
+#: Pointer to the dated measurement record whose numbers were in force when a case
+#: record was written (SAFETY_ROUTE_TAXONOMY.md §14.1 + §10.3). Results live in
+#: dated records under ``eval/records/`` and are never edited after writing; this
+#: file is the one mutable pointer at the current one.
+_EVAL_POINTER = "eval/records/safety_current.json"
+
+
+def _eval_numbers_in_force() -> dict[str, Any]:
+    """The eval numbers in force at the moment this record was written.
+
+    A case record is a snapshot by design, so the numbers are *embedded*, not
+    referenced — records from a bad measurement window must stay identifiable after
+    the window closes. When no measurement has been published yet the honest answer
+    is ``unmeasured``; a fabricated number here would be worse than none (§12).
+    """
+    import json
+    from pathlib import Path
+
+    pointer = Path(__file__).resolve().parents[1] / _EVAL_POINTER
+    try:
+        return json.loads(pointer.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — absent or unreadable is "unmeasured", never a crash
+        return {"status": "unmeasured", "pointer": _EVAL_POINTER}
+
+
+def _gate_safety_tripped(route: Any) -> bool:
+    """True when this route is the deterministic gate reporting a lexicon match."""
+    return bool(
+        route is not None
+        and getattr(route, "source", "") == "gate"
+        and getattr(route, "safety_alert", False)
+    )
+
+
+def _gate_lexicon_reading():
+    """The gate's SAFETY trip, expressed as the LEXICON reading it actually is.
+
+    Axis only — `{UNSPECIFIED_CONCERN}`, no caregiver flag, no imminence cue —
+    matching `utterance_intake._lexicon_safety` exactly, because it describes the
+    same regex. The import is function-scoped, as elsewhere in this module, so
+    Interaction Control keeps no import-time dependency on Utterance Intake.
+    """
+    from utterance_intake.observation import (
+        SafetyClass as _Class,
+        SafetyFinding as _Finding,
+        SafetySignals as _Signals,
+        SafetySource as _Source,
+    )
+
+    return _Signals(
+        tripped=True,
+        findings=frozenset({_Finding(
+            safety_class=_Class.UNSPECIFIED_CONCERN,
+            source=_Source.LEXICON,
+            evidence_id="perception.gates._SAFETY_RE",
+        )}),
+        caregiver_implicated=False,
+        imminence_cue=False,
+    )
+
+
+def _stamps(verdict: "SafetyVerdict") -> list[str]:
+    """The applicable §14.1 stamps — visible, never silent."""
+    stamps: list[str] = []
+    if verdict.degraded:
+        stamps.append("degraded")
+        # `safety_model_unavailable` is an assertion that a call was made and did
+        # not come back. `degraded` is broader — it is also true when no detector
+        # was wired for this turn at all (the legacy path). Stamping the outage on
+        # that turn would claim a Vertex failure that never happened, and §12
+        # forbids a case record containing an assertion the system did not verify.
+        if verdict.model_status != MODEL_STATUS_UNAVAILABLE:
+            stamps.append("safety_model_unavailable")
+        else:
+            stamps.append("no_safety_detector")
+    if verdict.transcript_unconfirmed:
+        stamps.append("transcript_unconfirmed")
+    if verdict.transcript_discarded:
+        stamps.append("transcript_discarded")
+    return stamps
 
 
 @dataclass(frozen=True)
@@ -43,6 +130,11 @@ class InteractionControlRequest:
     # total by design); None only in legacy test stubs that predate the field.
     # No consumer may getattr-fallback to a private regex when this is present.
     observation: "UtteranceObservation | None" = None
+    # The child_safety model verdict for this turn (slice 12), threaded by the Turn
+    # Coordinator after the hold. ``None`` means no detector was wired; a verdict
+    # whose ``available`` is False means one ran and did not answer. Both put the
+    # turn in degraded mode, where the outage net contributes.
+    safety: Any = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -242,11 +334,25 @@ class InteractionControl:
             else self._dependencies.deterministic_route(text)
         )
         if route is not None:
-            if compose_safety_alert(
-                perception_safety_alert=bool(getattr(route, "safety_alert", False))
-            ):
+            verdict = self._compose_safety(request, route, session)
+            if verdict.tripped:
                 route.primary = "SAFETY"
-                self._record_safety(request.turn_input, text, route, session)
+                route.safety = verdict
+                self._record_safety(request, text, route, session, verdict)
+            elif _gate_safety_tripped(route):
+                # THE DEMOTION, at the routing seam. The net tripped but a healthy
+                # model found no concern, and §6.3 says the net does not contribute
+                # on a healthy turn — so this is not a safety turn and the gate's
+                # route is released to the ordinary pipeline.
+                #
+                # Leaving it in place produced an incoherent turn: the child was
+                # told to find a trusted adult, analytics recorded
+                # `safety_alert: true`, and **nobody was notified**, because the
+                # case record is written only when the verdict trips. A safety turn
+                # the child experiences with no case record behind it is precisely
+                # the failure this axis exists to prevent.
+                route = None
+        if route is not None:
             compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
@@ -268,6 +374,19 @@ class InteractionControl:
         from utterance_intake.observation import Authorization as _Authorization
         if (request.observation is not None
                 and request.observation.authorization is _Authorization.UNAUTHORIZED):
+            # SAFETY_ROUTE_TAXONOMY.md §9: a safety trip at any confidence always
+            # produces the safety response path — never deferred, never downgraded —
+            # and **the repair screen is suppressed**, because a repair screen
+            # replays the utterance back at the child and a safety phrase must never
+            # be quoted at them. The record is stamped `transcript_unconfirmed`, is
+            # still written and still notified, and severity is NOT capped:
+            # withholding a real disclosure because the microphone was poor is
+            # precisely the failure this axis exists to prevent.
+            verdict = self._compose_safety(request, None, session)
+            if verdict.tripped:
+                return self._safety_only_turn(
+                    request, text, session, starting_session, verdict
+                )
             compatibility = self._unauthorized_repair_result(
                 request.turn_input, session, request.observation,
             )
@@ -328,11 +447,12 @@ class InteractionControl:
             if perception is not None
             else getattr(route, "perception_degraded", False)
         )
-        if route is not None and compose_safety_alert(
-            perception_safety_alert=bool(getattr(route, "safety_alert", False))
-        ):
-            route.primary = "SAFETY"
-            self._record_safety(request.turn_input, text, route, session)
+        if route is not None:
+            verdict = self._compose_safety(request, route, session)
+            if verdict.tripped:
+                route.primary = "SAFETY"
+                route.safety = verdict
+                self._record_safety(request, text, route, session, verdict)
         if (
             not self._dependencies.pedagogy_owns_modes
             and
@@ -873,27 +993,224 @@ class InteractionControl:
             "gen_backend": None,
         }
 
+    def _compose_safety(
+        self,
+        request: InteractionControlRequest,
+        route: Any,
+        session: Mapping[str, Any],
+    ) -> SafetyVerdict:
+        """Compose this turn's verdict through the one shared helper.
+
+        Called from all three branch points so they cannot compose differently. The
+        helper in ``safety_composition`` is still the single implementation — this
+        method only assembles its arguments.
+
+        Two argument choices worth reading twice:
+
+        * ``perception_safety_alert`` is taken **only** from a non-gate route. On the
+          gate path ``route.safety_alert`` came from the outage net, not from
+          perception, and feeding it in as perception's bit would let the net
+          contribute on a healthy turn under someone else's name (§8: on a healthy
+          turn the net is not the verdict).
+        * the transcript stamps read the trust decision. That is not a violation of
+          the source guard, which is scoped to ``child_safety/`` — the *detector*
+          never sees the trust decision, so a safety trip always produces the safety
+          path at any confidence (§9). Here the stamps only annotate the record.
+        """
+        observation = request.observation
+        perception_bit = bool(
+            route is not None
+            and getattr(route, "source", "") != "gate"
+            and getattr(route, "safety_alert", False)
+        )
+        from utterance_intake.observation import Authorization as _Authorization
+
+        trust = getattr(observation, "authorization", None)
+        accumulator = session.get("safety_accumulator") or {}
+        lexicon = getattr(observation, "safety", None)
+        if lexicon is None and _gate_safety_tripped(route):
+            # On the gate path with no typed observation, the gate route IS the
+            # lexicon reading — `gates.gate()` ran `is_safety()` to produce it. If
+            # it is not passed through here the net's trip is invisible to the
+            # composition, and a degraded turn (no detector, or one that did not
+            # answer) would deliver the SAFETY script with NO case record behind
+            # it. Threaded as LEXICON, so it still contributes only in degraded
+            # mode (§6.3) and never on a healthy turn.
+            lexicon = _gate_lexicon_reading()
+        verdict = compose_safety_verdict(
+            lexicon=lexicon,
+            perception_safety_alert=perception_bit,
+            model=request.safety,
+            transcript_unconfirmed=(trust is _Authorization.UNAUTHORIZED),
+            transcript_discarded=(trust is _Authorization.DISCARDED),
+            prior_max_severity=accumulator.get("max_severity"),
+        )
+        self._publish_divergence(lexicon, request.safety)
+        return verdict
+
+    @staticmethod
+    def _publish_divergence(lexicon: Any, model: Any) -> None:
+        """§10.4: the net-vs-model divergence, **MONITORING ONLY**.
+
+        The lexicon reading is computed every turn anyway — microseconds, no
+        network — and on a healthy turn nothing else consumes it. Publishing the
+        agreement is therefore a free continuous health check on the outage net.
+
+        Read the last three words of §10.4 before wiring anything to this metric.
+        It never gates a release, never alters a verdict, and **can never be a
+        reason to edit the lexicon toward the model**: the net is frozen, and a
+        divergence row is a fact about it, not a defect report against it.
+
+        It goes to the debug sink rather than to ``log_event`` because §14 fixes
+        what routine analytics receive — ``tripped`` + ``severity``, nothing else —
+        and a monitoring metric must not widen that boundary by arriving through it.
+        """
+        try:
+            import debug_logger as dbg
+        except ImportError:
+            return
+        from child_safety import divergence
+
+        dbg.emit(dbg.L2, "safety_divergence", **divergence(lexicon, model).as_metric())
+
+    def _safety_only_turn(
+        self,
+        request: InteractionControlRequest,
+        text: str,
+        session: dict[str, Any],
+        starting_session: Mapping[str, Any],
+        verdict: SafetyVerdict,
+    ) -> ModuleOutcome[InteractionDecision]:
+        """The safety path taken in place of a repair screen (§9).
+
+        The acknowledgement and the pause run immediately. On an unconfirmed or
+        discarded transcript the record still carries full severity — capping would
+        be a downgrade (§6) — and it is the *emergency-resource script*, not the
+        record, that waits for the §12 direct question. That distinction is
+        response-side; what this layer owes is a complete record and a notification.
+        """
+        from perception.route import RouteResult
+
+        route = RouteResult(
+            primary="SAFETY",
+            safety_alert=True,
+            safety=verdict,
+            source="degraded_net" if verdict.degraded else "child_safety",
+            reason="safety verdict; repair screen suppressed (taxonomy §9)",
+        )
+        self._record_safety(request, text, route, session, verdict)
+        compatibility, failures = self._complete_nonlearning(
+            request.turn_input, route, text, session
+        )
+        return ModuleOutcome(
+            value=InteractionDecision(
+                disposition=InteractionDisposition.COMPLETE,
+                text=text,
+                compatibility=compatibility,
+            ),
+            state_changes=self._state_changes(
+                request.turn_input, starting_session, session
+            ),
+            failures=failures,
+        )
+
     def _record_safety(
         self,
-        turn_input: TurnInput,
+        request: InteractionControlRequest,
         text: str,
         route: Any,
         session: dict[str, Any],
+        verdict: SafetyVerdict,
     ) -> None:
-        record = {
+        """Write the safeguarding case record (SAFETY_ROUTE_TAXONOMY.md §14.1).
+
+        Self-contained, so a reviewer never needs to reproduce the call: the pinned
+        model id, the prompt and schema versions, the raw structured verdict as
+        returned, the source of each finding, the eval numbers in force, and the
+        stamps.
+
+        **A case record may contain no assertion the system did not verify** (§12).
+        ``handled`` therefore starts as ``unknown`` — which is explicitly acceptable
+        — and is replaced only by outcomes this method actually observed. The old
+        literal ``scripted_reply+persisted_alert+supervisor_notify``, written
+        regardless of what happened, is exactly the fabricated-notify failure the
+        taxonomy makes a stop-ship.
+        """
+        turn_input = request.turn_input
+        model = request.safety
+        record: dict[str, Any] = {
             "ts": self._dependencies.now(),
             "learner_id": turn_input.learner_id,
             "utterance_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             "utterance_length": len(text),
-            "safety_tier": int(getattr(route, "safety_tier", None) or 2),
-            "safety_category": getattr(route, "safety_category", None)
-            or "safety_concern",
+            "severity": verdict.severity.value if verdict.severity else None,
+            "classes": sorted(cls.value for cls in verdict.classes),
+            "findings": sorted(
+                (
+                    {
+                        "class": finding.safety_class.value,
+                        "source": finding.source.value,
+                        "evidence_id": finding.evidence_id,
+                    }
+                    for finding in verdict.findings
+                ),
+                key=lambda row: (row["class"], row["source"]),
+            ),
+            "caregiver_implicated": verdict.caregiver_implicated,
+            "imminence_cue": verdict.imminence_cue,
+            "model_status": verdict.model_status,
+            "model_verdict": model.as_record() if model is not None else None,
+            "eval_numbers": _eval_numbers_in_force(),
+            "stamps": _stamps(verdict),
+            # The case record never waits for the personal-data verdict (§14).
+            # Between the safety and personal-data cutovers this stamp is permanent
+            # rather than transient, which is a true statement about a system whose
+            # PII detector does not exist yet.
+            "privacy": "privacy_unavailable",
             "source": getattr(route, "source", "unknown"),
-            "handled": "scripted_reply+persisted_alert+supervisor_notify",
+            "handled": "unknown",
         }
+        outcomes: list[str] = []
         session["safety_alert"] = record
+        # §14 WRITE-BOUNDARY VIOLATION, KNOWN AND WIDENED HERE. `safety_alerts` is
+        # written into the learner document that also holds `evidence_ledger`
+        # (`legacy_adapter` grants `learner_write=(("safety_alerts",),)`), and §14
+        # says plainly: "No safety field may enter any learner-state path that
+        # personalisation reads." The taxonomy already names this placement a
+        # violation with a backlog ticket ("Moving it to a separate access-
+        # controlled store is a backlog ticket").
+        #
+        # What slice 12 changed is the PAYLOAD, not the placement: this record now
+        # carries `classes`, `findings` and `evidence_id`s where it previously
+        # carried only `safety_tier`/`safety_category` — and those are precisely
+        # the fields §14's first line says may go "**only** to the safeguarding
+        # case record". So the pre-existing violation is now a wider one. It is
+        # recorded here rather than quietly widened; the fix is the case-store move,
+        # which is out of this slice's scope and cannot be faked by trimming the
+        # record (a reviewer needs those fields — §14.1).
         session.setdefault("__learner_safety_alerts__", []).append(record)
-        self._dependencies.notify_safety(copy.deepcopy(record))
+        outcomes.append("persisted_alert")
+        try:
+            self._dependencies.notify_safety(copy.deepcopy(record))
+        except Exception as exc:  # noqa: BLE001 — a failed notify is recorded, not hidden
+            outcomes.append(f"supervisor_notify_failed:{type(exc).__name__}")
+        else:
+            outcomes.append("supervisor_notify")
+        # Mutates the dict already held by the session and the learner-alert list —
+        # same object, so the persisted record carries the verified outcomes.
+        record["handled"] = "+".join(outcomes)
+
+        # §13 / §7.5: the deterministic session accumulator. A COUNT and a MAX
+        # SEVERITY — never classes, never text — is all the next turn's safety
+        # prompt is allowed to see.
+        accumulator = dict(session.get("safety_accumulator") or {})
+        accumulator["count"] = int(accumulator.get("count", 0)) + 1
+        previous = accumulator.get("max_severity")
+        current = verdict.severity.value if verdict.severity else None
+        accumulator["max_severity"] = (
+            "CRITICAL" if "CRITICAL" in (previous, current) else (current or previous)
+        )
+        session["safety_accumulator"] = accumulator
 
     def _complete_nonlearning(
         self,
@@ -945,21 +1262,28 @@ class InteractionControl:
             ),
             "session_ended": session.get("status") == "ended",
         }
+        # §14 write boundary: routine analytics receive `tripped` + `severity` and
+        # nothing else. The class set is redacted of phrases but is still a
+        # disclosure category, and the teacher-summary rule is about the category,
+        # not the words — so classes, findings and evidence ids go to the case
+        # record only, never here.
+        verdict = getattr(route, "safety", None)
+        alerted = bool(getattr(route, "safety_alert", False))
+        analytics = (
+            verdict.analytics() if isinstance(verdict, SafetyVerdict)
+            else {"safety_alert": alerted, "safety_severity": None}
+        )
         self._dependencies.log_event({
             "ts": self._dependencies.now(),
             "loop": "tutor_loop_v4",
-            "question": "[REDACTED_SAFETY_UTTERANCE]"
-            if bool(getattr(route, "safety_alert", False))
-            else text,
-            "log_tier": "general_redacted"
-            if bool(getattr(route, "safety_alert", False))
-            else "general",
+            "question": "[REDACTED_SAFETY_UTTERANCE]" if alerted else text,
+            "log_tier": "general_redacted" if alerted else "general",
             "action": intent,
             "action_reason": getattr(route, "reason", ""),
             "need": "none",
             "intent": intent,
             "route_source": getattr(route, "source", ""),
-            "safety_alert": bool(getattr(route, "safety_alert", False)),
+            **analytics,
             "concept": result["concept"],
             "signals": [],
             "answer": reply,

@@ -1858,23 +1858,49 @@ class TutorLoop:
             f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
 
     def _log_safety(self, text: str, route) -> None:
-        """Persist a safety_alert record + notify the supervising adult (§4.3 Q2)."""
+        """Persist a safety_alert record + notify the supervising adult.
+
+        The legacy mirror of `interaction_control._record_safety`. It reads the
+        composed `SafetyVerdict` off the route rather than recomputing anything:
+        `safety_tier` / `safety_category` were deleted at the safety inversion
+        (slice 12) because severity is derived at exactly one site
+        (SAFETY_ROUTE_TAXONOMY.md §5) and this was a second, quieter author of it.
+
+        `handled` records what was actually observed. The old literal
+        `scripted_reply+persisted_alert+supervisor_notify`, written regardless of
+        what happened, asserted a notification that may never have been delivered —
+        and §12 forbids a case record containing an assertion the system did not
+        verify.
+        """
         learner_id = getattr(getattr(self, "state", None), "data", {}).get("learner_id")
+        verdict = getattr(route, "safety", None)
+        severity = getattr(getattr(verdict, "severity", None), "value", None)
+        classes = sorted(
+            cls.value for cls in getattr(verdict, "classes", frozenset())
+        )
         record = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "learner_id": learner_id,
             "utterance_sha256": hashlib.sha256(text.encode("utf-8")).hexdigest(),
             "utterance_length": len(text),
-            "safety_tier": int(getattr(route, "safety_tier", None) or 2),
-            "safety_category": getattr(route, "safety_category", None) or "safety_concern",
+            "severity": severity,
+            "classes": classes,
+            "degraded": bool(getattr(verdict, "degraded", verdict is None)),
             "source": getattr(route, "source", "gate"),
-            "handled": "scripted_reply+persisted_alert+supervisor_notify",
+            "handled": "unknown",
         }
-        with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+        outcomes = ["persisted_alert"]
         notify = getattr(self, "_notify_supervisor", None)
         if callable(notify):
-            notify(record)
+            try:
+                notify(record)
+            except Exception as exc:  # noqa: BLE001 — a failed notify is recorded
+                outcomes.append(f"supervisor_notify_failed:{type(exc).__name__}")
+            else:
+                outcomes.append("supervisor_notify")
+        record["handled"] = "+".join(outcomes)
+        with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
+            f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
         log_row = {
@@ -1900,8 +1926,8 @@ class TutorLoop:
         Cloud deployment overrides this with a Firestore write -> push/email/dashboard."""
         line = "=" * 64
         print(f"\n{line}\n  [!] SAFETY ALERT — a supervising adult must be notified now.\n"
-              f"      tier={record.get('safety_tier')} "
-              f"category={record.get('safety_category')}\n{line}\n")
+              f"      severity={record.get('severity')} "
+              f"classes={','.join(record.get('classes') or []) or 'none'}\n{line}\n")
 
     def _retrieval_cohesion_check(self, evidence: list[dict]) -> list[str]:
         blocks_text = {}

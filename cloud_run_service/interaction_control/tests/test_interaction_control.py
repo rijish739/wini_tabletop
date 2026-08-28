@@ -31,8 +31,10 @@ class _Route:
     concept_id: str | None = None
     concept_confidence: float = 0.0
     safety_alert: bool = False
-    safety_tier: int | None = None
-    safety_category: str | None = None
+    # `safety_tier` / `safety_category` were deleted at the safety inversion
+    # (slice 12): severity is derived at exactly one site and no detector writes it.
+    # The composed verdict rides here instead.
+    safety: object | None = None
     perception_degraded: bool = False
     topic_phrasing: str | None = None  # slice 07
     session_control_mode: str | None = None  # slice 07
@@ -227,8 +229,6 @@ class InteractionControlTests(unittest.TestCase):
             "SAFETY",
             reason="deterministic safety gate",
             safety_alert=True,
-            safety_tier=3,
-            safety_category="self_harm",
         )
         dependencies = _dependencies(
             deterministic_route=lambda text: route,
@@ -260,7 +260,14 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(outcome.value.compatibility["pending_check"], "check-1")
         self.assertEqual(session, before)
         self.assertEqual(len(notifications), 1)
-        self.assertEqual(notifications[0]["safety_category"], "self_harm")
+        # No detector was wired, so the turn is degraded and the net's ceiling
+        # applies: the axis only, ELEVATED, never CRITICAL (taxonomy §8).
+        self.assertEqual(notifications[0]["severity"], "ELEVATED")
+        self.assertEqual(notifications[0]["classes"], ["UNSPECIFIED_CONCERN"])
+        # No detector was wired at all, so the record says exactly that — claiming
+        # a Vertex outage here would assert a failure that never happened (§12).
+        self.assertIn("no_safety_detector", notifications[0]["stamps"])
+        self.assertNotIn("safety_model_unavailable", notifications[0]["stamps"])
         self.assertEqual(logs[-1]["action"], "SAFETY")
         self.assertTrue(any(
             change.owner == "interaction_control"

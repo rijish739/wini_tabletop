@@ -48,7 +48,7 @@ from .observation import (
 # The demoted safety lexicon and the illegibility test still live in
 # perception/gates.py; Intake reads them, gates.py reads nothing of Intake's
 # (dependency direction is one-way).
-from perception.gates import classify_safety, is_nonsense, is_safety
+from perception.gates import is_nonsense, is_safety
 from runtime_flags import (
     DISAGREEMENT_CEILING,
     UTTERANCE_CONFIDENCE_FLOOR,
@@ -62,6 +62,24 @@ _WS_RE = re.compile(r"\s+")
 
 # Stable id for the demoted lexicon net. NEVER the matched span.
 _LEXICON_EVIDENCE_ID = "perception.gates._SAFETY_RE"
+# SAFETY_ROUTE_TAXONOMY.md §4.1: caregiver_implicated is LEXICON-ONLY and
+# **deliberately over-triggers**. It is an explicit exception to the precision-first
+# rule for classes: its false negative is docx §12 row 4's named failure — directing
+# a child toward the person harming them — and its false positive costs a marginally
+# less specific suggestion. The asymmetry is not close, so this is a bare noun list
+# with no proximity or role analysis, and it is not tuned downward.
+# It is never model-set: a precision-seeking model would quietly undo the
+# over-trigger. Independent of this flag, the default safe-adult language never
+# names a parent either way (§4.1, response-side).
+_CAREGIVER_RE = re.compile(
+    r"\b(mum|mom|mummy|mommy|mother|amma|ammi|ma|dad|daddy|father|papa|pa|appa|"
+    r"parent|parents|step[\s-]?(?:dad|mum|mom|father|mother)|guardian|"
+    r"uncle|aunt|aunty|auntie|chacha|chachi|mama|mami|bua|phupha|"
+    r"grand(?:pa|ma|father|mother)|dada|dadi|nana|nani|"
+    r"brother|sister|bhai|didi|cousin|"
+    r"at home|in my house|my family|my household)\b",
+    re.IGNORECASE,
+)
 # Mirror perception.gates' character classes so the cue matches the is_nonsense
 # decision exactly. The illegibility *decision* stays owned by is_nonsense; this
 # only names which branch fired.
@@ -207,9 +225,21 @@ class UtteranceIntakeRequest:
 
 
 def _lexicon_safety(normalized: str) -> SafetySignals:
-    """The demoted LEXICON reading, axis-only: ``{UNSPECIFIED_CONCERN}`` and
-    never a caregiver/imminence flag, so the net can never fire a CRITICAL
-    emergency script off a regex (SAFETY_ROUTE_TAXONOMY.md §8)."""
+    """The demoted LEXICON reading — the degraded-mode outage net
+    (SAFETY_ROUTE_TAXONOMY.md §8).
+
+    **Axis only**: ``{UNSPECIFIED_CONCERN}``, never a class, and **never an
+    imminence cue** — imminence is the primary input to severity, so a net that set
+    it could fire a CRITICAL emergency script off a regex, which is the entire class
+    of damage the old tiering caused.
+
+    ``caregiver_implicated`` is the one flag the net still sets (§4.1): it is
+    lexicon-only by design and only ever makes the response language safer.
+
+    Computed on **every** turn (microseconds, no network) but on a healthy turn it is
+    **not the verdict** — the composition step consumes it only in degraded mode, and
+    otherwise only the divergence monitor reads it (§10.4).
+    """
     if not is_safety(normalized):
         return SafetySignals(
             tripped=False,
@@ -225,7 +255,7 @@ def _lexicon_safety(normalized: str) -> SafetySignals:
     return SafetySignals(
         tripped=True,
         findings=frozenset({finding}),
-        caregiver_implicated=False,
+        caregiver_implicated=bool(_CAREGIVER_RE.search(normalized or "")),
         imminence_cue=False,
     )
 

@@ -145,6 +145,7 @@ class TurnCoordinator:
         supervisor: RuntimeSupervisor,
         interaction_control: "InteractionControlInterface",
         utterance_intake: Any = None,
+        child_safety: Any = None,
         perception: "PerceptionInterface | None" = None,
         assessment_evidence: "AssessmentEvidenceInterface | None" = None,
         pedagogy: "PedagogyInterface | None" = None,
@@ -157,6 +158,7 @@ class TurnCoordinator:
         self._supervisor = supervisor
         self._interaction_control = interaction_control
         self._utterance_intake = utterance_intake
+        self._child_safety = child_safety
         self._perception = perception
         self._assessment_evidence = assessment_evidence
         self._pedagogy = pedagogy
@@ -179,6 +181,28 @@ class TurnCoordinator:
             # Ticket 04: forward the typed observation to Interaction Control so
             # it can read ReferenceReading without falling back to a private regex.
             interaction_request = replace(interaction_request, observation=observation)
+        # ---------------------------------------------------------------
+        # Safety is dispatched FIRST, before perception, on EVERY turn
+        # (SAFETY_ROUTE_TAXONOMY.md §7.1). Read the three "no"s in that order:
+        #
+        #  * no precondition — not a lexicon trip, not a keyword, not a cheap
+        #    pre-filter. Gating this would reinstate the regex as gatekeeper,
+        #    which is the arrangement the taxonomy inverted;
+        #  * no authorization check — invariant 1. It is dispatched *above* the
+        #    `_skip_perception` branch precisely so an UNAUTHORIZED turn, where
+        #    perception never runs, still gets its safety call. A child whose
+        #    microphone was poor is not a child who said nothing;
+        #  * no ordering after perception — safety's prompt is small (no ~6k
+        #    cached concept block, no MiniLM hints), so its verdict is *expected*
+        #    to land first and the hold below is expected to cost nothing.
+        # ---------------------------------------------------------------
+        safety_dispatch = None
+        if self._child_safety is not None:
+            safety_dispatch = self._child_safety.dispatch(
+                utterance_id=self._utterance_id(turn_input, observation),
+                text=self._safety_text(turn_input, observation),
+                summary=self._safety_summary(interaction_request.session),
+            )
         # Ticket 05: perception is NOT run on an UNAUTHORIZED turn —
         # Interaction Control's authorization gate produces the repair screen.
         _skip_perception = False
@@ -211,8 +235,31 @@ class TurnCoordinator:
             interaction_request = replace(
                 interaction_request, perception=perception.value
             )
+        # ---------------------------------------------------------------
+        # THE HOLD (invariant 6). Perception's output is assembled above but is
+        # not released to Interaction Control until the safety verdict has been
+        # analyzed — this call is the only thing standing between the two.
+        #
+        # It is BOUNDED, and the bound is the design: `await_verdict` waits at
+        # most the remainder of the 5s envelope and then returns a TIMEOUT
+        # verdict, which is a non-answer rather than a negative one. Unbounded
+        # was rejected — a hung safety call would freeze every turn, trading one
+        # child's disclosure for every child's lesson. On expiry the turn is
+        # released in degraded mode, where the outage net contributes and the
+        # record carries `safety_model_unavailable`; the call itself is NOT
+        # cancelled, so a late verdict can still union in and escalate (§6.4).
+        # ---------------------------------------------------------------
+        if safety_dispatch is not None:
+            interaction_request = replace(
+                interaction_request, safety=safety_dispatch.await_verdict()
+            )
         interaction = self._interaction_control.control(interaction_request)
-        if self._perception is not None and perception.state_changes:
+        # `_skip_perception` leaves `perception` unbound, so it must be re-tested
+        # here and not only at the dispatch above: an UNAUTHORIZED turn has no
+        # perception outcome to merge state changes from, and reaching for one
+        # raised UnboundLocalError before the safety path made that turn
+        # completable rather than a dead end.
+        if self._perception is not None and not _skip_perception and perception.state_changes:
             interaction = replace(
                 interaction,
                 state_changes=perception.state_changes + interaction.state_changes,
@@ -404,6 +451,55 @@ class TurnCoordinator:
             phases=execution.phase_trace,
             measurements=dict(execution.measurements),
             recovery_actions=recovery_actions,
+        )
+
+    # ------------------------------------------------------------------
+    # What the safety call is handed — and, by omission, what it is not
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _utterance_id(turn_input: TurnInput, observation: Any) -> str:
+        """The memo key (§7.1): an opaque id, never the text.
+
+        Ticket 02 moved the memo off normalized text precisely so a replayed turn
+        cannot re-bill and two children saying the same words cannot share a
+        verdict. ``turn_id`` is the fallback for the typed legacy path, which has
+        no Utterance and therefore no provenance.
+        """
+        utterance = getattr(observation, "utterance", None) or turn_input.utterance
+        provenance = getattr(utterance, "provenance", None)
+        return getattr(provenance, "utterance_id", None) or turn_input.turn_id
+
+    @staticmethod
+    def _safety_text(turn_input: TurnInput, observation: Any) -> str:
+        """The normalized published form when Intake produced one, else the raw
+        interaction text. Normalization exists in exactly one place; the safety
+        call reads its output rather than re-deriving a second form."""
+        if observation is not None:
+            return observation.normalized_text
+        return str(turn_input.interaction.get("text") or "")
+
+    @staticmethod
+    def _safety_summary(session: Mapping[str, Any]) -> Any:
+        """§7.5: a COUNT and a MAX SEVERITY, plus ``session["context"][-2:]``.
+
+        Never classes and never prior text. Class labels are the disclosure
+        category the personal-data contract wants minimised, and replaying
+        "abuse was disclosed six turns ago" into a later prompt invites the model
+        to confirm rather than detect. The type enforces the rule at this call
+        site instead of leaving it to be remembered at review time.
+        """
+        from child_safety import SafetySessionSummary
+
+        accumulator = session.get("safety_accumulator") or {}
+        # Thaw BEFORE slicing. A frozen session holds `context` as a tuple of
+        # mappingproxies; slicing first hands `deep_thaw` a plain list, which falls
+        # through to `copy.deepcopy` and raises "cannot pickle 'mappingproxy'".
+        # Thawing first walks the tuple properly and yields plain dicts.
+        context = deep_thaw(session.get("context") or ())
+        return SafetySessionSummary(
+            prior_safety_findings=int(accumulator.get("count", 0) or 0),
+            prior_max_severity=accumulator.get("max_severity"),
+            recent_context=tuple(context[-2:]),
         )
 
     @staticmethod
