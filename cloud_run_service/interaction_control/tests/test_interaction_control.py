@@ -33,7 +33,7 @@ class _Route:
     safety_alert: bool = False
     safety_tier: int | None = None
     safety_category: str | None = None
-    uncertain: bool = False
+    perception_degraded: bool = False
 
 
 def _turn(text: str = "help") -> TurnInput:

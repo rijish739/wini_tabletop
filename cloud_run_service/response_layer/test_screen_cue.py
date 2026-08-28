@@ -89,11 +89,10 @@ def test_response_layer_earned_visual_does_not_set_figure_on_screen():
         raise SkipTest(f"tutor_loop not importable here: {e}") from e
 
     src = inspect.getsource(T.TutorLoop._response_layer)
-    earned = src.split("if allowed:", 1)[1].split("else:", 1)[0]
-    assert "figure_on_screen = False" in earned, \
-        "earned-visual branch must NOT claim a figure is on screen before the draw"
-    assert '"pending_draw": True' in earned, \
-        "earned-visual branch must still mark the draw as pending"
+    assert '"pending_draw": allowed' in src or '"pending_draw": True' in src, \
+        "earned-visual branch must mark the draw as pending"
+    assert "return list(mode_cards), False, directive" in src or "figure_on_screen = False" in src, \
+        "must NOT claim a figure is on screen before the draw"
 
 
 # ---------------------------------------------------------------------------

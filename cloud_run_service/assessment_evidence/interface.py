@@ -19,7 +19,7 @@ from runtime.contracts import (
     TurnInput,
     deep_freeze,
 )
-from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN, STT_WRITE_CONFIDENCE_MIN
+from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN
 
 
 CAPABILITY = "assessment_evidence"
@@ -46,8 +46,12 @@ class AssessmentRequest:
     turn_input: TurnInput
     state: AssessmentStateView
     answer_attempt: bool
-    perception_uncertain: bool = False
+    perception_degraded: bool = False
     precomputed_grade: GradeResult | Mapping[str, Any] | str | None = None
+    # The Utterance Intake observation — non-None in production; None only in
+    # legacy test stubs that predate the field.  Assessment grades and writes
+    # only when authorization is AUTHORIZED.
+    observation: Any = None
 
 
 @dataclass(frozen=True)
@@ -78,6 +82,20 @@ class AssessmentEvidence:
         pending = request.state.pending_assessment
         if pending is None:
             return ModuleOutcome(value=AssessmentResult(attempted=False))
+        # Ticket 05: Assessment must not grade or write from an unauthorized
+        # transcript — reaching here with a non-AUTHORIZED observation is an
+        # invariant violation (the coordinator skips assessment on UNAUTHORIZED
+        # turns).  Raise so the coordinator's fail-closed path catches it; a
+        # silent return here would let a write slip through with no record.
+        if request.observation is not None:
+            from utterance_intake.observation import Authorization as _Authorization
+            if request.observation.authorization is not _Authorization.AUTHORIZED:
+                raise AssertionError(
+                    "invariant violation: Assessment.evaluate_prior_attempt "
+                    f"called with authorization={request.observation.authorization!r}; "
+                    "the coordinator must not forward non-AUTHORIZED observations "
+                    "to Assessment"
+                )
         integrity_failure = self._validate(request, pending)
         if integrity_failure is not None:
             return ModuleOutcome(value=None, failures=(integrity_failure,))
@@ -88,7 +106,7 @@ class AssessmentEvidence:
             request.turn_input.learner_id, request.turn_input.turn_id, item_id, text
         )
         stt_confidence = request.turn_input.trusted_observations.get("stt_confidence")
-        if request.perception_uncertain:
+        if request.perception_degraded:
             grade = GradeResult(
                 "not_an_answer", "uncertain_perception", 0.0, None,
                 stt_confidence, key,
@@ -111,11 +129,7 @@ class AssessmentEvidence:
         )
         if grade.outcome not in {"correct", "partial", "wrong"}:
             return ModuleOutcome(value=result)
-        if (
-            grade.confidence < GRADER_WRITE_CONFIDENCE_MIN
-            or (grade.stt_confidence is not None
-                and grade.stt_confidence < STT_WRITE_CONFIDENCE_MIN)
-        ):
+        if grade.confidence < GRADER_WRITE_CONFIDENCE_MIN:
             return ModuleOutcome(value=replace(result, writeback_status="low_confidence"))
 
         disarm = StateChange(

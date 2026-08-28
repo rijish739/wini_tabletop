@@ -65,7 +65,7 @@ class PerceptionObservation:
     cognitive_update: Mapping[str, float]
     safety_alert: bool
     answer_attempt: bool
-    uncertain: bool
+    perception_degraded: bool
     source: str
     route: RouteResult
     analysis: Mapping[str, Any]
@@ -124,7 +124,7 @@ class Perception:
             trusted = deep_thaw(request.turn_input.trusted_observations)
             if trusted.get("precomputed_analysis") is not None:
                 analysis = trusted["precomputed_analysis"]
-            if bool(getattr(route, "uncertain", False)):
+            if bool(getattr(route, "perception_degraded", False)):
                 return self._degraded(
                     session, "degraded_fallback", text=text, analysis=analysis
                 )
@@ -182,7 +182,7 @@ class Perception:
             cognitive_update={str(key): float(value) for key, value in cognitive.items()},
             safety_alert=bool(route.safety_alert),
             answer_attempt=bool(route.answer_attempt),
-            uncertain=bool(route.uncertain),
+            perception_degraded=bool(route.perception_degraded),
             source=route.source,
             route=route,
             analysis=mutable,
@@ -202,7 +202,7 @@ class Perception:
             cognitive_update={},
             safety_alert=bool(route.safety_alert),
             answer_attempt=bool(route.answer_attempt),
-            uncertain=bool(route.uncertain),
+            perception_degraded=bool(route.perception_degraded),
             source=route.source,
             route=route,
             analysis=analysis,
@@ -254,7 +254,7 @@ class Perception:
         current = session.get("current_concept")
         route = RouteResult(
             primary="LEARNING", concept_id=current, concept_confidence=0.0,
-            source="fallback", uncertain=True,
+            source="fallback", perception_degraded=True,
             reason="perception fallback (LEARNING/inherit)",
         )
         from utterance_intake.observation import ProblemReading as _ProblemReading

@@ -38,7 +38,7 @@ def observation(
         concept_flags=tuple(flags),
         cognitive_update=update,
         answer_attempt=False,
-        uncertain=False,
+        perception_degraded=False,
         acknowledged=is_pure_ack(text),
         clarification_requested=is_clarification_request(text),
         visualization_requested=is_visualization_request(text),
@@ -106,7 +106,7 @@ class PedagogyInterfaceTests(unittest.TestCase):
 
     def test_uncertain_perception_never_selects_an_assessment(self) -> None:
         observed = observation(text="test me")
-        object.__setattr__(observed, "uncertain", True)
+        object.__setattr__(observed, "perception_degraded", True)
 
         outcome = Pedagogy().decide(request("test me", observed))
 

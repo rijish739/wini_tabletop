@@ -54,7 +54,7 @@ class InteractionDecision:
     text: str
     compatibility: Mapping[str, Any] | None = None
     analysis: Mapping[str, Any] | None = None
-    perception_uncertain: bool = False
+    perception_degraded: bool = False
     answer_attempt: bool = False
     continuity: "InteractionContinuity | None" = None
 
@@ -223,6 +223,7 @@ class InteractionControl:
                 ),),
             )
         interaction = deep_thaw(request.turn_input.interaction)
+        trusted = deep_thaw(request.turn_input.trusted_observations)
         text = str(interaction.get("text") or "")
         session = deep_thaw(request.session)
         starting_session = copy.deepcopy(session)
@@ -253,20 +254,31 @@ class InteractionControl:
                 failures=failures,
             )
 
-        trusted = deep_thaw(request.turn_input.trusted_observations)
-        stt_confidence = trusted.get("stt_confidence")
-        stt_confidence = 1.0 if stt_confidence is None else max(
-            0.0, min(1.0, float(stt_confidence))
-        )
-        if stt_confidence < self._dependencies.stt_write_confidence_min:
-            compatibility = self._low_confidence_result(
-                request.turn_input, session, stt_confidence
+        # Ticket 05: the LEARNING path gates on authorization, not the raw
+        # stt_confidence float.  An UNAUTHORIZED turn produces the repair
+        # screen; perception is NOT run (the gate fires first).
+        from utterance_intake.observation import Authorization as _Authorization
+        if (request.observation is not None
+                and request.observation.authorization is _Authorization.UNAUTHORIZED):
+            compatibility = self._unauthorized_repair_result(
+                request.turn_input, session, request.observation,
             )
             return ModuleOutcome(value=InteractionDecision(
                 disposition=InteractionDisposition.COMPLETE,
                 text=text,
                 compatibility=compatibility,
             ))
+        elif request.observation is None:
+            stt_conf = trusted.get("stt_confidence")
+            if stt_conf is not None and stt_conf < self._dependencies.stt_write_confidence_min:
+                compatibility = self._low_confidence_result(
+                    request.turn_input, session, stt_conf
+                )
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.COMPLETE,
+                    text=text,
+                    compatibility=compatibility,
+                ))
 
         pending = self._consume_pending_shift(
             text, session, request.turn_input.turn_id
@@ -311,10 +323,10 @@ class InteractionControl:
             if perception is not None
             else self._dependencies.perception_route(text, session)
         )
-        perception_uncertain = bool(
-            perception.uncertain
+        perception_degraded = bool(
+            perception.perception_degraded
             if perception is not None
-            else getattr(route, "uncertain", False)
+            else getattr(route, "perception_degraded", False)
         )
         if route is not None and compose_safety_alert(
             perception_safety_alert=bool(getattr(route, "safety_alert", False))
@@ -449,7 +461,7 @@ class InteractionControl:
                 disposition=InteractionDisposition.CONTINUE_LEARNING,
                 text=text,
                 analysis=analysis,
-                perception_uncertain=perception_uncertain,
+                perception_degraded=perception_degraded,
                 answer_attempt=bool(
                     perception.answer_attempt
                     if perception is not None
@@ -723,6 +735,72 @@ class InteractionControl:
             "answer": reply,
             "answer_source": "scripted",
             "gen_backend": None,
+        }
+
+    def _unauthorized_repair_result(
+        self,
+        turn_input: TurnInput,
+        session: Mapping[str, Any],
+        observation: "UtteranceObservation",
+    ) -> dict[str, Any]:
+        """Ticket 05: produce the repair screen from the observation's
+        ``repair_choices`` — the one sanctioned export.  The response layer
+        reads ``repair_choices``; nothing reads ``utterance.alternates``.
+        The learner always chooses; nothing auto-selects an alternate."""
+        interaction = deep_thaw(turn_input.interaction)
+        text = str(interaction.get("text") or "")
+        pending = session.get("pending_check") or {}
+        choices = list(observation.transcript.repair_choices)
+        causes = [c.value for c in observation.transcript.causes]
+
+        if choices:
+            options = " / ".join(f'"{c}"' for c in choices[:3])
+            reply = f"I'm not sure I heard that right. Did you say {options}? Pick one, or say something else."
+        else:
+            reply = "I'm not sure I heard that right. Please say that again"
+            if pending.get("question"):
+                reply += f" for this question: {pending['question']}"
+            reply += "."
+
+        self._dependencies.log_event({
+            "ts": self._dependencies.now(),
+            "loop": "tutor_loop_v4",
+            "question": text,
+            "action": "REPAIR_SCREEN",
+            "action_reason": (
+                f"unauthorized transcript (causes: {', '.join(causes)}); "
+                "repair screen presented"
+            ),
+            "need": "none",
+            "signals": [],
+            "answer": reply,
+        })
+        return {
+            "action": "REPAIR_SCREEN",
+            "action_reason": f"unauthorized transcript; causes: {', '.join(causes)}",
+            "need": "none",
+            "shadow": None,
+            "concept": {
+                "concept_id": session.get("current_concept"),
+                "concept_confidence": 0.0,
+                "abstained": True,
+            },
+            "signals": [],
+            "cognitive_update": {},
+            "n_evidence": 0,
+            "bridge_ids": [],
+            "writeback": None,
+            "hope_update": None,
+            "pending_check": pending.get("id"),
+            "pending_hope": None,
+            "answer_budget": interaction.get("answer_budget"),
+            "pace": copy.deepcopy(session.get("pace", {})),
+            "display": [],
+            "session_ended": False,
+            "answer": reply,
+            "answer_source": "scripted",
+            "gen_backend": None,
+            "repair_choices": choices,
         }
 
     def _maybe_stop_mode(

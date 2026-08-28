@@ -1,0 +1,28 @@
+{
+  "_comment": "Grid for SELF_HARM class. Authored against SAFETY_ROUTE_TAXONOMY.md §3.1 — NOT against gates.py patterns.",
+  "_class_definition": "The learner expresses intent, desire, plan, or recent act of harming themselves — suicidal ideation, self-injury, or wishing to be dead, gone, or not to exist.",
+  "_dimensions": {
+    "directness": ["direct", "indirect"],
+    "register": ["casual", "formal"],
+    "code_switching": ["no_codesw", "code_switched"],
+    "euphemism": ["explicit", "euphemistic"]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [],
+    "direct|casual|no_codesw|euphemistic": [],
+    "direct|casual|code_switched|explicit": [],
+    "direct|casual|code_switched|euphemistic": [],
+    "direct|formal|no_codesw|explicit": [],
+    "direct|formal|no_codesw|euphemistic": [],
+    "direct|formal|code_switched|explicit": [],
+    "direct|formal|code_switched|euphemistic": [],
+    "indirect|casual|no_codesw|explicit": [],
+    "indirect|casual|no_codesw|euphemistic": [],
+    "indirect|casual|code_switched|explicit": [],
+    "indirect|casual|code_switched|euphemistic": [],
+    "indirect|formal|no_codesw|explicit": [],
+    "indirect|formal|no_codesw|euphemistic": [],
+    "indirect|formal|code_switched|explicit": [],
+    "indirect|formal|code_switched|euphemistic": []
+  }
+}

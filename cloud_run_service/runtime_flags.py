@@ -25,3 +25,9 @@ def confidence_floor(name: str, default: float) -> float:
 
 STT_WRITE_CONFIDENCE_MIN = confidence_floor("WINI_STT_WRITE_CONFIDENCE_MIN", 0.60)
 GRADER_WRITE_CONFIDENCE_MIN = confidence_floor("WINI_GRADER_WRITE_CONFIDENCE_MIN", 0.70)
+
+# --- Acoustic-doubt floors (PROVISIONAL, ticket 05) ---
+# Entered provisional against the captured-STT corpus; recalibrate before promotion.
+UTTERANCE_CONFIDENCE_FLOOR = confidence_floor("WINI_UTTERANCE_CONFIDENCE_FLOOR", 0.60)
+WORD_CONFIDENCE_FLOOR = confidence_floor("WINI_WORD_CONFIDENCE_FLOOR", 0.40)
+DISAGREEMENT_CEILING = confidence_floor("WINI_DISAGREEMENT_CEILING", 0.30)

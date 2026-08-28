@@ -35,7 +35,7 @@ class PedagogyObservation:
     cognitive_update: Mapping[str, float] = None
     abstained: bool = False
     answer_attempt: bool = False
-    uncertain: bool = False
+    perception_degraded: bool = False
     acknowledged: bool = False
     clarification_requested: bool = False
     visualization_requested: bool = False
@@ -189,10 +189,10 @@ class Pedagogy:
                 transfer_ready=request.state.transfer_readiness >= 0.75,
             )
 
-        appropriate = action in ASSESSING_ACTIONS and not request.observation.uncertain
-        if request.observation.uncertain and action in ASSESSING_ACTIONS:
+        appropriate = action in ASSESSING_ACTIONS and not request.observation.perception_degraded
+        if request.observation.perception_degraded and action in ASSESSING_ACTIONS:
             action, need = "EXPLAIN", "explain"
-            reason += "; uncertain perception -> non-assessing explanation"
+            reason += "; degraded perception -> non-assessing explanation"
             plan = {}
         if mode == "EXPLAIN":
             offer = self._modes.maybe_offer_practice(

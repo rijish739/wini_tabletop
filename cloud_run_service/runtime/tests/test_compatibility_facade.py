@@ -393,7 +393,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
                     text=request.turn_input.interaction["text"],
                     analysis=observation.analysis,
-                    perception_uncertain=observation.uncertain,
+                    perception_degraded=observation.perception_degraded,
                 ))
 
         received = []
@@ -427,7 +427,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
                 concept_id=None,
                 concept_confidence=0.0,
                 safety_alert=False,
-                uncertain=False,
+                perception_degraded=False,
                 answer_attempt=False,
             )
 

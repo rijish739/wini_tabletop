@@ -34,7 +34,7 @@ class RouteResult:
     safety_alert: bool = False                    # deterministic-gate or model safety flag
     safety_tier: int | None = None                # 1 concern, 2 protected, 3 urgent
     safety_category: str | None = None             # redacted human-review category
-    uncertain: bool = False                       # fallback has no state-write authority
+    perception_degraded: bool = False             # fallback has no state-write authority
     answer_attempt: bool = False                  # attempts the open pending_check question
     concept_id: Optional[str] = None              # catalog id or None (INHERIT collapses to current)
     concept_confidence: float = 0.0

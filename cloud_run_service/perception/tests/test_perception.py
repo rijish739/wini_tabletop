@@ -109,7 +109,7 @@ class PerceptionInterfaceTests(unittest.TestCase):
         analysis = learning_analysis(None)
         analysis["concept"]["abstained"] = True
         gateway = Gateway(
-            route=RouteResult(primary="LEARNING", uncertain=False), analysis=analysis
+            route=RouteResult(primary="LEARNING", perception_degraded=False), analysis=analysis
         )
         outcome = Perception(gateway).perceive(PerceptionRequest(
             turn_input=turn("can you explain that"),
@@ -130,7 +130,7 @@ class PerceptionInterfaceTests(unittest.TestCase):
         self.assertEqual(outcome.value.intent, "LEARNING")
         self.assertEqual(outcome.value.concept_id, "fractions")
         self.assertEqual(outcome.value.signals, ())
-        self.assertTrue(outcome.value.uncertain)
+        self.assertTrue(outcome.value.perception_degraded)
         self.assertEqual(outcome.value.analysis["normalized_text"], "please explain that")
         self.assertEqual(outcome.failures[0].cause, "timeout")
         self.assertTrue(outcome.failures[0].valid_outcome)

@@ -179,8 +179,15 @@ class TurnCoordinator:
             # Ticket 04: forward the typed observation to Interaction Control so
             # it can read ReferenceReading without falling back to a private regex.
             interaction_request = replace(interaction_request, observation=observation)
+        # Ticket 05: perception is NOT run on an UNAUTHORIZED turn —
+        # Interaction Control's authorization gate produces the repair screen.
+        _skip_perception = False
+        if observation is not None:
+            from utterance_intake.observation import Authorization as _Authorization
+            if observation.authorization is _Authorization.UNAUTHORIZED:
+                _skip_perception = True
         perception_failures: tuple[FailureSignal, ...] = ()
-        if self._perception is not None:
+        if self._perception is not None and not _skip_perception:
             perception_request = self._adapter.perception_request(turn_input)
             if observation is not None:
                 perception_request = replace(

@@ -72,6 +72,17 @@ class ProcessedInput:
         }
 
 
+@dataclass(frozen=True)
+class IngestedInput:
+    """Deep module output capturing normalized text, problem cues, and linguistic markers."""
+
+    raw_text: str
+    normalized_text: str
+    problem_cue: Dict[str, Any]
+    surface_cues: Dict[str, bool] = field(default_factory=dict)
+
+
+
 # -----------------------------------------------------------------------------
 # Semantic classifier interface
 # -----------------------------------------------------------------------------
@@ -609,6 +620,91 @@ class InputProcessor:
         if directive and self._DIGIT_RE.search(s):
             return {"is_problem": True, "cue": "solve_verb+numerals", "directive": True}
         return {"is_problem": False, "cue": "", "directive": False}
+
+    # -- Surface & discourse follow-up cues (extracted from tutor_loop) --
+
+    _ANAPHORA_RE = re.compile(r"\b(this|that|it|these|those|the same|here)\b", re.IGNORECASE)
+    _NEW_EXAMPLE_RE = re.compile(
+        r"\b(another|different|other|new|fresh|one more)\b.*"
+        r"\b(example|sum|problem|question|one)\b",
+        re.IGNORECASE,
+    )
+
+    def is_anaphoric_followup(self, text: str) -> bool:
+        """A short utterance that back-references the current topic ("solve this with
+        graph", "why is it a parabola"). A longer utterance likely names its own topic,
+        so it is not treated as a follow-up (the context-drift guard stays conservative)."""
+        t = (text or "").strip()
+        if not t or len(t.split()) > 12:
+            return False
+        return bool(self._ANAPHORA_RE.search(t))
+
+    def is_same_problem_followup(
+        self, text: str, context: Optional[Sequence[Mapping[str, Any]]] = None, is_followup: bool = False
+    ) -> bool:
+        """True when this turn is a follow-up about the SAME worked example already
+        under discussion, so the generator must reuse the exact same numbers instead
+        of inventing a fresh sum (the "follow-up changes the question" bug).
+
+        Guarded so it fires ONLY on a genuine continuation:
+          * ``is_followup`` — the caller already saw a clarification / anaphoric
+            follow-up (not a fresh question, not an answer attempt),
+          * the student stated no new numbers of their own this turn (≥2 digits ⇒
+            they brought a new sum — let SOLVE_STUDENT_PROBLEM use theirs),
+          * they did not explicitly ask for a *different* example, and
+          * the recent conversation actually contains a worked example to preserve
+            (a WINI reply carrying digits)."""
+        if not is_followup:
+            return False
+        t = (text or "").strip()
+        if not t or len(re.findall(r"\d", t)) >= 2:
+            return False
+        if self._NEW_EXAMPLE_RE.search(t):
+            return False
+        ctx = context or []
+        return any(
+            c.get("role") == "wini" and len(re.findall(r"\d", str(c.get("text") or ""))) >= 2
+            for c in ctx[-4:]
+        )
+
+    def extract_surface_cues(self, text: str, context: Optional[Sequence[Mapping[str, Any]]] = None) -> Dict[str, bool]:
+        """Extract deterministic linguistic cues from the utterance."""
+        s = (text or "").strip()
+        from cognitive_classifier.cues import (
+            is_clarification_request,
+            is_learning_request,
+            is_pure_ack,
+            is_purpose_question,
+            is_question,
+            is_visualization_request,
+        )
+        is_anaphoric = self.is_anaphoric_followup(s)
+        problem = self.detect_student_problem(s)
+        return {
+            "is_problem": bool(problem.get("is_problem")),
+            "directive": bool(problem.get("directive")),
+            "is_anaphoric": is_anaphoric,
+            "is_same_problem": self.is_same_problem_followup(s, context, is_followup=is_anaphoric),
+            "is_pure_ack": is_pure_ack(s),
+            "is_clarification": is_clarification_request(s),
+            "is_question": is_question(s),
+            "is_visualization": is_visualization_request(s),
+            "is_purpose": is_purpose_question(s),
+            "is_learning": is_learning_request(s),
+        }
+
+    def ingest(self, text: str, context: Optional[Sequence[Mapping[str, Any]]] = None) -> IngestedInput:
+        """Deep ingestion method: normalizes text and computes deterministic cues."""
+        norm = self.normalize_input(text)
+        problem = self.detect_student_problem(text)
+        cues = self.extract_surface_cues(text, context)
+        return IngestedInput(
+            raw_text=text,
+            normalized_text=norm,
+            problem_cue=problem,
+            surface_cues=cues,
+        )
+
 
 
 # -----------------------------------------------------------------------------

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from runtime.contracts import Utterance, UtteranceProvenance, UtteranceSource
+from runtime.contracts import Utterance, UtteranceProvenance, UtteranceSource, WordConfidence
 from utterance_intake import (
     Authorization,
     ConfidenceFloorPolicy,
@@ -12,6 +12,7 @@ from utterance_intake import (
     UtteranceIntakeRequest,
     normalize_text,
 )
+from utterance_intake.observation import DoubtCause
 from utterance_intake.tests.harness import build_utterance, run_observe
 
 
@@ -134,6 +135,174 @@ class TotalityAndPurityTests(unittest.TestCase):
         u = build_utterance({"text": "5", "source": "TYPED"})
         obs = run_observe(u)
         self.assertIs(obs.utterance, u)
+
+
+class TranscriptDoubtTests(unittest.TestCase):
+    """Ticket 05: three-signal OR logic for acoustic doubt.
+
+    Covers: non-VOICE never doubtful; utterance-confidence signal; min-word-
+    confidence signal; alternate-disagreement signal; OR combination; repair_choices
+    populated only when doubtful.
+    """
+
+    # ------------------------------------------------------------------ helpers
+
+    def _voice(
+        self,
+        confidence: float | None = 0.92,
+        alternates: tuple[str, ...] = (),
+        word_confidences: tuple[WordConfidence, ...] = (),
+    ) -> Utterance:
+        return Utterance(
+            text="test utterance",
+            source=UtteranceSource.VOICE,
+            provenance=UtteranceProvenance(
+                utterance_id="u_doubt", captured_at="2026-08-28T00:00:00+00:00",
+                recognizer="chirp/en-US",
+            ),
+            confidence=confidence,
+            alternates=alternates,
+            word_confidences=word_confidences,
+        )
+
+    def _obs(self, utterance: Utterance):
+        return run_observe(utterance)
+
+    # ------------------------------------------------------------------ non-VOICE
+
+    def test_typed_is_never_doubtful(self) -> None:
+        obs = run_observe(build_utterance({"text": "five", "source": "TYPED"}))
+        self.assertFalse(obs.transcript.doubtful)
+        self.assertEqual(obs.transcript.causes, ())
+        self.assertEqual(obs.transcript.repair_choices, ())
+
+    def test_repair_selection_is_never_doubtful(self) -> None:
+        obs = run_observe(build_utterance({
+            "text": "five", "source": "REPAIR_SELECTION",
+            "repairs": "u_prev", "selected_alternate_index": 0,
+        }))
+        self.assertFalse(obs.transcript.doubtful)
+
+    def test_repair_discard_is_never_doubtful(self) -> None:
+        obs = run_observe(build_utterance({
+            "text": "", "source": "REPAIR_DISCARD", "repairs": "u_prev",
+        }))
+        self.assertFalse(obs.transcript.doubtful)
+
+    # ------------------------------------------------------------------ signal 1: utterance confidence
+
+    def test_voice_above_floor_not_doubtful(self) -> None:
+        """Confidence 0.60 is at the floor — authorized and not doubtful."""
+        obs = self._obs(self._voice(confidence=0.60))
+        self.assertFalse(obs.transcript.doubtful)
+        self.assertEqual(obs.transcript.causes, ())
+
+    def test_voice_below_floor_is_doubtful(self) -> None:
+        """Confidence 0.30 < 0.60 → UTTERANCE_CONFIDENCE cause."""
+        obs = self._obs(self._voice(confidence=0.30))
+        self.assertTrue(obs.transcript.doubtful)
+        self.assertIn(DoubtCause.UTTERANCE_CONFIDENCE, obs.transcript.causes)
+
+    def test_voice_none_confidence_not_doubtful(self) -> None:
+        """None confidence means the producer did not report it — no gate, no doubt."""
+        obs = self._obs(self._voice(confidence=None))
+        self.assertFalse(obs.transcript.doubtful)
+
+    # ------------------------------------------------------------------ signal 2: word confidence
+
+    def test_word_confidence_below_floor_is_doubtful(self) -> None:
+        """Min word confidence 0.25 < WORD_CONFIDENCE_FLOOR (0.40) → WORD_CONFIDENCE cause."""
+        wc = (WordConfidence(word="maybe", confidence=0.90),
+              WordConfidence(word="three", confidence=0.25))
+        # Utterance confidence is above floor so only the word signal fires.
+        obs = self._obs(self._voice(confidence=0.80, word_confidences=wc))
+        self.assertTrue(obs.transcript.doubtful)
+        self.assertIn(DoubtCause.WORD_CONFIDENCE, obs.transcript.causes)
+        self.assertNotIn(DoubtCause.UTTERANCE_CONFIDENCE, obs.transcript.causes)
+        # min_word_confidence carries the measured value
+        self.assertAlmostEqual(obs.transcript.min_word_confidence, 0.25)
+
+    def test_word_confidence_above_floor_not_doubtful_on_word_signal(self) -> None:
+        """Min word confidence 0.45 >= WORD_CONFIDENCE_FLOOR → no WORD_CONFIDENCE cause."""
+        wc = (WordConfidence(word="six", confidence=0.80),
+              WordConfidence(word="seven", confidence=0.45))
+        obs = self._obs(self._voice(confidence=0.80, word_confidences=wc))
+        self.assertNotIn(DoubtCause.WORD_CONFIDENCE, obs.transcript.causes)
+
+    def test_word_confidence_none_skipped(self) -> None:
+        """A WordConfidence with confidence=None is excluded from the min calculation."""
+        wc = (WordConfidence(word="hello", confidence=None),)
+        obs = self._obs(self._voice(confidence=0.80, word_confidences=wc))
+        self.assertIsNone(obs.transcript.min_word_confidence)
+        self.assertFalse(obs.transcript.doubtful)
+
+    # ------------------------------------------------------------------ signal 3: alternate disagreement
+
+    def test_alternate_disagreement_above_ceiling_is_doubtful(self) -> None:
+        """Alternates that disagree above DISAGREEMENT_CEILING (0.30) → ALTERNATE_DISAGREEMENT."""
+        # "five times six" vs "fire times ix" vs "five times seventh" → ~0.44 disagreement
+        alts = ("five times six", "fire times ix", "five times seventh")
+        obs = self._obs(self._voice(confidence=0.90, alternates=alts))
+        self.assertTrue(obs.transcript.doubtful)
+        self.assertIn(DoubtCause.ALTERNATE_DISAGREEMENT, obs.transcript.causes)
+        self.assertIsNotNone(obs.transcript.disagreement)
+        self.assertGreater(obs.transcript.disagreement, 0.30)
+
+    def test_single_alternate_no_disagreement_computed(self) -> None:
+        """Fewer than 2 alternates → disagreement=None → no ALTERNATE_DISAGREEMENT signal."""
+        obs = self._obs(self._voice(confidence=0.90, alternates=("five",)))
+        self.assertIsNone(obs.transcript.disagreement)
+        self.assertNotIn(DoubtCause.ALTERNATE_DISAGREEMENT, obs.transcript.causes)
+
+    def test_identical_alternates_no_doubt(self) -> None:
+        """Identical alternates → disagreement=0.0 → not doubtful from that signal."""
+        alts = ("the answer is five", "the answer is five")
+        obs = self._obs(self._voice(confidence=0.90, alternates=alts))
+        self.assertIsNotNone(obs.transcript.disagreement)
+        self.assertAlmostEqual(obs.transcript.disagreement, 0.0)
+        self.assertNotIn(DoubtCause.ALTERNATE_DISAGREEMENT, obs.transcript.causes)
+
+    # ------------------------------------------------------------------ OR logic and repair_choices
+
+    def test_or_logic_any_signal_triggers_doubt(self) -> None:
+        """Both utterance-confidence and word-confidence signals fire → both causes listed."""
+        wc = (WordConfidence(word="maybe", confidence=0.20),)
+        obs = self._obs(self._voice(confidence=0.30, word_confidences=wc))
+        self.assertTrue(obs.transcript.doubtful)
+        causes = obs.transcript.causes
+        self.assertIn(DoubtCause.UTTERANCE_CONFIDENCE, causes)
+        self.assertIn(DoubtCause.WORD_CONFIDENCE, causes)
+
+    def test_repair_choices_empty_when_not_doubtful(self) -> None:
+        obs = self._obs(self._voice(confidence=0.92))
+        self.assertEqual(obs.transcript.repair_choices, ())
+
+    def test_repair_choices_populated_when_doubtful_with_alternates(self) -> None:
+        """When doubtful and alternates present, repair_choices carries top-3 distinct normalized."""
+        alts = ("five times six", "fire times ix", "five times seventh")
+        obs = self._obs(self._voice(confidence=0.90, alternates=alts))
+        self.assertTrue(obs.transcript.doubtful)
+        self.assertEqual(obs.transcript.repair_choices, (
+            "five times six", "fire times ix", "five times seventh"
+        ))
+
+    def test_repair_choices_empty_when_doubtful_but_no_alternates(self) -> None:
+        """Low confidence with no alternates → doubtful, repair_choices empty."""
+        obs = self._obs(self._voice(confidence=0.30))
+        self.assertTrue(obs.transcript.doubtful)
+        self.assertEqual(obs.transcript.repair_choices, ())
+
+    def test_repair_choices_deduped_and_capped_at_three(self) -> None:
+        """Duplicate alternates are deduplicated; at most 3 are returned."""
+        alts = ("five", "five", "six", "seven", "eight")
+        # Low confidence to trigger doubt
+        obs = self._obs(self._voice(confidence=0.30, alternates=alts))
+        self.assertTrue(obs.transcript.doubtful)
+        # deduplicated + capped at 3
+        choices = obs.transcript.repair_choices
+        self.assertLessEqual(len(choices), 3)
+        # no duplicates
+        self.assertEqual(len(set(choices)), len(choices))
 
 
 if __name__ == "__main__":

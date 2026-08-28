@@ -1,0 +1,35 @@
+Slice 03 is done. Here's the summary:
+
+---
+
+Commit e3a3b00 on afk/deterministic-input-layer-20260827 — 76 tests passing.
+
+What shipped
+
+┌──────────────────────────────────┬────────────────┐
+│            Spec item             │    Outcome     │
+├──────────────────────────────────┼────────────────┤
+│ detect_student_problem →         │ ✅             │
+│ detect_problem(normalized)       │                │
+├──────────────────────────────────┼────────────────┤
+│ Compute-and-mark deferral on     │ ✅             │
+│ unauthorized                     │                │
+├──────────────────────────────────┼────────────────┤
+│ analysis["p          │
+│  both consumers read             │ ✅             │
+│ analysis["problem"]              │                │
+├──────────────────────┤
+│                                  │ ✅ (glide-path │
+│ retrieval/iback      │
+│ normalized_text                  │ noted in       │
+│                                  │ comment)       │
+├──────────────────────────────────┼────────────────┤
+│ Expected-diff rows + 6           │                │
+│ conformance          │
+│ CI                               │                │
+└──────────────────────────────────┴────────────────┘
+
+Code-review fixes applied
+                                                       Standards:ProblemReading.is_directive_problem property centralises the null-guard test that was repeated in 3+ sites; Py names thezero-reading sentinel that was spelled out raw in 4
+  places.
+- Spec (scope creep reverted): _reference(), _ANAPHOR_RE, the 5 anaphora fixtures, and the 3 concept-fallback removals in legacy_adapter.py were all ticket-04 work — stripped back out of this commit.

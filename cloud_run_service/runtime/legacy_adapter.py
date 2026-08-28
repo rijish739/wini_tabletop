@@ -80,8 +80,8 @@ class LegacyTurnAdapter:
                 hint_progress=copy.deepcopy(session.get("hint_progress") or {}),
             ),
             answer_attempt=bool(getattr(interaction.value, "answer_attempt", False)),
-            perception_uncertain=bool(
-                getattr(interaction.value, "perception_uncertain", False)
+            perception_degraded=bool(
+                getattr(interaction.value, "perception_degraded", False)
             ),
             precomputed_grade=turn_input.trusted_observations.get("precomputed_grade"),
         )
@@ -125,7 +125,7 @@ class LegacyTurnAdapter:
                 cognitive_update=observation.cognitive_update,
                 abstained=bool((analysis.get("concept") or {}).get("abstained")),
                 answer_attempt=observation.answer_attempt,
-                uncertain=observation.uncertain,
+                perception_degraded=observation.perception_degraded,
                 acknowledged=is_pure_ack(normalized),
                 clarification_requested=(
                     is_clarification_request(normalized)
@@ -186,7 +186,7 @@ class LegacyTurnAdapter:
             concept_confidence=float(concept.get("concept_confidence") or 0.0),
             secondary_concepts=tuple(concept.get("secondary_concepts") or ()),
             pedagogical=pedagogical,
-            perception_uncertain=observation.uncertain,
+            perception_uncertain=observation.perception_degraded,
             state=RetrievalStateView(
                 mastery=mastery,
                 measured_concepts=frozenset(
@@ -325,7 +325,8 @@ class LegacyTurnAdapter:
                 if decision is not None:
                     kwargs["precomputed_analysis"] = deep_thaw(decision.analysis)
                     kwargs["_interaction_controlled"] = True
-                    kwargs["_perception_uncertain"] = decision.perception_uncertain
+                    kwargs["_perception_degraded"] = decision.perception_degraded
+                    kwargs["_perception_uncertain"] = decision.perception_degraded
                     kwargs["_interaction_answer_attempt"] = decision.answer_attempt
                     kwargs["_perception_state_applied"] = any(
                         change.owner == "perception" for change in state_changes

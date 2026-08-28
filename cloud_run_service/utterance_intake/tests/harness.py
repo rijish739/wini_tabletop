@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
-from runtime.contracts import Utterance, UtteranceProvenance, UtteranceSource
+from runtime.contracts import Utterance, UtteranceProvenance, UtteranceSource, WordConfidence
 
 from utterance_intake import (
     Authorization,
@@ -56,12 +56,17 @@ def build_utterance(spec: dict) -> Utterance:
         repairs=spec.get("repairs"),
         selected_alternate_index=spec.get("selected_alternate_index"),
     )
+    word_confidences = tuple(
+        WordConfidence(word=w["word"], confidence=w.get("confidence"))
+        for w in spec.get("word_confidences", ())
+    )
     return Utterance(
         text=spec.get("text", ""),
         source=source,
         provenance=provenance,
         confidence=spec.get("confidence"),
         alternates=tuple(spec.get("alternates", ())),
+        word_confidences=word_confidences,
     )
 
 
@@ -145,6 +150,15 @@ def check_expected(observation, expected: dict) -> list[str]:
         eq("problem_directive", observation.problem.directive, expected["problem_directive"])
     eq("parse_outcome", observation.transcript.parse.outcome.value, expected["parse_outcome"])
     eq("has_anaphora", observation.reference.has_anaphora, expected["has_anaphora"])
+    # Ticket 05: doubt fields — optional in existing fixtures for backwards compat.
+    if "doubtful" in expected:
+        eq("doubtful", observation.transcript.doubtful, expected["doubtful"])
+    if "doubt_causes" in expected:
+        got_causes = [c.value for c in observation.transcript.causes]
+        eq("doubt_causes", got_causes, expected["doubt_causes"])
+    if "repair_choices" in expected:
+        eq("repair_choices", list(observation.transcript.repair_choices),
+           expected["repair_choices"])
     return fails
 
 

@@ -2207,6 +2207,7 @@ class TutorLoop:
                      learner_id: str | None = None, _allow_shift: bool = True,
                      _interaction_controlled: bool = False,
                      _perception_uncertain: bool = False,
+                     _perception_degraded: bool = False,
                      _interaction_answer_attempt: bool = False,
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
@@ -2564,6 +2565,9 @@ class TutorLoop:
             self._t9_q_vec = _q_vec()
         except Exception:  # noqa: BLE001 — no embedder yet: per-row path still works
             self._t9_q_vec = None
+        # `ranked` was a local variable inside retrieval.interface.retrieve() but
+        # is not stored on RetrievalResult; _build_display accepts None gracefully.
+        ranked = None
         _t9_t0 = time.perf_counter()
         try:
             mode_cards = self._mode_display(mode_item)
