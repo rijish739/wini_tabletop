@@ -33,6 +33,14 @@ x squared vs x cube	No exponent rule at all.
 minus signs	Folds the word minus. Does not fold the Unicode minus sign − (U+2212).
 local-language pronunciation	No rule.
 
+imagine if user says 'ohhhhh I understood' then legibility will fail and say not legible right? 
+
+safety lexicon is a regex words can create issues like user can ask "if a knife can be used to cut cardboard" this is not safety critical but 'knife' word will trigger safety call and discard whole sentence so word based need to be removed. 
+
+similarly regular expression finding needs to be unwired in math problem detection 
+
+is this the only place anaphor word detection is happening? if yes this is not good. 
+
 
 2. normalize has no idea what a maths word is. So the root cause becomes the sqrt cause
 

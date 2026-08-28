@@ -1,0 +1,9 @@
+{
+  "date": "2026-08-28",
+  "parser_version": "spoken-maths-v1",
+  "sample_count": 50,
+  "p50_ms": 0.5,
+  "p95_ms": 3.0,
+  "p99_ms": 8.0,
+  "wall_clock_timeout_ms": 50.0
+}

@@ -8,3 +8,4 @@ python-dotenv>=1.0.1
 rapidfuzz>=3.9.6
 rank-bm25>=0.2.2
 tqdm>=4.66.5
+lark>=1.2.2

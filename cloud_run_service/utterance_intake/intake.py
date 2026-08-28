@@ -30,7 +30,9 @@ from .observation import (
     DoubtCause,
     LegibilityCue,
     LegibilityReading,
+    MathParse,
     PASSTHROUGH_PARSE,
+    ParseOutcome,
     ProblemCue,
     ProblemReading,
     ReferenceReading,
@@ -307,26 +309,24 @@ def _min_word_conf(word_confidences: tuple[WordConfidence, ...]) -> float | None
 
 
 def _transcript_doubt(utterance: Utterance, normalized: str) -> TranscriptReading:
-    """Compute the three-signal doubt verdict for one utterance (ticket 05).
+    """Compute the doubt verdict and maths parse for one utterance (tickets 05, 06).
 
     Signals:
         1. Utterance confidence < UTTERANCE_CONFIDENCE_FLOOR
         2. Min word confidence   < WORD_CONFIDENCE_FLOOR
         3. Alternate disagreement > DISAGREEMENT_CEILING
+        4. Grammar refusal (AMBIGUOUS_PARSE or OUT_OF_GRAMMAR)
 
-    ``doubtful`` is the OR of the available (non-None) signals.
-    ``repair_choices`` carries the top-3 distinct normalized alternates
-    (index 0 == primary) only when doubtful.
-
-    The alternate-disagreement measure is computed over ``normalized_text``,
-    before authorization — it is a property of the acoustic evidence.
-
-    Non-VOICE sources never produce doubt (TYPED/REPAIR_SELECTION have no
-    acoustic evidence; REPAIR_DISCARD is empty text).
+    ``doubtful`` is the OR of the available signals for VOICE utterances.
+    ``repair_choices`` carries the top-3 distinct choices when doubtful.
     """
-    # Non-VOICE sources: no acoustic doubt possible.
+    from .grammar import parse_maths
+
+    parse = parse_maths(normalized)
+
+    # Non-VOICE sources: no acoustic doubt; record parse.
     if utterance.source is not UtteranceSource.VOICE:
-        return TranscriptReading(doubtful=False, parse=PASSTHROUGH_PARSE)
+        return TranscriptReading(doubtful=False, parse=parse)
 
     causes: list[DoubtCause] = []
 
@@ -345,20 +345,32 @@ def _transcript_doubt(utterance: Utterance, normalized: str) -> TranscriptReadin
     if disagreement is not None and disagreement > DISAGREEMENT_CEILING:
         causes.append(DoubtCause.ALTERNATE_DISAGREEMENT)
 
+    # Signal 4: grammar parse refusals.
+    if parse.outcome is ParseOutcome.REFUSE_AMBIGUOUS:
+        causes.append(DoubtCause.AMBIGUOUS_PARSE)
+    elif parse.outcome is ParseOutcome.REFUSE_OUT_OF_GRAMMAR:
+        causes.append(DoubtCause.OUT_OF_GRAMMAR)
+
     doubtful = bool(causes)
 
-    # repair_choices: top-3 distinct normalized alternates, only when doubtful.
-    # dict.fromkeys preserves insertion order and deduplicates in O(n).
+    # repair_choices: top-3 distinct choices when doubtful.
     repair_choices: tuple[str, ...] = ()
-    if doubtful and utterance.alternates:
-        normed = (normalize_text(alt) for alt in utterance.alternates)
-        repair_choices = tuple(
-            k for k in dict.fromkeys(n for n in normed if n)
-        )[:3]
+    if doubtful:
+        choices_list: list[str] = []
+        if utterance.alternates:
+            for alt in utterance.alternates:
+                na = normalize_text(alt)
+                if na and na not in choices_list:
+                    choices_list.append(na)
+        if parse.outcome is ParseOutcome.REFUSE_AMBIGUOUS and parse.competing:
+            for c in parse.competing:
+                if c and c not in choices_list:
+                    choices_list.append(c)
+        repair_choices = tuple(choices_list)[:3]
 
     return TranscriptReading(
         doubtful=doubtful,
-        parse=PASSTHROUGH_PARSE,
+        parse=parse,
         causes=tuple(causes),
         disagreement=disagreement,
         min_word_confidence=min_wc,

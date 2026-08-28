@@ -101,15 +101,27 @@ class AssessmentEvidence:
             return ModuleOutcome(value=None, failures=(integrity_failure,))
 
         text = str(request.turn_input.interaction.get("text") or "")
+        refused_parse = False
+        if request.observation is not None:
+            parse = request.observation.transcript.parse
+            if parse is not None:
+                from utterance_intake.observation import ParseOutcome
+                if parse.outcome is ParseOutcome.ACCEPT and parse.interpretation:
+                    text = parse.interpretation
+                elif parse.outcome in (ParseOutcome.REFUSE_AMBIGUOUS, ParseOutcome.REFUSE_OUT_OF_GRAMMAR):
+                    refused_parse = True
+                elif parse.outcome is ParseOutcome.PASSTHROUGH:
+                    text = request.observation.normalized_text or text
+
         item_id = str(pending.get("item_id") or pending.get("id"))
         key = make_idempotency_key(
             request.turn_input.learner_id, request.turn_input.turn_id, item_id, text
         )
         stt_confidence = request.turn_input.trusted_observations.get("stt_confidence")
-        if request.perception_degraded:
+        if request.perception_degraded or refused_parse:
             grade = GradeResult(
-                "not_an_answer", "uncertain_perception", 0.0, None,
-                stt_confidence, key,
+                "not_an_answer", "refused_parse" if refused_parse else "uncertain_perception",
+                0.0, None, stt_confidence, key,
             )
         elif not request.answer_attempt or obvious_non_attempt(text):
             grade = GradeResult(

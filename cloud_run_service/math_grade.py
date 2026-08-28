@@ -41,16 +41,22 @@ def normalize(text: str) -> str:
     """Lowercase + fold STT/spoken math into symbol form.
 
     'root two' -> 'sqrt 2', 'one by three'/'one over three' -> '1/3',
-    'x equals 2' -> 'x = 2', number words -> digits (incl. 'twenty five' -> 25).
+    'x equals 2' -> 'x = 2', number words -> digits (incl. 'twenty five' -> 25),
+    '3 squared' -> '3^2', 'three cube' -> '3^3'.
     """
     s = (text or "").lower().strip()
     s = s.replace("√", " sqrt ").replace("×", "*").replace("÷", "/")
-    s = s.replace("plus or minus", "+/-").replace("±", "+/-")
+    s = s.replace("−", "-").replace("±", "+/-").replace("plus or minus", "+/-")
+    s = s.replace("½", " 1/2 ").replace("⅓", " 1/3 ").replace("⅔", " 2/3 ").replace("¼", " 1/4 ").replace("¾", " 3/4 ")
     s = re.sub(r"\bsquare\s+root\s+of\s+", "sqrt ", s)   # before the bare 'root'
     s = re.sub(r"\broot\s+", "sqrt ", s)
     s = re.sub(r"\b(negative|minus)\s+", "-", s)         # 'minus four' -> -4
     s = re.sub(r"\b(\w+)\s+(?:by|over|upon)\s+(\w+)\b", r"\1/\2", s)   # fractions
     s = re.sub(r"\bequals?\b|\bis equal to\b", "=", s)
+    s = re.sub(r"\s*\bsquared\b|²", "^2", s)
+    s = re.sub(r"\s*\b(?:cubed|cube)\b|³", "^3", s)
+    s = re.sub(r"\s*\bto\s+the\s+(?:power\s+(?:of\s+)?)?(\d+)\b", r"^\1", s)
+    s = re.sub(r"\s*\^\s*", "^", s)
     # two-word tens ("twenty five" -> 25)
     def _tens(m):
         a, b = _ONES.get(m.group(1)), _ONES.get(m.group(2))
@@ -67,12 +73,18 @@ def normalize(text: str) -> str:
 
 def _to_value(tok: str):
     """Parse one token into a comparable float, or None."""
-    tok = tok.strip().strip("()")
+    tok = re.sub(r"\s+", "", tok.strip().strip("()"))
     if not tok:
         return None
-    m = re.fullmatch(r"sqrt\s*([0-9]+(?:\.[0-9]+)?)", tok)
+    m = re.fullmatch(r"sqrt([0-9]+(?:\.[0-9]+)?)", tok)
     if m:
         return float(m.group(1)) ** 0.5
+    m_exp = re.fullmatch(r"(-?[0-9]+(?:\.[0-9]+)?)\^([0-9]+(?:\.[0-9]+)?)", tok)
+    if m_exp:
+        try:
+            return float(m_exp.group(1)) ** float(m_exp.group(2))
+        except (ValueError, OverflowError):
+            return None
     if re.fullmatch(r"-?[0-9]+/[0-9]+", tok):
         try:
             return float(Fraction(tok))
@@ -88,7 +100,7 @@ def _values(text: str) -> set:
     s = normalize(text)
     s = re.sub(r"\b[a-z]\s*=\s*", " ", s)          # strip 'x =' leaving the value
     vals = set()
-    for m in re.finditer(r"sqrt\s*[0-9]+(?:\.[0-9]+)?|-?[0-9]+/[0-9]+|-?[0-9]+(?:\.[0-9]+)?", s):
+    for m in re.finditer(r"sqrt\s*[0-9]+(?:\.[0-9]+)?|-?[0-9]+(?:\.[0-9]+)?\s*\^\s*[0-9]+(?:\.[0-9]+)?|-?[0-9]+/[0-9]+|-?[0-9]+(?:\.[0-9]+)?", s):
         v = _to_value(m.group(0))
         if v is not None:
             vals.add(round(v, 6))

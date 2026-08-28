@@ -1,0 +1,117 @@
+// Spoken & written maths grammar for Class-10 NCERT
+// Grammar version: spoken-maths-v1
+
+?start: math_utterance
+
+?math_utterance: solution_list
+
+?solution_list: equation_or_expr
+              | solution_list "and" equation_or_expr -> conjunction
+              | solution_list "or" equation_or_expr  -> disjunction
+              | solution_list "," equation_or_expr   -> pair
+
+?equation_or_expr: equation
+                 | expr
+
+?equation: expr "=" expr                   -> eq
+         | expr "equals" expr              -> eq
+         | expr "is" "equal" "to" expr     -> eq
+         | var_name "is" expr              -> eq
+
+?expr: sum
+
+?sum: product
+    | sum "+" product               -> add
+    | sum "plus" product            -> add
+    | sum "-" product               -> sub
+    | sum "minus" product           -> sub
+    | sum "−" product               -> sub
+    | "plus" "or" "minus" product   -> plus_minus_unary
+    | "+/-" product                 -> plus_minus_unary
+    | "±" product                   -> plus_minus_unary
+
+?product: fraction_expr
+        | product "*" power             -> mul
+        | product "times" power         -> mul
+        | product "into" power          -> mul
+        | product "multiplied" "by" power -> mul
+
+?fraction_expr: power
+              | power "over" power           -> div
+              | power "over" expr            -> div
+              | power "by" power             -> div
+              | power "by" expr              -> div
+              | power "upon" power           -> div
+              | power "upon" expr            -> div
+              | power "divided" "by" power   -> div
+              | power "divided" "by" expr    -> div
+              | power "/" power              -> div
+              | power "/" expr               -> div
+
+?power: unary
+      | unary "^" power                      -> pow
+      | unary "**" power                     -> pow
+      | unary "to" "the" "power" "of" power  -> pow
+      | unary "to" "the" "power" power       -> pow
+      | unary "to" "the" power               -> pow
+      | unary "power" power                  -> pow
+      | unary "squared"                      -> squared
+      | unary "²"                            -> squared
+      | unary "cubed"                        -> cubed
+      | unary "cube"                         -> cubed
+      | unary "³"                            -> cubed
+
+?unary: atom
+      | NUMBER VAR                           -> implicit_mul
+      | NUMBER "(" expr ")"                  -> implicit_mul
+      | "-" atom                             -> neg
+      | "−" atom                             -> neg
+      | "minus" atom                         -> neg
+      | "negative" atom                      -> neg
+      | "root" atom                          -> sqrt
+      | "square" "root" "of" atom            -> sqrt
+      | "square" "root" atom                 -> sqrt
+      | "sqrt" atom                          -> sqrt
+      | "√" atom                             -> sqrt
+      | "sqrt" "(" expr ")"                  -> sqrt
+
+?atom: NUMBER                                -> num
+     | number_word
+     | vulgar_fraction                       -> frac_word
+     | var_name
+     | "(" expr ")"
+
+?var_name: VAR                               -> var
+         | CONSTANT                          -> const
+
+?vulgar_fraction: "half"                     -> half
+                | "one half"                 -> half
+                | "one third"                -> third
+                | "two thirds"               -> two_thirds
+                | "one fourth"               -> fourth
+                | "one quarter"              -> fourth
+                | "three fourths"            -> three_fourths
+                | "three quarters"           -> three_fourths
+                | "½"                        -> half
+                | "⅓"                        -> third
+                | "⅔"                        -> two_thirds
+                | "¼"                        -> fourth
+                | "¾"                        -> three_fourths
+
+?number_word: UNIT_WORD                      -> unit
+            | TEEN_WORD                      -> teen
+            | TENS_WORD                      -> tens
+            | TENS_WORD UNIT_WORD            -> compound_tens
+            | UNIT_WORD "hundred"            -> hundred_unit
+            | "hundred"                      -> hundred_plain
+
+UNIT_WORD: "zero" | "one" | "two" | "three" | "four" | "five" | "six" | "seven" | "eight" | "nine"
+TEEN_WORD: "eleven" | "twelve" | "thirteen" | "fourteen" | "fifteen" | "sixteen" | "seventeen" | "eighteen" | "nineteen" | "ten"
+TENS_WORD: "twenty" | "thirty" | "forty" | "fifty" | "sixty" | "seventy" | "eighty" | "ninety"
+
+NUMBER: /[0-9]+(?:\.[0-9]+)?|\.[0-9]+/
+VAR: /[a-zA-Z]/
+CONSTANT: "pi" | "π"
+
+%import common.WS
+%ignore WS
