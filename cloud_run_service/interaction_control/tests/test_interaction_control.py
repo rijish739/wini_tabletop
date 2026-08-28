@@ -465,7 +465,15 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(changed[("current_concept",)].value, "triangles")
         self.assertEqual(changed[("pending_check",)].operation, StateOperation.DELETE)
 
-    def test_anaphoric_followup_preserves_unrelated_current_topic(self) -> None:
+    def test_anaphoric_followup_with_confident_unrelated_concept_now_accepted(self) -> None:
+        """Deliberate behaviour change (ticket 04 / issue 12 / issue 15):
+
+        Previously the drift guard preserved session['current_concept'] when an
+        anaphoric utterance ("solve this with graph") resolved to an unrelated
+        concept. That guard is now deleted: the resolved concept is accepted and
+        session['current_concept'] is updated. The concept resolver will own
+        topic-continuity decisions when it lands.
+        """
         dependencies = _dependencies(
             analyze=lambda text, current: {
                 "normalized_text": text.lower(),
@@ -483,16 +491,17 @@ class InteractionControlTests(unittest.TestCase):
         outcome = InteractionControl(dependencies).control(
             InteractionControlRequest(
                 turn_input=_turn("solve this with graph"),
-                session={"current_concept": "quadratics"},
+                session={"current_concept": "quadratics", "context": []},
             )
         )
 
+        # Deliberate change: the new concept is accepted (drift guard deleted).
         self.assertEqual(
-            outcome.value.analysis["concept"]["concept_id"], "quadratics"
+            outcome.value.analysis["concept"]["concept_id"], "linear_graphs"
         )
-        self.assertFalse(any(
-            change.path == ("current_concept",) for change in outcome.state_changes
-        ))
+        changed = {change.path: change for change in outcome.state_changes}
+        self.assertIn(("current_concept",), changed)
+        self.assertEqual(changed[("current_concept",)].value, "linear_graphs")
 
     def test_declining_current_topic_offers_alternatives_and_clears_stale_prompt(self) -> None:
         dependencies = _dependencies(
@@ -597,6 +606,81 @@ class InteractionControlTests(unittest.TestCase):
         )
         self.assertEqual(outcome.value.disposition, InteractionDisposition.COMPLETE)
         self.assertEqual(outcome.value.compatibility["action"], "CONFIRM_LOW_CONFIDENCE")
+
+    def test_null_concept_id_does_not_write_current_concept(self) -> None:
+        """Invariant (ticket 04 / issue 12): concept_id is None => no learner-state write.
+
+        When perception abstains (concept_id=None), the session's current_concept
+        must remain unchanged.  The prior incidental protection was scattered 'if
+        primary' guards; this test makes the invariant explicit.
+        """
+        def analyze(text, current):
+            return {
+                "normalized_text": text.lower(),
+                "concept": {"concept_id": None, "concept_confidence": 0.0, "abstained": True},
+                "signals": [],
+                "state_deltas": {},
+            }
+
+        session = {"current_concept": "fractions", "context": []}
+        outcome = InteractionControl(
+            _dependencies(analyze=analyze)
+        ).control(InteractionControlRequest(turn_input=_turn("explain this"), session=session))
+
+        self.assertEqual(outcome.value.disposition, InteractionDisposition.CONTINUE_LEARNING)
+        # No state change for current_concept when concept_id is None.
+        concept_changes = [
+            change for change in outcome.state_changes
+            if change.path == ("current_concept",)
+        ]
+        self.assertEqual(
+            concept_changes, [],
+            "concept_id is None must not author a current_concept state change",
+        )
+
+    def test_drift_guard_deleted_confident_unrelated_concept_is_accepted(self) -> None:
+        """Deliberate behaviour change (ticket 04 / issue 12 / issue 15):
+
+        With the drift guard gone, a confident resolution to an unrelated concept
+        is accepted and session['current_concept'] follows it, even on a short
+        anaphoric utterance like 'solve this'.  This was previously blocked by
+        the guard when concept_relates_to_topic returned False; the guard is now
+        deleted and the concept resolver owns topic-continuity decisions.
+        """
+        def analyze(text, current):
+            return {
+                "normalized_text": text.lower(),
+                "concept": {
+                    "concept_id": "circles",
+                    "concept_confidence": 0.92,
+                    "abstained": False,
+                },
+                "signals": [],
+                "state_deltas": {},
+            }
+
+        session = {"current_concept": "fractions", "context": []}
+        outcome = InteractionControl(
+            _dependencies(
+                analyze=analyze,
+                # concept_relates_to_topic returning False was the old guard trigger;
+                # it is now irrelevant — the guard has been deleted.
+                concept_relates_to_topic=lambda new, old: False,
+            )
+        ).control(InteractionControlRequest(
+            turn_input=_turn("solve this"),
+            session=session,
+        ))
+
+        self.assertEqual(outcome.value.disposition, InteractionDisposition.CONTINUE_LEARNING)
+        concept_changes = {
+            change.path: change
+            for change in outcome.state_changes
+            if change.path == ("current_concept",)
+        }
+        # The new concept must be accepted (drift guard is gone).
+        self.assertIn(("current_concept",), concept_changes)
+        self.assertEqual(concept_changes[("current_concept",)].value, "circles")
 
 
 if __name__ == "__main__":

@@ -176,6 +176,9 @@ class TurnCoordinator:
             observation = self._utterance_intake.observe(
                 UtteranceIntakeRequest(turn_input=turn_input)
             ).value
+            # Ticket 04: forward the typed observation to Interaction Control so
+            # it can read ReferenceReading without falling back to a private regex.
+            interaction_request = replace(interaction_request, observation=observation)
         perception_failures: tuple[FailureSignal, ...] = ()
         if self._perception is not None:
             perception_request = self._adapter.perception_request(turn_input)

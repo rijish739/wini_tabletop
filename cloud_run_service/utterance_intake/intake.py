@@ -25,6 +25,7 @@ from typing import Protocol
 from runtime.contracts import ModuleOutcome, Utterance, UtteranceSource
 
 from .observation import (
+    AnaphorSpan,
     Authorization,
     LegibilityCue,
     LegibilityReading,
@@ -36,6 +37,7 @@ from .observation import (
     SafetyFinding,
     SafetySignals,
     SafetySource,
+    Span,
     TranscriptReading,
     UtteranceObservation,
 )
@@ -83,6 +85,39 @@ _PROB_SOLVE_VERB_RE = re.compile(
 
 _PROB_DIGIT_RE = re.compile(r"\d")
 
+
+# ---------------------------------------------------------------------------
+# Reference / anaphora detection (ticket 04).
+# Finds every anaphor token in the text and records its character span.
+# The 12-word cutoff from the old is_anaphoric_followup is deliberately absent
+# — it was unmeasured, had no owner, and is recorded in the concept-resolver
+# handover as an artefact, not an inherited requirement.
+# UNAUTHORIZED utterances get an empty ReferenceReading (compute-and-mark
+# deferral): the learner may re-authorize via a repair selection, so running
+# detection on an untrusted transcript is wasteful and misleading.
+# ---------------------------------------------------------------------------
+_ANAPHOR_RE = re.compile(
+    r"\b(this|that|it|these|those|the\s+same|here)\b", re.IGNORECASE
+)
+
+
+def _reference(normalized: str, authorization: Authorization) -> ReferenceReading:
+    """Detect anaphor spans in *normalized* text.
+
+    Returns an empty ``ReferenceReading`` for UNAUTHORIZED utterances (deferred
+    until the learner re-authorizes). For AUTHORIZED (and DISCARDED, which the
+    gate already blocked), scans the normalized text with ``_ANAPHOR_RE`` and
+    records each match as an ``AnaphorSpan`` with character-offset ``Span``.
+    """
+    if authorization is not Authorization.AUTHORIZED:
+        return ReferenceReading()
+    spans: list[AnaphorSpan] = []
+    for match in _ANAPHOR_RE.finditer(normalized):
+        spans.append(AnaphorSpan(
+            text=match.group(0),
+            span=Span(start=match.start(), end=match.end()),
+        ))
+    return ReferenceReading(anaphors=tuple(spans))
 
 
 def detect_problem(normalized: str) -> ProblemReading:
@@ -252,6 +287,6 @@ class UtteranceIntake:
             legibility=_legibility(normalized),
             transcript=TranscriptReading(doubtful=False, parse=PASSTHROUGH_PARSE),
             problem=problem,
-            reference=ReferenceReading(),
+            reference=_reference(normalized, authorization),
         )
         return ModuleOutcome(value=observation)

@@ -99,7 +99,10 @@ class LegacyTurnAdapter:
         from session_modes import mode_cues
 
         session = copy.deepcopy(self._state.data.get("session") or {})
-        concept_id = observation.concept_id or session.get("current_concept")
+        # Duplicate concept supplier deleted (ticket 04 / issue 12, site 4):
+        # the session fallback was a silent re-inheritance.  concept_id is None
+        # when Gemini abstains; callers downstream guard on `if primary`.
+        concept_id = observation.concept_id
         concept = (self._state.data.get("concept_states") or {}).get(concept_id) or {}
         mastery_fn = getattr(self._state, "mastery", None)
         transfer_fn = getattr(self._state, "transfer_readiness", None)
@@ -215,8 +218,8 @@ class LegacyTurnAdapter:
 
         analysis = deep_thaw(observation.analysis)
         cognitive = observation.cognitive_update
-        concept_id = observation.concept_id or (self._state.data.get("session") or {}).get(
-            "current_concept")
+        # Duplicate concept supplier deleted (ticket 04 / issue 12, site 5a).
+        concept_id = observation.concept_id
         engine = getattr(self._legacy_turn, "__self__", None)
         graph = getattr(engine, "graph", None)
         node = graph.nodes.get(concept_id, {}) if graph is not None and concept_id else {}
@@ -245,7 +248,8 @@ class LegacyTurnAdapter:
 
         session = self._state.data.get("session") or {}
         engine = getattr(self._legacy_turn, "__self__", None)
-        concept_id = observation.concept_id or session.get("current_concept")
+        # Duplicate concept supplier deleted (ticket 04 / issue 12, site 5b).
+        concept_id = observation.concept_id
         graph = getattr(engine, "graph", None)
         node = graph.nodes.get(concept_id, {}) if graph is not None and concept_id else {}
         proposal = response_plan.assessment_proposal

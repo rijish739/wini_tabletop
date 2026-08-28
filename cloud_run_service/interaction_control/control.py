@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
 
 if TYPE_CHECKING:
     from perception import PerceptionObservation
+    from utterance_intake import UtteranceObservation
 
 from runtime.contracts import (
     FailureSeverity,
@@ -38,6 +39,10 @@ class InteractionControlRequest:
     session: Mapping[str, Any]
     bound_learner_id: str | None = None
     perception: "PerceptionObservation | None" = None
+    # Utterance Intake observation — always non-None in production (Intake is
+    # total by design); None only in legacy test stubs that predate the field.
+    # No consumer may getattr-fallback to a private regex when this is present.
+    observation: "UtteranceObservation | None" = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -429,17 +434,12 @@ class InteractionControl:
         analysis = deep_thaw(analysis)
         concept = dict(analysis.get("concept") or {})
         primary = concept.get("concept_id")
-        current = session.get("current_concept")
-        if (
-            current
-            and primary
-            and primary != current
-            and self._is_anaphoric_followup(text)
-            and not self._dependencies.concept_relates_to_topic(primary, current)
-        ):
-            concept["concept_id"] = current
-            analysis["concept"] = concept
-            primary = current
+        # Drift guard deleted (ticket 04 / issue 12): a confident resolution to an
+        # unrelated concept is now accepted and session["current_concept"] follows
+        # it. This is a deliberate behaviour change recorded in issue 15; the
+        # concept resolver (handover doc) is the future owner of topic-continuity
+        # decisions. ReferenceReading on observation is supplied and unread here
+        # until that layer exists.
         test_state = session.get("test_state")
         test_locked = test_state is not None and test_state.get("phase") not in (None, "done")
         if primary and not test_locked:
@@ -670,13 +670,6 @@ class InteractionControl:
                 f"shift request; top match {concept_id} (sim {similarity:.2f})"
             ),
         }
-
-    @staticmethod
-    def _is_anaphoric_followup(text: str) -> bool:
-        value = (text or "").strip()
-        if not value or len(value.split()) > 12:
-            return False
-        return bool(re.search(r"\b(this|that|it|these|those|the same|here)\b", value, re.I))
 
     def _low_confidence_result(
         self,
