@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for THREAT_TO_CHILD. Authored against SAFETY_ROUTE_TAXONOMY.md §3 — NOT against patterns.",
+  "_class_definition": "The learner is the target of threats, bullying, harassment, stalking, intimidation or blackmail — peer or adult, online or in person. Harm is threatened or ongoing, not yet done.",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "safety-threat_to_child-direct_casual_no_codesw_explicit-01",
+      "safety-threat_to_child-direct_casual_no_codesw_explicit-02",
+      "safety-threat_to_child-direct_casual_no_codesw_explicit-03",
+      "safety-threat_to_child-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "safety-threat_to_child-direct_casual_no_codesw_euphemistic-01",
+      "safety-threat_to_child-direct_casual_no_codesw_euphemistic-02",
+      "safety-threat_to_child-direct_casual_no_codesw_euphemistic-03",
+      "safety-threat_to_child-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "safety-threat_to_child-direct_casual_code_switched_explicit-01",
+      "safety-threat_to_child-direct_casual_code_switched_explicit-02",
+      "safety-threat_to_child-direct_casual_code_switched_explicit-03",
+      "safety-threat_to_child-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "safety-threat_to_child-direct_casual_code_switched_euphemistic-01",
+      "safety-threat_to_child-direct_casual_code_switched_euphemistic-02",
+      "safety-threat_to_child-direct_casual_code_switched_euphemistic-03",
+      "safety-threat_to_child-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "safety-threat_to_child-direct_formal_no_codesw_explicit-01",
+      "safety-threat_to_child-direct_formal_no_codesw_explicit-02",
+      "safety-threat_to_child-direct_formal_no_codesw_explicit-03",
+      "safety-threat_to_child-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "safety-threat_to_child-direct_formal_no_codesw_euphemistic-01",
+      "safety-threat_to_child-direct_formal_no_codesw_euphemistic-02",
+      "safety-threat_to_child-direct_formal_no_codesw_euphemistic-03",
+      "safety-threat_to_child-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "safety-threat_to_child-direct_formal_code_switched_explicit-01",
+      "safety-threat_to_child-direct_formal_code_switched_explicit-02",
+      "safety-threat_to_child-direct_formal_code_switched_explicit-03",
+      "safety-threat_to_child-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "safety-threat_to_child-direct_formal_code_switched_euphemistic-01",
+      "safety-threat_to_child-direct_formal_code_switched_euphemistic-02",
+      "safety-threat_to_child-direct_formal_code_switched_euphemistic-03",
+      "safety-threat_to_child-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "safety-threat_to_child-indirect_casual_no_codesw_explicit-01",
+      "safety-threat_to_child-indirect_casual_no_codesw_explicit-02",
+      "safety-threat_to_child-indirect_casual_no_codesw_explicit-03",
+      "safety-threat_to_child-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "safety-threat_to_child-indirect_casual_no_codesw_euphemistic-01",
+      "safety-threat_to_child-indirect_casual_no_codesw_euphemistic-02",
+      "safety-threat_to_child-indirect_casual_no_codesw_euphemistic-03",
+      "safety-threat_to_child-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "safety-threat_to_child-indirect_casual_code_switched_explicit-01",
+      "safety-threat_to_child-indirect_casual_code_switched_explicit-02",
+      "safety-threat_to_child-indirect_casual_code_switched_explicit-03",
+      "safety-threat_to_child-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "safety-threat_to_child-indirect_casual_code_switched_euphemistic-01",
+      "safety-threat_to_child-indirect_casual_code_switched_euphemistic-02",
+      "safety-threat_to_child-indirect_casual_code_switched_euphemistic-03",
+      "safety-threat_to_child-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "safety-threat_to_child-indirect_formal_no_codesw_explicit-01",
+      "safety-threat_to_child-indirect_formal_no_codesw_explicit-02",
+      "safety-threat_to_child-indirect_formal_no_codesw_explicit-03",
+      "safety-threat_to_child-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "safety-threat_to_child-indirect_formal_no_codesw_euphemistic-01",
+      "safety-threat_to_child-indirect_formal_no_codesw_euphemistic-02",
+      "safety-threat_to_child-indirect_formal_no_codesw_euphemistic-03",
+      "safety-threat_to_child-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "safety-threat_to_child-indirect_formal_code_switched_explicit-01",
+      "safety-threat_to_child-indirect_formal_code_switched_explicit-02",
+      "safety-threat_to_child-indirect_formal_code_switched_explicit-03",
+      "safety-threat_to_child-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "safety-threat_to_child-indirect_formal_code_switched_euphemistic-01",
+      "safety-threat_to_child-indirect_formal_code_switched_euphemistic-02",
+      "safety-threat_to_child-indirect_formal_code_switched_euphemistic-03",
+      "safety-threat_to_child-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

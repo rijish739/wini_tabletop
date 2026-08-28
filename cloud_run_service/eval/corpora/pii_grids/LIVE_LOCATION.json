@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for LIVE_LOCATION. Authored against PERSONAL_DATA_CONTRACT.md §3 — NOT against patterns.",
+  "_class_definition": "Where the learner is right now, at a granularity that could bring someone to them. Distinct from ADDRESS. COPPA §312.2(9).",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "pii-live_location-direct_casual_no_codesw_explicit-01",
+      "pii-live_location-direct_casual_no_codesw_explicit-02",
+      "pii-live_location-direct_casual_no_codesw_explicit-03",
+      "pii-live_location-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "pii-live_location-direct_casual_no_codesw_euphemistic-01",
+      "pii-live_location-direct_casual_no_codesw_euphemistic-02",
+      "pii-live_location-direct_casual_no_codesw_euphemistic-03",
+      "pii-live_location-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "pii-live_location-direct_casual_code_switched_explicit-01",
+      "pii-live_location-direct_casual_code_switched_explicit-02",
+      "pii-live_location-direct_casual_code_switched_explicit-03",
+      "pii-live_location-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "pii-live_location-direct_casual_code_switched_euphemistic-01",
+      "pii-live_location-direct_casual_code_switched_euphemistic-02",
+      "pii-live_location-direct_casual_code_switched_euphemistic-03",
+      "pii-live_location-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "pii-live_location-direct_formal_no_codesw_explicit-01",
+      "pii-live_location-direct_formal_no_codesw_explicit-02",
+      "pii-live_location-direct_formal_no_codesw_explicit-03",
+      "pii-live_location-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "pii-live_location-direct_formal_no_codesw_euphemistic-01",
+      "pii-live_location-direct_formal_no_codesw_euphemistic-02",
+      "pii-live_location-direct_formal_no_codesw_euphemistic-03",
+      "pii-live_location-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "pii-live_location-direct_formal_code_switched_explicit-01",
+      "pii-live_location-direct_formal_code_switched_explicit-02",
+      "pii-live_location-direct_formal_code_switched_explicit-03",
+      "pii-live_location-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "pii-live_location-direct_formal_code_switched_euphemistic-01",
+      "pii-live_location-direct_formal_code_switched_euphemistic-02",
+      "pii-live_location-direct_formal_code_switched_euphemistic-03",
+      "pii-live_location-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "pii-live_location-indirect_casual_no_codesw_explicit-01",
+      "pii-live_location-indirect_casual_no_codesw_explicit-02",
+      "pii-live_location-indirect_casual_no_codesw_explicit-03",
+      "pii-live_location-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "pii-live_location-indirect_casual_no_codesw_euphemistic-01",
+      "pii-live_location-indirect_casual_no_codesw_euphemistic-02",
+      "pii-live_location-indirect_casual_no_codesw_euphemistic-03",
+      "pii-live_location-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "pii-live_location-indirect_casual_code_switched_explicit-01",
+      "pii-live_location-indirect_casual_code_switched_explicit-02",
+      "pii-live_location-indirect_casual_code_switched_explicit-03",
+      "pii-live_location-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "pii-live_location-indirect_casual_code_switched_euphemistic-01",
+      "pii-live_location-indirect_casual_code_switched_euphemistic-02",
+      "pii-live_location-indirect_casual_code_switched_euphemistic-03",
+      "pii-live_location-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "pii-live_location-indirect_formal_no_codesw_explicit-01",
+      "pii-live_location-indirect_formal_no_codesw_explicit-02",
+      "pii-live_location-indirect_formal_no_codesw_explicit-03",
+      "pii-live_location-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "pii-live_location-indirect_formal_no_codesw_euphemistic-01",
+      "pii-live_location-indirect_formal_no_codesw_euphemistic-02",
+      "pii-live_location-indirect_formal_no_codesw_euphemistic-03",
+      "pii-live_location-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "pii-live_location-indirect_formal_code_switched_explicit-01",
+      "pii-live_location-indirect_formal_code_switched_explicit-02",
+      "pii-live_location-indirect_formal_code_switched_explicit-03",
+      "pii-live_location-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "pii-live_location-indirect_formal_code_switched_euphemistic-01",
+      "pii-live_location-indirect_formal_code_switched_euphemistic-02",
+      "pii-live_location-indirect_formal_code_switched_euphemistic-03",
+      "pii-live_location-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

@@ -1,0 +1,159 @@
+{"id": "intake-frozen-001", "text": "Teach me quadratic equations", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-002", "text": "Why is the highest power two?", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-003", "text": "I do not understand that explanation", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-004", "text": "Can I have a hint?", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-005", "text": "The highest power is 2", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-006", "text": "The highest power is 3", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-007", "text": "Please explain it again", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-008", "text": "Give me the next practice problem", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-009", "text": "Stop practice", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-010", "text": "I am ready for the next question", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-011", "text": "Stop the test", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-012", "text": "A quadratic always has two real roots", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-013", "text": "Give me a harder application", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-014", "text": "Show me what a parabola looks like", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-015", "text": "Explain the quadratic formula", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-016", "text": "Switch to trigonometry", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-017", "text": "Okay", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-018", "text": "Hello Wini", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-019", "text": "I want to hurt myself", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-020", "text": "sdfghjkl", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-021", "text": "I want to stop now", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-022", "text": "maybe two", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-023", "text": "Explain discriminants", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-024", "text": "Explain quadratics again", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-025", "text": "Draw a parabola", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-026", "text": "The highest power is 2", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-027", "text": "Continue", "label": "baseline_oracle_seed", "source": "authored", "grid_cell": "intake_frozen:baseline_oracle_seed"}
+{"id": "intake-frozen-028", "text": "x² = 3", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-029", "text": "x³ + y³ = z³", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-030", "text": "½", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-031", "text": "⅓", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-032", "text": "¼", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-033", "text": "−5", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-034", "text": "a‍b", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-035", "text": "the answer", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-036", "text": "5 + 3", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-037", "text": "x² - 4x + 4 = 0", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-038", "text": "√16 = 4", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-039", "text": "πr²", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-040", "text": "θ = 45°", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-041", "text": "α + β = -b/a", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-042", "text": "αβ = c/a", "label": "nfkc_typography", "source": "authored", "grid_cell": "intake_frozen:nfkc_typography"}
+{"id": "intake-frozen-043", "text": "three squared", "label": "confident_false_negative", "source": "authored", "grid_cell": "intake_frozen:confident_false_negative"}
+{"id": "intake-frozen-044", "text": "root two", "label": "confident_false_negative", "source": "authored", "grid_cell": "intake_frozen:confident_false_negative"}
+{"id": "intake-frozen-045", "text": "one half plus one third", "label": "confident_false_negative", "source": "authored", "grid_cell": "intake_frozen:confident_false_negative"}
+{"id": "intake-frozen-046", "text": "minus four squared", "label": "confident_false_negative", "source": "authored", "grid_cell": "intake_frozen:confident_false_negative"}
+{"id": "intake-frozen-047", "text": "5", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-048", "text": "x=3", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-049", "text": "no", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-050", "text": "½", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-051", "text": "yes", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-052", "text": "2y=10", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-053", "text": "0", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-054", "text": "-1", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-055", "text": "x=0", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-056", "text": "y=5", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-057", "text": "true", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-058", "text": "false", "label": "terse_real_answer", "source": "authored", "grid_cell": "intake_frozen:terse_real_answer"}
+{"id": "intake-frozen-059", "text": "sdfghjk", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-060", "text": "123456789", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-061", "text": "!!!!!", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-062", "text": "...", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-063", "text": "j", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-064", "text": "aaaaaa", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-065", "text": "????", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-066", "text": "qwertzuiop", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-067", "text": "     ", "label": "nonsense_probe", "source": "authored", "grid_cell": "intake_frozen:nonsense_probe"}
+{"id": "intake-frozen-068", "text": "route two", "label": "homophone_table_HOMOPHONE_ROOT_ROUTE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_ROOT_ROUTE", "note": "Intended: root two"}
+{"id": "intake-frozen-069", "text": "factors or fractions", "label": "homophone_table_CONFUSION_FACTORS_FRACTIONS", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_FACTORS_FRACTIONS", "note": "Intended: factors or fractions"}
+{"id": "intake-frozen-070", "text": "three cube", "label": "homophone_table_CONFUSION_EXPONENT_CUBE_SQUARE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_EXPONENT_CUBE_SQUARE", "note": "Intended: three squared"}
+{"id": "intake-frozen-071", "text": "minus five", "label": "homophone_table_MINUS_SIGN_CANONICAL", "source": "authored", "grid_cell": "intake_frozen:homophone_table_MINUS_SIGN_CANONICAL", "note": "Intended: −5"}
+{"id": "intake-frozen-072", "text": "ulta U", "label": "homophone_table_INDIAN_REGISTER_ULTA_U", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_REGISTER_ULTA_U", "note": "Intended: inverted parabola"}
+{"id": "intake-frozen-073", "text": "railroads", "label": "homophone_table_ASR_CONFUSION_RAILROADS_REAL_ROOTS", "source": "authored", "grid_cell": "intake_frozen:homophone_table_ASR_CONFUSION_RAILROADS_REAL_ROOTS", "note": "Intended: discriminant"}
+{"id": "intake-frozen-074", "text": "i side of x", "label": "homophone_table_HOMOPHONE_SIDE_SINE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_SIDE_SINE", "note": "Intended: i sine of x"}
+{"id": "intake-frozen-075", "text": "école two", "label": "homophone_table_CROSS_LANG_ECOLE_EQUALS", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CROSS_LANG_ECOLE_EQUALS", "note": "Intended: equals two"}
+{"id": "intake-frozen-076", "text": "posing of theta", "label": "homophone_table_ASR_CONFUSION_POSING_COSINE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_ASR_CONFUSION_POSING_COSINE", "note": "Intended: cosine of theta"}
+{"id": "intake-frozen-077", "text": "one", "label": "homophone_table_WORD_TO_DIGIT_ONE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_WORD_TO_DIGIT_ONE", "note": "Intended: 1"}
+{"id": "intake-frozen-078", "text": "varkappa", "label": "homophone_table_GREEK_VARIANT_VARKAPPA", "source": "authored", "grid_cell": "intake_frozen:homophone_table_GREEK_VARIANT_VARKAPPA", "note": "Intended: kappa"}
+{"id": "intake-frozen-079", "text": "sign of x", "label": "homophone_table_HOMOPHONE_SIGN_SINE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_SIGN_SINE", "note": "Intended: sine of x"}
+{"id": "intake-frozen-080", "text": "cause of thirty degrees", "label": "homophone_table_HOMOPHONE_CAUSE_COS", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_CAUSE_COS", "note": "Intended: cos of thirty degrees"}
+{"id": "intake-frozen-081", "text": "ten theta", "label": "homophone_table_HOMOPHONE_TEN_TAN", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_TEN_TAN", "note": "Intended: tan theta"}
+{"id": "intake-frozen-082", "text": "pie r square", "label": "homophone_table_HOMOPHONE_PIE_PI", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_PIE_PI", "note": "Intended: pi r squared"}
+{"id": "intake-frozen-083", "text": "some of roots", "label": "homophone_table_HOMOPHONE_SOME_SUM", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_SOME_SUM", "note": "Intended: sum of roots"}
+{"id": "intake-frozen-084", "text": "x to the too", "label": "homophone_table_HOMOPHONE_TOO_TWO", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_TOO_TWO", "note": "Intended: x to the two"}
+{"id": "intake-frozen-085", "text": "for x plus five", "label": "homophone_table_HOMOPHONE_FOR_FOUR", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_FOR_FOUR", "note": "Intended: four x plus five"}
+{"id": "intake-frozen-086", "text": "eight x", "label": "homophone_table_HOMOPHONE_EIGHT_ATE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_EIGHT_ATE", "note": "Intended: ate x"}
+{"id": "intake-frozen-087", "text": "won over two", "label": "homophone_table_HOMOPHONE_WON_ONE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_WON_ONE", "note": "Intended: one over two"}
+{"id": "intake-frozen-088", "text": "b square minus four a c", "label": "homophone_table_CONFUSION_STOP_B_D", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_STOP_B_D", "note": "Intended: d square minus four a c"}
+{"id": "intake-frozen-089", "text": "eggs square plus one", "label": "homophone_table_HOMOPHONE_EGGS_X", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_EGGS_X", "note": "Intended: x square plus one"}
+{"id": "intake-frozen-090", "text": "a and b", "label": "homophone_table_CONFUSION_AND_N", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_AND_N", "note": "Intended: a n plus b"}
+{"id": "intake-frozen-091", "text": "six off of three", "label": "homophone_table_HOMOPHONE_OFF_OF_OVER", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_OFF_OF_OVER", "note": "Intended: six over three"}
+{"id": "intake-frozen-092", "text": "three by four", "label": "homophone_table_INDIAN_REGISTER_BY_DIV_MULT", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_REGISTER_BY_DIV_MULT", "note": "Intended: 3/4 or 3x4"}
+{"id": "intake-frozen-093", "text": "the root cause of failure", "label": "homophone_table_NON_MATH_ROOT_DOMAIN_GUARD", "source": "authored", "grid_cell": "intake_frozen:homophone_table_NON_MATH_ROOT_DOMAIN_GUARD", "note": "Intended: the root cause of failure"}
+{"id": "intake-frozen-094", "text": "x to the powder three", "label": "homophone_table_CONFUSION_POWDER_POWER", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_POWDER_POWER", "note": "Intended: x to the power three"}
+{"id": "intake-frozen-095", "text": "x cubes", "label": "homophone_table_INFLECTION_CUBES_CUBED", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INFLECTION_CUBES_CUBED", "note": "Intended: x cubed"}
+{"id": "intake-frozen-096", "text": "three square", "label": "homophone_table_INFLECTION_SQUARE_SQUARED", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INFLECTION_SQUARE_SQUARED", "note": "Intended: three squared"}
+{"id": "intake-frozen-097", "text": "have x plus two", "label": "homophone_table_HOMOPHONE_HAVE_HALF", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_HAVE_HALF", "note": "Intended: half x plus two"}
+{"id": "intake-frozen-098", "text": "lock of x", "label": "homophone_table_HOMOPHONE_LOCK_LOG", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_LOCK_LOG", "note": "Intended: log of x"}
+{"id": "intake-frozen-099", "text": "mud of x", "label": "homophone_table_HOMOPHONE_MUD_MOD", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_MUD_MOD", "note": "Intended: mod of x"}
+{"id": "intake-frozen-100", "text": "ark tan x", "label": "homophone_table_HOMOPHONE_ARK_ARC", "source": "authored", "grid_cell": "intake_frozen:homophone_table_HOMOPHONE_ARK_ARC", "note": "Intended: arc tan x"}
+{"id": "intake-frozen-101", "text": "beta and zeta", "label": "homophone_table_GREEK_LETTERS_BETA_THETA", "source": "authored", "grid_cell": "intake_frozen:homophone_table_GREEK_LETTERS_BETA_THETA", "note": "Intended: theta and beta"}
+{"id": "intake-frozen-102", "text": "vortex of parabola", "label": "homophone_table_CONFUSION_VORTEX_VERTEX", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_VORTEX_VERTEX", "note": "Intended: vertex of parabola"}
+{"id": "intake-frozen-103", "text": "sufficient of x square", "label": "homophone_table_CONFUSION_SUFFICIENT_COEFFICIENT", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_SUFFICIENT_COEFFICIENT", "note": "Intended: coefficient of x square"}
+{"id": "intake-frozen-104", "text": "hypothesis of triangle", "label": "homophone_table_CONFUSION_HYPOTHESIS_HYPOTENUSE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_CONFUSION_HYPOTHESIS_HYPOTENUSE", "note": "Intended: hypotenuse of triangle"}
+{"id": "intake-frozen-105", "text": "w square plus v square", "label": "homophone_table_INDIAN_ENGLISH_V_W_APPROXIMANT", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_ENGLISH_V_W_APPROXIMANT", "note": "Intended: v square plus w square"}
+{"id": "intake-frozen-106", "text": "tree squared equals nine", "label": "homophone_table_INDIAN_DENTAL_STOP_TREE_THREE", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_DENTAL_STOP_TREE_THREE", "note": "Intended: three squared equals nine"}
+{"id": "intake-frozen-107", "text": "parabola is ulta u shaped", "label": "homophone_table_INDIAN_REGISTER_ULTA_U_SHAPED", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_REGISTER_ULTA_U_SHAPED", "note": "Intended: inverted parabola"}
+{"id": "intake-frozen-108", "text": "five lakh twenty thousand", "label": "homophone_table_INDIAN_NUMERALS_LAKH", "source": "authored", "grid_cell": "intake_frozen:homophone_table_INDIAN_NUMERALS_LAKH", "note": "Intended: 520000"}
+{"id": "intake-frozen-109", "text": "½ + ⅓ = ⅚", "label": "homophone_table_TYPOGRAPHY_VULGAR_FRACTIONS", "source": "authored", "grid_cell": "intake_frozen:homophone_table_TYPOGRAPHY_VULGAR_FRACTIONS", "note": "Intended: 1/2 + 1/3 = 5/6"}
+{"id": "intake-frozen-110", "text": "solve x^2 - 5x + 6 = 0", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=True"}
+{"id": "intake-frozen-111", "text": "2y = 10", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=False"}
+{"id": "intake-frozen-112", "text": "what is 63 / 9", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-113", "text": "find x where 3x + 9 = 0", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=True"}
+{"id": "intake-frozen-114", "text": "A train travels 63 km in 2 hours. Find the speed.", "label": "problem_cue_solve_verb+numerals", "source": "authored", "grid_cell": "intake_frozen:problem_cue_solve_verb+numerals", "note": "directive=True"}
+{"id": "intake-frozen-115", "text": "evaluate 15 * 4 - 10", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-116", "text": "calculate the roots of x^2 - 9", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-117", "text": "find the area of a circle with radius 7", "label": "problem_cue_solve_verb+numerals", "source": "authored", "grid_cell": "intake_frozen:problem_cue_solve_verb+numerals", "note": "directive=True"}
+{"id": "intake-frozen-118", "text": "simplify (x+2)(x-2)", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-119", "text": "solve for y in 4y - 8 = 12", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=True"}
+{"id": "intake-frozen-120", "text": "find the roots of quadratic equation 2x^2 - 7x + 3 = 0", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=True"}
+{"id": "intake-frozen-121", "text": "3x + 4y = 20", "label": "problem_cue_equation", "source": "authored", "grid_cell": "intake_frozen:problem_cue_equation", "note": "directive=False"}
+{"id": "intake-frozen-122", "text": "calculate 125 / 5 + 10", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-123", "text": "A boat goes 30 km upstream in 4 hours. Find current speed.", "label": "problem_cue_solve_verb+numerals", "source": "authored", "grid_cell": "intake_frozen:problem_cue_solve_verb+numerals", "note": "directive=True"}
+{"id": "intake-frozen-124", "text": "expand (a + b)^2", "label": "problem_cue_expression", "source": "authored", "grid_cell": "intake_frozen:problem_cue_expression", "note": "directive=True"}
+{"id": "intake-frozen-125", "text": "explain Pythagoras theorem step by step", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-126", "text": "bhaiya solve karke dikhao x^2 - 4 = 0", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-127", "text": "sir can you repeat the last step please", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-128", "text": "why did you multiply by two on both sides", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-129", "text": "what is the geometric meaning of discriminant", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-130", "text": "is the answer positive five or negative five", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-131", "text": "mujhe quadratic formula yaad nahi ho raha", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-132", "text": "can we use completing the square method here", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-133", "text": "what happens when b^2 - 4ac is less than zero", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-134", "text": "give me five practice questions on AP series", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-135", "text": "switch topic to coordinate geometry distance formula", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-136", "text": "draw the parabola y = x^2 - 2x + 1", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-137", "text": "why is discriminant called delta sometimes", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-138", "text": "sir meri copy check kar lo answer seven aaya hai", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-139", "text": "can a quadratic equation have three distinct roots", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-140", "text": "show me the graphical derivation of vertex formula", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-141", "text": "how to factorize when coefficient of x^2 is not one", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-142", "text": "is zero a rational number or irrational number", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-143", "text": "prove that square root of three is irrational", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-144", "text": "find the twentieth term of the AP 2, 7, 12", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-145", "text": "find the coordinates of midpoint of line segment joining (2,3) and (4,7)", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-146", "text": "solve linear system x + y = 10 and x - y = 2", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-147", "text": "what is the probability of getting a prime number on a dice", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-148", "text": "find the mode of the following grouped frequency distribution", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-149", "text": "calculate the volume of a sphere with diameter 14 cm", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-150", "text": "verify whether -2 and 3 are zeroes of polynomial x^2 - x - 6", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-151", "text": "determine if triangle with sides 6 cm, 8 cm, 10 cm is right angled", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-152", "text": "find the sum of first 50 natural numbers", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-153", "text": "express 0.3333 in p by q form", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-154", "text": "find the value of k for which 2x^2 + kx + 3 = 0 has equal roots", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-155", "text": "state and prove Basic Proportionality Theorem (Thales theorem)", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-156", "text": "find the area of sector of circle with radius 6 cm and angle 60 degrees", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-157", "text": "two dice are thrown together find probability of getting doublet", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-158", "text": "what is the relation between mean median and mode", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
+{"id": "intake-frozen-159", "text": "solve 10x - 2y = 18 and 5x + 3y = 25 using elimination method", "label": "extended_intake_variety", "source": "authored", "grid_cell": "intake_frozen:extended_intake_variety"}
