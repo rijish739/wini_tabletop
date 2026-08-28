@@ -149,9 +149,7 @@ class LegacyTurnAdapter:
                 learner_problem=bool(problem and problem.is_directive_problem),
                 # Slice 07: requested_mode from RouteResult.session_control_mode
                 # (observation-fed); mode_cues(text) retired.
-                requested_mode=getattr(
-                    getattr(observation, "route", None), "session_control_mode", None
-                ),
+                requested_mode=observation.session_control_mode,
             ),
             state=PedagogyStateView(
                 session=session,

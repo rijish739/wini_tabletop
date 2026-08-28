@@ -51,20 +51,6 @@ def normalize_mode(mode) -> str:
     return m if m in MODES else "EXPLAIN"
 
 
-def mode_cues(text: str):
-    """RETIRED (slice 07, 2026-08-28) — reads text via cue regexes.
-
-    The mode sub-type is now provided by the Gemini perception layer as
-    ``RouteResult.session_control_mode`` (STOP/TEST/PRACTICE/EXPLAIN or None).
-    The ModeController caller is retired; the interaction-control layer reads
-    from the observation instead of calling this function.
-
-    This stub returns None unconditionally so any lingering call-site is
-    a silent no-op rather than an import error during the transition.
-    """
-    return None
-
-
 class ModeController:
     """Stateless over its own attributes; all mode state lives in the `session` dict
     so it persists/resumes with learner state (§4.1 freeze-on-SESSION_CONTROL)."""
@@ -164,8 +150,6 @@ class ModeController:
         no-op transition). Evidence transitions (offer PRACTICE, PRACTICE->TEST,
         Bloom corrective, mastery gate) are added in Stages 2/3.
         """
-        if cue is None:
-            cue = mode_cues(text)
         prev = self.current_mode(session)
         if cue == "STOP":
             if prev != "EXPLAIN":

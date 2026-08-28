@@ -45,6 +45,11 @@ def _clamp01(x) -> float:
         return 0.0
 
 
+# Slice 07: pronoun/stop-word guard for hallucinated topic_phrasing spans.
+# Module-level so it is compiled once, not on every _validate() call.
+_TOPIC_STOP = frozenset({"it", "this", "that", "them", "these", "those", "more", "maths", "math"})
+
+
 def fuse_primary(primary: str, secondaries: Sequence[str], scores_row: np.ndarray,
                  concept_ids: Sequence[str], tau: float) -> str:
     """§5.5 hybrid cross-check (pure, shared with eval): promote the resolver's
@@ -410,7 +415,6 @@ class GeminiPerception:
         raw_tp = raw.get("topic_phrasing")
         topic_phrasing = raw_tp.strip() if isinstance(raw_tp, str) and raw_tp.strip() else None
         # Reject pronoun-only / stop-word-only spans (a guard for hallucinated phrasings).
-        _TOPIC_STOP = {"it", "this", "that", "them", "these", "those", "more", "maths", "math"}
         if topic_phrasing and topic_phrasing.lower().split()[0] in _TOPIC_STOP:
             topic_phrasing = None
 

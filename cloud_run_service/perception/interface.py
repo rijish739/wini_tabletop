@@ -78,6 +78,12 @@ class PerceptionObservation:
         object.__setattr__(self, "cognitive_update", deep_freeze(self.cognitive_update))
         object.__setattr__(self, "analysis", deep_freeze(self.analysis))
 
+    @property
+    def session_control_mode(self) -> "str | None":
+        """Slice 07: convenience accessor that delegates to route.session_control_mode
+        so callers never chain getattr twice to navigate the nested route object."""
+        return self.route.session_control_mode
+
 
 class PerceptionInterface(Protocol):
     """The single seam used by the Turn Coordinator and Interface tests."""

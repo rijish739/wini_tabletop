@@ -1295,6 +1295,9 @@ class TutorLoop:
         if os.getenv("WINI_PREWARM_MINILM", "1").lower() not in ("0", "false", ""):
             threading.Thread(target=self._prewarm_embedder, name="minilm-prewarm",
                              daemon=True).start()
+        # Lazy InputProcessor instance — shared across turns for is_same_problem
+        # detection without the allocation cost of per-turn construction.
+        self._ip = None
 
     def _prewarm_embedder(self) -> None:
         t0 = time.perf_counter()
@@ -1369,39 +1372,6 @@ class TutorLoop:
         if not t or len(t.split()) > 12:
             return False
         return bool(self._ANAPHORA_RE.search(t))
-
-    #: An explicit request for a *fresh* example ("give me another example",
-    #: "a different sum") — the one follow-up shape that must NOT reuse the old
-    #: numbers. Everything else that back-references the current problem should.
-    _NEW_EXAMPLE_RE = re.compile(
-        r"\b(another|different|other|new|fresh|one more)\b.*"
-        r"\b(example|sum|problem|question|one)\b", re.I)
-
-    def _is_same_problem_followup(self, text: str, session: dict,
-                                  is_followup: bool) -> bool:
-        """True when this turn is a follow-up about the SAME worked example already
-        under discussion, so the generator must reuse the exact same numbers instead
-        of inventing a fresh sum (the "follow-up changes the question" bug).
-
-        Guarded so it fires ONLY on a genuine continuation:
-          * ``is_followup`` — the caller already saw a clarification / anaphoric
-            follow-up (not a fresh question, not an answer attempt),
-          * the student stated no new numbers of their own this turn (≥2 digits ⇒
-            they brought a new sum — let SOLVE_STUDENT_PROBLEM use theirs),
-          * they did not explicitly ask for a *different* example, and
-          * the recent conversation actually contains a worked example to preserve
-            (a WINI reply carrying digits)."""
-        if not is_followup:
-            return False
-        t = (text or "").strip()
-        if not t or len(re.findall(r"\d", t)) >= 2:
-            return False
-        if self._NEW_EXAMPLE_RE.search(t):
-            return False
-        ctx = session.get("context", []) or []
-        return any(
-            c.get("role") == "wini" and len(re.findall(r"\d", c.get("text") or "")) >= 2
-            for c in ctx[-4:])
 
     def _concept_chapters(self, cid: str) -> set:
         """Chapters the concept is edge-connected to (cached). Used to tell a related
@@ -2660,11 +2630,14 @@ class TutorLoop:
             # new one. A fresh example on a re-explain silently swaps the question the
             # child asked about. Suppressed for animate/real-life turns, which
             # deliberately author a new visual scene of their own.
+            _is_followup = clarification or self._is_anaphoric_followup(text)
+            if self._ip is None:
+                from cognitive_input_processor.input_processor import InputProcessor
+                self._ip = InputProcessor()
             same_problem = (not answer_try and not wants_animation and not wants_real_life
-                            and self._is_same_problem_followup(
-                                text, session,
-                                is_followup=(clarification
-                                             or self._is_anaphoric_followup(text))))
+                            and self._ip.is_same_problem_followup(
+                                text, context=session.get("context"),
+                                is_followup=_is_followup))
             # Board/speech sync (SYNC_VISUAL): when a visual is earned this turn,
             # draw the board from sentence 0 CONCURRENTLY with the rest of generation,
             # so it is ready ~when speech starts instead of 1-2 s after the answer

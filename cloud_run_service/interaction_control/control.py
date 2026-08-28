@@ -10,7 +10,7 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
 
 if TYPE_CHECKING:
-    from perception import PerceptionObservation
+    from perception import PerceptionObservation, RouteResult
     from utterance_intake import UtteranceObservation
 
 from runtime.contracts import (
@@ -143,9 +143,9 @@ class InteractionControlDependencies:
     wants_different_topic: Callable[[str], bool]
     concept_relates_to_topic: Callable[[str, str], bool]
     # Slice 07 (2026-08-28): mode_cue signature changed from Callable[[str], str|None]
-    # to Callable[[Any], str|None] where the argument is now a RouteResult (observation).
+    # to Callable[[RouteResult], str|None] where the argument is now a RouteResult (observation).
     # The function reads ``route.session_control_mode`` instead of running cue regexes on text.
-    mode_cue: Callable[[Any], str | None]
+    mode_cue: Callable[[RouteResult], str | None]
     current_mode: Callable[[dict[str, Any]], str]
     set_mode: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
     consume_mode_offer: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
