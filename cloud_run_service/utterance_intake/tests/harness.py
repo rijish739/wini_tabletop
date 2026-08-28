@@ -138,6 +138,11 @@ def check_expected(observation, expected: dict) -> list[str]:
     if "legibility_cue" in expected:
         eq("legibility_cue", observation.legibility.cue.value, expected["legibility_cue"])
     eq("problem_is_problem", observation.problem.is_problem, expected["problem_is_problem"])
+    if "problem_cue" in expected:
+        got_cue = observation.problem.cue.value if observation.problem.cue is not None else None
+        eq("problem_cue", got_cue, expected["problem_cue"])
+    if "problem_directive" in expected:
+        eq("problem_directive", observation.problem.directive, expected["problem_directive"])
     eq("parse_outcome", observation.transcript.parse.outcome.value, expected["parse_outcome"])
     eq("has_anaphora", observation.reference.has_anaphora, expected["has_anaphora"])
     return fails

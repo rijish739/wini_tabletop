@@ -203,6 +203,24 @@ class ProblemReading:
         if not self.is_problem and self.cue is not None:
             raise ValueError("a non-problem reading carries no cue")
 
+    @property
+    def is_directive_problem(self) -> bool:
+        """True iff the student both presented a problem *and* addressed the tutor.
+
+        Centralises the three-way guard ``is_problem and directive`` that would
+        otherwise be re-implemented at every consumer site.
+        """
+        return self.is_problem and self.directive
+
+    @classmethod
+    def absent(cls) -> "ProblemReading":
+        """The canonical zero/deferred reading — no problem detected or deferred.
+
+        Use in place of ``ProblemReading(is_problem=False, directive=False)``
+        so the four construction sites share a name and a meaning.
+        """
+        return cls(is_problem=False, directive=False)
+
 
 # ---------------------------------------------------------------------------
 # Reference / anaphora — evidence only, spans not a boolean

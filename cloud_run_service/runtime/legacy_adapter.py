@@ -107,7 +107,9 @@ class LegacyTurnAdapter:
         analysis = deep_thaw(observation.analysis)
         normalized = str(analysis.get("normalized_text") or "").strip()
         signals = tuple(observation.signals)
-        problem = analysis.get("problem_cue") or {}
+        # ticket 03: analysis["problem_cue"] deleted; read observation.problem
+        # (a ProblemReading) instead.
+        problem = analysis.get("problem")
         return PedagogyRequest(
             turn_input=turn_input,
             observation=PedagogyObservation(
@@ -130,10 +132,7 @@ class LegacyTurnAdapter:
                 purpose_requested=is_purpose_question(normalized),
                 learning_requested=is_learning_request(normalized),
                 question=is_question(normalized),
-                learner_problem=(
-                    bool(problem.get("is_problem"))
-                    and bool(problem.get("directive"))
-                ),
+                learner_problem=bool(problem and problem.is_directive_problem),
                 requested_mode=mode_cues(normalized),
             ),
             state=PedagogyStateView(
@@ -174,8 +173,12 @@ class LegacyTurnAdapter:
         session = data.get("session") or {}
         analysis = deep_thaw(observation.analysis)
         concept = analysis.get("concept") or {}
+        # ticket 03: pass the normalized text so retrieval reads the observation
+        # instead of interaction["text"].
+        normalized_text = str(analysis.get("normalized_text") or "").strip()
         return RetrievalRequest(
             turn_input=turn_input,
+            normalized_text=normalized_text,
             concept_id=observation.concept_id,
             concept_confidence=float(concept.get("concept_confidence") or 0.0),
             secondary_concepts=tuple(concept.get("secondary_concepts") or ()),

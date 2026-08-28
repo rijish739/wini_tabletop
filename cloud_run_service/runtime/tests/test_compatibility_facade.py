@@ -24,6 +24,7 @@ from assessment_evidence import AssessmentEvidence
 from evidence.ledger import make_idempotency_key
 from pedagogy import Pedagogy, PedagogyDependencies
 from retrieval import Retrieval, RetrievalDependencies
+from utterance_intake.observation import ProblemCue, ProblemReading
 
 
 class CompatibilityFacadeTests(unittest.TestCase):
@@ -36,7 +37,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     "confusion": 0.0, "curiosity": 0.0,
                     "cognitive_load": 0.0, "frustration_risk": 0.0,
                 }
-                problem_cue = {}
+                problem = ProblemReading.absent()
                 if text == "hint please":
                     flags, signals = ["hint_requested"], ["request_hint"]
                 elif text == "denominators always add":
@@ -46,7 +47,9 @@ class CompatibilityFacadeTests(unittest.TestCase):
                 elif text == "I don't understand":
                     cognitive["confusion"] = 0.8
                 elif text == "solve 2x + 3 = 7":
-                    problem_cue = {"is_problem": True, "directive": True}
+                    problem = ProblemReading(
+                        is_problem=True, directive=True, cue=ProblemCue.EQUATION
+                    )
                 elif text == "give me a visual analogy":
                     signals = ["request_representation"]
                 return RouteResult(primary="LEARNING", concept_id="fractions"), {
@@ -63,7 +66,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
                         "concept_flags": flags,
                         "signals": signals,
                     },
-                    "problem_cue": problem_cue,
+                    "problem": problem,
                 }
 
         class Control:

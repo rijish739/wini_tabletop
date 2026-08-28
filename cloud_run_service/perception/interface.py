@@ -257,8 +257,10 @@ class Perception:
             source="fallback", uncertain=True,
             reason="perception fallback (LEARNING/inherit)",
         )
+        from utterance_intake.observation import ProblemReading as _ProblemReading
         neutral_analysis = {
-            "raw_text": text, "normalized_text": text.strip(), "problem_cue": {},
+            "raw_text": text, "normalized_text": text.strip(),
+            "problem": _ProblemReading.absent(),
             "signals": [], "signal_scores": {},
             "concept": {
                 "concept_id": current, "concept_confidence": 0.0,

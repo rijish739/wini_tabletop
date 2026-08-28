@@ -187,6 +187,9 @@ class RetrievalRequest:
     state: RetrievalStateView
     store: RetrievalStoreView
     perception_uncertain: bool = False
+    # ticket 03: normalized text from the observation; when present it is
+    # preferred over interaction["text"] for similarity queries.
+    normalized_text: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "secondary_concepts", tuple(self.secondary_concepts))
@@ -300,7 +303,11 @@ class Retrieval:
                        else "cold start") + f", mastery({primary})={mastery:.2f}"
         snapshot = Snapshot(learner, primary, concepts.get(primary), graph, band)
         need = str(request.pedagogical.need)
-        text = str(request.turn_input.interaction.get("text") or "")
+        # ticket 03: the observation's normalized text is the preferred source;
+        # interaction["text"] is the migration glide-path for callers that pre-date
+        # the observation plumbing (legacy paths not yet updated to supply
+        # normalized_text).  Once every call site supplies it the fallback is deleted.
+        text = request.normalized_text or str(request.turn_input.interaction.get("text") or "")
 
         def similarity(value: str) -> float:
             query = np.asarray(self._dependencies.embed([text]), dtype=float)

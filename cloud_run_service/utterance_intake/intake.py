@@ -29,6 +29,7 @@ from .observation import (
     LegibilityCue,
     LegibilityReading,
     PASSTHROUGH_PARSE,
+    ProblemCue,
     ProblemReading,
     ReferenceReading,
     SafetyClass,
@@ -59,6 +60,58 @@ _WORD_RE = re.compile(r"[a-z]{2,}", re.IGNORECASE)
 _VOWEL_RE = re.compile(r"[aeiouy]", re.IGNORECASE)
 _DIGIT_RE = re.compile(r"\d")
 _RUN_RE = re.compile(r"^(.)\1{4,}$")
+
+
+# ---------------------------------------------------------------------------
+# Problem-detection regexes (migrated from InputProcessor.detect_student_problem,
+# ticket 03).  The logic is UNCHANGED; the input is now the NFC-normalized text
+# from normalize_text() instead of the raw utterance.
+# ---------------------------------------------------------------------------
+#: an '=' with a term on each side, at least one carrying a digit or lone variable.
+_PROB_EQUATION_RE = re.compile(
+    r"[0-9a-z\)\]]\s*(?:=|equals)\s*[-+]?\s*[0-9a-z\(\[]", re.IGNORECASE)
+
+#: arithmetic operator between two operands; at least one side is a digit.
+_PROB_EXPRESSION_RE = re.compile(
+    r"(?:\d\s*[\^/*×÷]\s*[0-9a-z\(\[]|[0-9a-z\)\]]\s*[\^/*×÷]\s*\d)", re.IGNORECASE)
+
+#: imperative "work this out" verbs, including "what is" / "how much".
+_PROB_SOLVE_VERB_RE = re.compile(
+    r"\b(solve|calculate|compute|evaluate|simplify|factorise|factorize|"
+    r"expand|prove|derive|work out|figure out|what is|what's|how much|how many|"
+    r"find (?:the |out )?)\b", re.IGNORECASE)
+
+_PROB_DIGIT_RE = re.compile(r"\d")
+
+
+
+def detect_problem(normalized: str) -> ProblemReading:
+    """Detect whether the normalized utterance presents a student problem instance.
+
+    Runs on the NFC-normalized text from normalize_text().  Logic is unchanged
+    from InputProcessor.detect_student_problem (ticket 03 migrates the call site
+    from raw to normalized text and the return type from dict to ProblemReading).
+
+    Two ways to qualify:
+
+    * **equation/expression** — the utterance carries maths of its own.
+      Sufficient on its own.
+    * **solve verb + numerals** — an imperative plus concrete numbers.
+
+    ``directive`` says the student addressed the tutor (an imperative verb or
+    "what is …"), separating a student answer attempt from a fresh problem command.
+    """
+    s = (normalized or "").strip()
+    if not s:
+        return ProblemReading.absent()
+    directive = bool(_PROB_SOLVE_VERB_RE.search(s))
+    if _PROB_EQUATION_RE.search(s):
+        return ProblemReading(is_problem=True, directive=directive, cue=ProblemCue.EQUATION)
+    if _PROB_EXPRESSION_RE.search(s):
+        return ProblemReading(is_problem=True, directive=directive, cue=ProblemCue.EXPRESSION)
+    if directive and _PROB_DIGIT_RE.search(s):
+        return ProblemReading(is_problem=True, directive=True, cue=ProblemCue.SOLVE_VERB_NUMERALS)
+    return ProblemReading.absent()
 
 
 def normalize_text(text: str) -> str:
@@ -184,6 +237,13 @@ class UtteranceIntake:
             raise TypeError("Utterance Intake requires a typed Utterance")
         normalized = normalize_text(utterance.text)
         authorization = self._transcript_policy.authorize(utterance)
+        # Compute-and-mark deferral (ticket 03): problem detection runs only on
+        # an authorized transcript.  An unauthorized turn carries the zero reading
+        # (is_problem=False, directive=False) — not skipped, marked.
+        if authorization is Authorization.AUTHORIZED:
+            problem = detect_problem(normalized)
+        else:
+            problem = ProblemReading.absent()
         observation = UtteranceObservation(
             utterance=utterance,
             normalized_text=normalized,
@@ -191,7 +251,7 @@ class UtteranceIntake:
             safety=_lexicon_safety(normalized),
             legibility=_legibility(normalized),
             transcript=TranscriptReading(doubtful=False, parse=PASSTHROUGH_PARSE),
-            problem=ProblemReading(is_problem=False, directive=False),
+            problem=problem,
             reference=ReferenceReading(),
         )
         return ModuleOutcome(value=observation)

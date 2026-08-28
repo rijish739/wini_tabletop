@@ -10,6 +10,7 @@ from .intake import (
     TranscriptPolicy,
     UtteranceIntake,
     UtteranceIntakeRequest,
+    detect_problem,
     normalize_text,
 )
 from .observation import (
@@ -37,6 +38,7 @@ __all__ = [
     "TranscriptPolicy",
     "UtteranceIntake",
     "UtteranceIntakeRequest",
+    "detect_problem",
     "normalize_text",
     "AnaphorSpan",
     "Authorization",

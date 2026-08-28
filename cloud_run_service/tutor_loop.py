@@ -2314,9 +2314,11 @@ class TutorLoop:
         # addressed to the tutor, so it is a fresh problem even mid-diagnostic.
         # Perception scores such a turn answer_attempt whenever a check is armed,
         # which is what swallowed the quadratic probe on the first live re-test.
-        _pc = analysis.get("problem_cue", {})
-        student_problem = bool(_pc.get("is_problem")) and (
-            bool(_pc.get("directive")) or not answer_try)
+        # ticket 03: analysis["problem_cue"] deleted; consumers read
+        # observation.problem (a ProblemReading) instead.
+        problem = analysis.get("problem")
+        student_problem = bool(problem and problem.is_problem) and (
+            bool(problem and problem.directive) or not answer_try)
         wants_hint = ("hint_requested" in analysis["state_deltas"]["concept_flags"]
                       or "request_hint" in _sig)
         fresh_request = wants_hint or bool(_sig & {
@@ -2331,7 +2333,7 @@ class TutorLoop:
         # student never gave (the §13 rule that non-attempts must not move state).
         non_attempt = ((not answer_try) and (
             is_pure_ack(_norm) or clarification or is_question(text) or fresh_request)
-        ) or (student_problem and bool(_pc.get("directive")))
+        ) or (student_problem and bool(problem and problem.directive))
 
         # 1b. pending diagnostic from the previous turn (closed loop, section 8):
         # a hint request escalates the hint chain (never past it, rule 10); any
