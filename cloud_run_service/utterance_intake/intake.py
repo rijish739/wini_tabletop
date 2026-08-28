@@ -135,9 +135,18 @@ def _lexicon_safety(normalized: str) -> SafetySignals:
 
 
 def _legibility(normalized: str) -> LegibilityReading:
-    """The illegibility *decision* (thresholds unchanged from the demoted
-    ``is_nonsense``). The 6-way cue *report* split is ticket 02's; here the cue
-    is a coarse LEGIBLE / not-LEGIBLE distinction, refined by later slices."""
+    """The illegibility *decision* (slice 02): the five ``is_nonsense`` branches
+    collapse into one boolean + a 6-way ``LegibilityCue``.  Thresholds are
+    unchanged from the demoted ``is_nonsense``; the cue names which branch fired.
+
+    Cue assignment:
+        LEGIBLE            — is_nonsense returned False (passes through)
+        EMPTY              — stripped text is empty
+        NO_ALPHANUMERIC    — no [a-z0-9] character at all
+        CHARACTER_RUN      — ≥5 repetitions of the same character
+        KEYBOARD_MASH      — ≥4-char word(s), none contain a vowel, no digits
+        NO_LEXICAL_CONTENT — none of the above; e.g. a bare single alpha letter
+    """
     if not is_nonsense(normalized):
         return LegibilityReading(illegible=False, cue=LegibilityCue.LEGIBLE)
     stripped = (normalized or "").strip()

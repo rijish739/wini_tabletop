@@ -62,5 +62,41 @@ class GateTranslationTierA(unittest.TestCase):
         self.assertTrue(by_obs.safety_alert)
 
 
+
+class GateAcousticExclusion(unittest.TestCase):
+    """Spec: "gate() NONSENSE arm consumes observation.legibility (textual axis only;
+    nothing acoustic feeds NONSENSE)."
+
+    A VOICE utterance with low confidence (UNAUTHORIZED) and legible text must NOT
+    be gated as NONSENSE. The acoustic axis (authorization) is orthogonal to the
+    textual axis (legibility); only the latter feeds NONSENSE.
+    """
+
+    def test_unauthorized_voice_with_legible_text_not_nonsense(self) -> None:
+        # Confidence 0.30 -> UNAUTHORIZED; text "maybe twelve" is legible.
+        obs = run_observe(build_utterance({
+            "text": "maybe twelve",
+            "source": "VOICE",
+            "confidence": 0.30,
+            "recognizer": "chirp/en-US",
+        }))
+        # Authorization is UNAUTHORIZED (acoustic), but legibility is LEGIBLE (textual).
+        from utterance_intake import Authorization
+        self.assertEqual(obs.authorization, Authorization.UNAUTHORIZED)
+        self.assertFalse(obs.legibility.illegible)
+        # gate() must not fire NONSENSE — the acoustic axis does not feed it.
+        result = gate(obs)
+        self.assertIsNone(result,
+                          "UNAUTHORIZED voice with legible text must not be gated as NONSENSE")
+
+    def test_safety_beats_nonsense_priority(self) -> None:
+        # A safety trip on a text that is also nonsense: SAFETY wins.
+        text = "kill myself"   # triggers SAFETY; also no real lexical structure
+        obs = run_observe(build_utterance({"text": text, "source": "TYPED"}))
+        result = gate(obs)
+        self.assertIsNotNone(result)
+        self.assertEqual(result.primary, "SAFETY",
+                         "SAFETY must beat NONSENSE even if the text would also be gated for NONSENSE")
+
 if __name__ == "__main__":
     unittest.main()
