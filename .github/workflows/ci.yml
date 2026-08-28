@@ -40,3 +40,157 @@ jobs:
       - name: Full offline suite across every cloud_run_service module
         working-directory: cloud_run_service
         run: python -m unittest discover -s . -p "test_*.py" -v
+
+  billed-safety:
+    # Billed lane: authenticates to Vertex AI via Workload Identity Federation and
+    # runs per-class recall of the child_safety model against blind corpora.
+    # This job is intentionally gated behind a GitHub Environment with required
+    # reviewers (see .github/BILLED_EVAL_SETUP.md) — a paid run is a deliberate act
+    # with a name attached. Every push/PR queues the job; approval controls when
+    # it fires. Do NOT add path-based skip conditions here.
+    #
+    # Ticket 12 (child_safety/ Stage 2) inserts the eval steps below the auth step.
+    # Until that ticket ships this job fails at the stub step with a clear message.
+    # Until WIF is configured in the repo this job fails at the guard step.
+    name: billed-safety (Vertex AI — requires approval)
+    needs: [offline]           # offline must be green before a billed run is worth approving
+    runs-on: ubuntu-latest
+    environment: billed-eval   # required-reviewers gate; see Settings → Environments
+    permissions:
+      contents: read
+      id-token: write          # OIDC token for Workload Identity Federation
+    steps:
+      - name: Guard — fail loudly if WIF is not configured
+        # This check exists so the job fails with a clear human-readable error rather
+        # than reaching the auth step with an empty secret and emitting a cryptic
+        # message. It is the ONLY unconfigured guard; do not add a second one.
+        # See .github/BILLED_EVAL_SETUP.md for GCP + GitHub setup steps.
+        shell: bash
+        run: |
+          missing=""
+          if [ -z "$WIF_PROVIDER" ]; then
+            missing="${missing}WIF_PROVIDER "
+          fi
+          if [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            missing="${missing}WIF_SERVICE_ACCOUNT"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::billed-safety: secret(s) not configured: ${missing}"
+            echo "::error::See .github/BILLED_EVAL_SETUP.md for GCP + GitHub setup steps."
+            echo "::error::This is an expected failure until the repo owner completes WIF setup."
+            exit 1
+          fi
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # ── ticket 12 inserts steps here ──────────────────────────────────────────
+      # (child_safety/ Stage 2: eval/safety_eval.py --collect / --score,
+      #  per-class recall against blind corpora, no aggregate number published)
+      - name: Cost notice — one Vertex call per uncached eval row
+        # Kept in stub state so a reviewer approving the billed-eval gate has a cost
+        # signal before committing spend. When ticket 12 ships it replaces this step
+        # with the real --collect invocation, which prints the exact row count and
+        # estimated cost before making any Vertex calls.
+        shell: bash
+        run: |
+          echo "======================================================================"
+          echo "  billed-safety cost notice"
+          echo "======================================================================"
+          echo "  This job calls eval/safety_eval.py --collect (ticket 12)."
+          echo "  Cost: one Vertex AI call per UNCACHED row in the blind safety corpora."
+          echo "  Cached rows (same prompt hash) are free."
+          echo "  Row counts and per-run cost estimate will be printed here once"
+          echo "  ticket 12 ships the eval steps."
+          echo "======================================================================"
+      - name: Stub — eval steps arrive with ticket 12
+        # Remove this step when ticket 12 fills in the real eval steps above.
+        shell: bash
+        run: |
+          echo "billed-safety eval steps will be added by ticket 12 (child_safety/ Stage 2)."
+          echo "WIF auth succeeded — the environment gate and federation wiring are proven."
+          echo "Exiting non-zero so this job does not silently pass before the eval exists."
+          exit 1
+
+  billed-personal-data:
+    # Billed lane: authenticates to Vertex AI via Workload Identity Federation and
+    # runs per-class recall + precision of the personal_data model against
+    # blind corpora (including the ≥500-row maths-dense corpus).
+    # Gating: same billed-eval environment as billed-safety; both require approval.
+    # No path-based skip conditions.
+    #
+    # Ticket 13 (personal_data/ Stage 3) inserts the eval steps below the auth step.
+    name: billed-personal-data (Vertex AI — requires approval)
+    needs: [offline]           # offline must be green before a billed run is worth approving
+    runs-on: ubuntu-latest
+    environment: billed-eval   # required-reviewers gate; see Settings → Environments
+    permissions:
+      contents: read
+      id-token: write          # OIDC token for Workload Identity Federation
+    steps:
+      - name: Guard — fail loudly if WIF is not configured
+        shell: bash
+        run: |
+          missing=""
+          if [ -z "$WIF_PROVIDER" ]; then
+            missing="${missing}WIF_PROVIDER "
+          fi
+          if [ -z "$WIF_SERVICE_ACCOUNT" ]; then
+            missing="${missing}WIF_SERVICE_ACCOUNT"
+          fi
+          if [ -n "$missing" ]; then
+            echo "::error::billed-personal-data: secret(s) not configured: ${missing}"
+            echo "::error::See .github/BILLED_EVAL_SETUP.md for GCP + GitHub setup steps."
+            echo "::error::This is an expected failure until the repo owner completes WIF setup."
+            exit 1
+          fi
+        env:
+          WIF_PROVIDER: ${{ secrets.WIF_PROVIDER }}
+          WIF_SERVICE_ACCOUNT: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud via Workload Identity Federation
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      # ── ticket 13 inserts steps here ──────────────────────────────────────────
+      # (personal_data/ Stage 3: eval/personal_data_eval.py --collect / --score,
+      #  per-class recall + hard precision gate on maths-dense corpus, no aggregate)
+      - name: Cost notice — one Vertex call per uncached eval row
+        # Kept in stub state so a reviewer approving the billed-eval gate has a cost
+        # signal before committing spend. When ticket 13 ships it replaces this step
+        # with the real --collect invocation, which prints the exact row count and
+        # estimated cost before making any Vertex calls.
+        shell: bash
+        run: |
+          echo "======================================================================"
+          echo "  billed-personal-data cost notice"
+          echo "======================================================================"
+          echo "  This job calls eval/personal_data_eval.py --collect (ticket 13)."
+          echo "  Cost: one Vertex AI call per UNCACHED row, including the"
+          echo "  >=500-row maths-dense corpus."
+          echo "  Cached rows (same prompt hash) are free."
+          echo "  Row counts and per-run cost estimate will be printed here once"
+          echo "  ticket 13 ships the eval steps."
+          echo "======================================================================"
+      - name: Stub — eval steps arrive with ticket 13
+        # Remove this step when ticket 13 fills in the real eval steps above.
+        shell: bash
+        run: |
+          echo "billed-personal-data eval steps will be added by ticket 13 (personal_data/ Stage 3)."
+          echo "WIF auth succeeded — the environment gate and federation wiring are proven."
+          echo "Exiting non-zero so this job does not silently pass before the eval exists."
+          exit 1
