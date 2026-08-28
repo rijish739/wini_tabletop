@@ -52,24 +52,16 @@ def normalize_mode(mode) -> str:
 
 
 def mode_cues(text: str):
-    """Map an utterance to an explicit mode request, or None.
+    """RETIRED (slice 07, 2026-08-28) — reads text via cue regexes.
 
-    Returns "STOP" (leave TEST/PRACTICE, keep learning -> EXPLAIN), "TEST",
-    "PRACTICE", "EXPLAIN", or None. STOP is checked first so "stop the test"
-    never reads as a test request (§5.1).
+    The mode sub-type is now provided by the Gemini perception layer as
+    ``RouteResult.session_control_mode`` (STOP/TEST/PRACTICE/EXPLAIN or None).
+    The ModeController caller is retired; the interaction-control layer reads
+    from the observation instead of calling this function.
+
+    This stub returns None unconditionally so any lingering call-site is
+    a silent no-op rather than an import error during the transition.
     """
-    from cognitive_classifier.cues import (
-        is_stop_test_request, is_test_request,
-        is_practice_request, is_explain_request,
-    )
-    if is_stop_test_request(text):
-        return "STOP"
-    if is_test_request(text):
-        return "TEST"
-    if is_practice_request(text):
-        return "PRACTICE"
-    if is_explain_request(text):
-        return "EXPLAIN"
     return None
 
 

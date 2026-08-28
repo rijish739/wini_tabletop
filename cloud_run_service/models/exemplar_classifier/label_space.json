@@ -37,7 +37,11 @@
     "tabular",
     "topic_shift",
     "transfer_attempt",
-    "verbal_analogy"
+    "verbal_analogy",
+    "animation_request",
+    "learning_request",
+    "purpose_question",
+    "real_life_request"
   ],
   "min_support": 40
 }

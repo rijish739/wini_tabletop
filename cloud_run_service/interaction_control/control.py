@@ -140,11 +140,12 @@ class InteractionControlDependencies:
     concept_name: Callable[[str | None], str]
     topic_candidates: Callable[[str, int], list[Any]]
     chapter_for_concept: Callable[[str | None], str | None]
-    extract_topic_request: Callable[[str], str | None]
-    is_bare_topic: Callable[[str], bool]
     wants_different_topic: Callable[[str], bool]
     concept_relates_to_topic: Callable[[str, str], bool]
-    mode_cue: Callable[[str], str | None]
+    # Slice 07 (2026-08-28): mode_cue signature changed from Callable[[str], str|None]
+    # to Callable[[Any], str|None] where the argument is now a RouteResult (observation).
+    # The function reads ``route.session_control_mode`` instead of running cue regexes on text.
+    mode_cue: Callable[[Any], str | None]
     current_mode: Callable[[dict[str, Any]], str]
     set_mode: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
     consume_mode_offer: Callable[[Mapping[str, Any], str, str], CapabilityTransition]
@@ -341,7 +342,7 @@ class InteractionControl:
             and not bool(getattr(route, "safety_alert", False))
         ):
             stopped = self._maybe_stop_mode(
-                text, session, request.turn_input.turn_id
+                text, session, request.turn_input.turn_id, route=route
             )
             if stopped is not None:
                 return ModuleOutcome(
@@ -357,7 +358,7 @@ class InteractionControl:
                     ),
                 )
         declined = self._maybe_decline_topic(
-            text, session, request.turn_input.turn_id
+            text, session, request.turn_input.turn_id, route=route
         )
         if declined is not None:
             return ModuleOutcome(
@@ -374,7 +375,7 @@ class InteractionControl:
             )
         pedagogical_mode_control = (
             self._dependencies.pedagogy_owns_modes
-            and self._dependencies.mode_cue(text) is not None
+            and self._dependencies.mode_cue(route) is not None
         )
         is_also_learning = bool(
             getattr(perception, "also_learning", False)
@@ -426,7 +427,7 @@ class InteractionControl:
         allow_shift = bool(interaction.get("allow_topic_shift", True))
         if allow_shift:
             shifted = self._maybe_topic_shift(
-                text, analysis, session, request.turn_input.turn_id
+                text, analysis, session, request.turn_input.turn_id, route=route
             )
             if shifted is not None:
                 text, analysis, completed = shifted
@@ -553,16 +554,18 @@ class InteractionControl:
         return None
 
     def _maybe_decline_topic(
-        self, text: str, session: dict[str, Any], turn_id: str
+        self, text: str, session: dict[str, Any], turn_id: str, route: Any = None
     ) -> dict[str, str] | None:
         if not self._dependencies.wants_different_topic(text):
             return None
-        if self._dependencies.mode_cue(text) in {"STOP", "TEST", "PRACTICE"}:
+        # Slice 07: mode_cue now reads from the route observation (not text).
+        if self._dependencies.mode_cue(route) in {"STOP", "TEST", "PRACTICE"}:
             return None
         test_state = session.get("test_state")
         if test_state is not None and test_state.get("phase") not in (None, "done"):
             return None
-        span = self._dependencies.extract_topic_request(text)
+        # Slice 07: topic_phrasing from the route is the sole source; regex arm deleted.
+        span = getattr(route, "topic_phrasing", None)
         if span:
             candidates = self._dependencies.topic_candidates(span, 3)
             if candidates:
@@ -608,20 +611,21 @@ class InteractionControl:
         analysis: Mapping[str, Any],
         session: dict[str, Any],
         turn_id: str,
+        route: Any = None,
     ) -> tuple[str, Mapping[str, Any], dict[str, str] | None] | None:
         test_state = session.get("test_state")
         if test_state is not None and test_state.get("phase") != "done":
             return None
-        if self._dependencies.mode_cue(text) is not None:
+        # Slice 07: mode_cue now reads from the route observation (not text).
+        if self._dependencies.mode_cue(route) is not None:
             return None
         concept = analysis.get("concept") or {}
         primary = concept.get("concept_id")
         current = session.get("current_concept")
-        span = self._dependencies.extract_topic_request(text)
+        # Slice 07: topic_phrasing from the route is the sole source; regex arms deleted.
+        span = getattr(route, "topic_phrasing", None)
         graded_pending = bool(session.get("pending_check") or session.get("pending_hope"))
-        bare = self._dependencies.is_bare_topic(
-            str(analysis.get("normalized_text") or "")
-        ) and not graded_pending
+        bare = (span is not None) and not graded_pending
         if not span and not bare:
             return None
         if (
@@ -804,9 +808,10 @@ class InteractionControl:
         }
 
     def _maybe_stop_mode(
-        self, text: str, session: dict[str, Any], turn_id: str
+        self, text: str, session: dict[str, Any], turn_id: str, route: Any = None
     ) -> dict[str, str] | None:
-        if self._dependencies.mode_cue(text) != "STOP":
+        # Slice 07: mode_cue now reads from the route observation (not text).
+        if self._dependencies.mode_cue(route) != "STOP":
             return None
         previous = self._dependencies.current_mode(session)
         if previous == "EXPLAIN" and not session.get("test_state"):

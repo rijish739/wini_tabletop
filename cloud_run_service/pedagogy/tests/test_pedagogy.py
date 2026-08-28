@@ -11,9 +11,30 @@ from pedagogy import (
 from cognitive_classifier.cues import (
     is_clarification_request, is_learning_request, is_pure_ack,
     is_purpose_question, is_question, is_visualization_request,
+    # Slice 07 (2026-08-28): session-mode cue functions — kept in cues.py for
+    # offline tooling/tests. session_modes.mode_cues() is retired (always None);
+    # in production, RouteResult.session_control_mode replaces it.
+    is_stop_test_request, is_test_request, is_practice_request, is_explain_request,
 )
-from session_modes import mode_cues
 from utterance_intake.observation import ProblemCue, ProblemReading
+
+
+def _mode_cue_from_text(text: str):
+    """Test-only helper: simulate Perception's session_control_mode from text.
+
+    Replicates the logic of the retired session_modes.mode_cues() using the
+    underlying cue functions from cognitive_classifier.cues (kept for offline
+    tooling). Production code reads RouteResult.session_control_mode instead.
+    """
+    if is_stop_test_request(text):
+        return "STOP"
+    if is_test_request(text):
+        return "TEST"
+    if is_practice_request(text):
+        return "PRACTICE"
+    if is_explain_request(text):
+        return "EXPLAIN"
+    return None
 
 
 def observation(
@@ -46,7 +67,7 @@ def observation(
         learning_requested=is_learning_request(text),
         question=is_question(text),
         learner_problem=bool(problem and problem.is_directive_problem),
-        requested_mode=mode_cues(text),
+        requested_mode=_mode_cue_from_text(text),
     )
 
 

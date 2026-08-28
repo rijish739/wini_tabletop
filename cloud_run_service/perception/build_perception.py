@@ -111,6 +111,23 @@ SIGNAL_DEFS: Dict[str, str] = {
     "topic_shift": "Switches to a DIFFERENT maths topic ('actually, let's do trigonometry').",
     "transfer_attempt": "Tries to apply the idea to a new/related problem ('could i use this for...?').",
     "verbal_analogy": "Uses or asks for an analogy / real-world comparison ('is it like...?').",
+    # ── slice 07 additions (2026-08-28): labels promoted from standalone cue regexes ──
+    # No dataset gold yet — gap recorded (spec §07).
+    "animation_request": "Wants to SEE THE IDEA MOVE — an animation, a real-time graph, or to watch a "
+                         "quantity change/grow ('animate it', 'real-time graph', 'as a grows', "
+                         "'make it move'). A static figure is NOT enough; the tutor must describe a "
+                         "CHANGING quantity. Do NOT flag for 'show me a diagram' (use request_representation).",
+    "learning_request": "Explicitly asks to be TAUGHT or to learn a topic ('teach me', 'explain this', "
+                        "'i want to learn about X', 'show me how to solve', 'let's study', 'walk me "
+                        "through'). Not an answer attempt and not a question about meaning.",
+    "purpose_question": "Asks WHY this is worth learning, what it is FOR, or how something just shown "
+                        "connects to the topic ('why do we need to learn this', 'what is the point of', "
+                        "'how is this related', 'you didn't answer my question'). Also complaint that a "
+                        "previous question was NOT answered. Not a how-to question.",
+    "real_life_request": "Asks for a CONCRETE real-life / everyday EXAMPLE of the concept — where it is "
+                         "used, a practical situation ('real life example', 'everyday use', 'where is "
+                         "this used', 'practical example'). Distinct from purpose_question's abstract "
+                         "'why learn this': wants a CONCRETE example, not a verbal justification.",
 }
 
 # --------------------------------------------------------------------------- #
@@ -170,6 +187,23 @@ FEWSHOT_ANCHORS = [
     _anchor("actually can we switch to trigonometry now",
             "LEARNING", "jemh108__intro_trigonometry", {"topic_shift": 0.85},
             secondary=["jemh108__fundamental_trig_ratios"]),
+    # ── slice 07 anchors: 4 new labels (no dataset gold; illustrative only) ──
+    _anchor("why do we even have to learn this, where will i use it",
+            "LEARNING", INHERIT, {"purpose_question": 0.95}),
+    _anchor("can you animate it, like show me the graph changing",
+            "LEARNING", INHERIT, {"animation_request": 0.9, "request_representation": 0.5}),
+    _anchor("can you give me a real life example of this",
+            "LEARNING", INHERIT, {"real_life_request": 0.9}),
+    _anchor("i want to learn about the quadratic formula, teach me",
+            "LEARNING", "jemh104__quadratic_formula", {"learning_request": 0.9},
+            secondary=["jemh104__discriminant_nature_of_roots"]),
+    # ── slice 07 anchors: SESSION_CONTROL with sub-type ──
+    _anchor("let's practice, give me some problems",
+            "SESSION_CONTROL", INHERIT, {}),
+    _anchor("test me on this topic",
+            "SESSION_CONTROL", INHERIT, {}),
+    _anchor("stop the test, let's go back to learning",
+            "SESSION_CONTROL", INHERIT, {}),
 ]
 
 
@@ -222,6 +256,13 @@ def render_context(labels, concept_ids, concept_names, train_anchors) -> str:
                  "flag a signal only when the utterance clearly shows it (a quotable span), and "
                  "default `concept_id` to `INHERIT_CURRENT_CONCEPT` unless a concept is clearly named "
                  "or implied. `temperature` is 0 — be consistent and conservative, never generous.\n")
+    # ── Slice 07 constraints promoted onto Perception (2026-08-28) ────────────
+    lines.append("**Hard constraints (never violate):**\n"
+                 "1. NEVER produce a softmax distribution over signals — emit ONLY the signals that have "
+                 "clear quotable evidence in the utterance; most turns have zero or one signal.\n"
+                 "2. NEVER strip stop words or normalize the utterance in any way — treat it EXACTLY as "
+                 "it arrives. Do not rewrite 'i am' to 'you are', do not expand or contract pronouns, "
+                 "do not stem or lemmatize. The text you receive is already normalized.\n")
 
     lines.append("\n## Intents (choose exactly one `intent`)\n")
     for name in INTENTS:
@@ -229,6 +270,19 @@ def render_context(labels, concept_ids, concept_names, train_anchors) -> str:
     lines.append("\nOnly `LEARNING` turns move learner state. `also_learning=true` marks a "
                  "non-LEARNING turn that ALSO contains a genuine maths ask. SAFETY: when in doubt, "
                  "choose SAFETY and set `safety=true`.\n")
+    lines.append("**SESSION_CONTROL sub-type** (`session_control_mode`): When `intent` is "
+                 "`SESSION_CONTROL`, also emit the mode the student is requesting as "
+                 "`session_control_mode`. Choose from: `STOP` (leave test/practice, back to "
+                 "learning — 'stop the test', 'no more practice'), `TEST` ('test me', 'quiz me', "
+                 "'give me a test'), `PRACTICE` ('let's practice', 'give me some problems'), "
+                 "`EXPLAIN` ('back to learning', 'just explain again'). Use `null` for general "
+                 "session management ('bye', 'I'm tired', pause requests) that is NOT one of these "
+                 "four. This field is ONLY populated for `SESSION_CONTROL` intent.\n"
+                 "**topic_phrasing**: When the student explicitly asks to learn a SPECIFIC topic or "
+                 "names a topic they want to switch to, emit the exact learner's phrasing of that "
+                 "topic as `topic_phrasing` (e.g. 'natural numbers', 'the quadratic formula', "
+                 "'trigonometry'). Emit `null` otherwise. This supplements the `concept_id` — it "
+                 "preserves the raw phrasing for grounding even when the concept id is known.\n")
 
     lines.append("\n## Signals (`signal_scores`: each 0.0-1.0; OMIT or 0.0 when absent)\n")
     lines.append("For a non-LEARNING intent, signals are almost always empty. Never flag `confusion` "

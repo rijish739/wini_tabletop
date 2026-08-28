@@ -29,7 +29,7 @@ from typing import Callable, Dict, List, Optional, Sequence
 import numpy as np
 
 from . import config
-from .route import INHERIT, INTENT_SET, RouteResult
+from .route import INHERIT, INTENT_SET, SESSION_CONTROL_MODE_SET, RouteResult
 from .build_perception import build as _build_artifacts
 
 try:
@@ -347,6 +347,7 @@ class GeminiPerception:
         from google.genai import types
 
         T = types.Type
+        _sc_modes = list(SESSION_CONTROL_MODE_SET)
         self._schema = types.Schema(
             type=T.OBJECT,
             properties={
@@ -361,6 +362,12 @@ class GeminiPerception:
                     properties={lab: types.Schema(type=T.NUMBER) for lab in self.labels}),
                 "answer_attempt": types.Schema(type=T.BOOLEAN),
                 "safety": types.Schema(type=T.BOOLEAN),
+                # Slice 07 (2026-08-28): SESSION_CONTROL sub-type (STOP/TEST/PRACTICE/EXPLAIN).
+                # Only meaningful when intent == SESSION_CONTROL; null otherwise.
+                "session_control_mode": types.Schema(
+                    type=T.STRING, enum=_sc_modes + ["null"]),
+                # Slice 07: learner's raw topic phrasing when they name a specific topic.
+                "topic_phrasing": types.Schema(type=T.STRING),
             },
             required=["intent", "concept_id", "signal_scores", "answer_attempt", "safety"],
         )
@@ -392,6 +399,21 @@ class GeminiPerception:
                     if v > 0.0:
                         scores[lab] = v
 
+        # Slice 07: session_control_mode — only valid for SESSION_CONTROL turns.
+        raw_scm = raw.get("session_control_mode")
+        session_control_mode = None
+        if intent == "SESSION_CONTROL" and isinstance(raw_scm, str):
+            scm = raw_scm.strip().upper()
+            session_control_mode = scm if scm in SESSION_CONTROL_MODE_SET else None
+
+        # Slice 07: topic_phrasing — learner's raw topic phrasing (may be empty/null).
+        raw_tp = raw.get("topic_phrasing")
+        topic_phrasing = raw_tp.strip() if isinstance(raw_tp, str) and raw_tp.strip() else None
+        # Reject pronoun-only / stop-word-only spans (a guard for hallucinated phrasings).
+        _TOPIC_STOP = {"it", "this", "that", "them", "these", "those", "more", "maths", "math"}
+        if topic_phrasing and topic_phrasing.lower().split()[0] in _TOPIC_STOP:
+            topic_phrasing = None
+
         return {
             "intent": intent,
             "also_learning": bool(raw.get("also_learning", False)),
@@ -401,6 +423,8 @@ class GeminiPerception:
             "signal_scores": scores,
             "answer_attempt": bool(raw.get("answer_attempt", False)),
             "safety": bool(raw.get("safety", False)),
+            "session_control_mode": session_control_mode,
+            "topic_phrasing": topic_phrasing,
             "_source": "gemini",
         }
 
@@ -409,6 +433,7 @@ class GeminiPerception:
             "intent": "LEARNING", "also_learning": False,
             "concept_id": INHERIT, "concept_confidence": 0.0, "secondary_concepts": [],
             "signal_scores": {}, "answer_attempt": False, "safety": False,
+            "session_control_mode": None, "topic_phrasing": None,
             "_source": "fallback", "_uncertain": True,
         }
 
@@ -525,6 +550,9 @@ class GeminiPerception:
             perception_degraded=bool(p.get("_uncertain", False)),
             reason="gemini perception" if p.get("_source") == "gemini" else "perception fallback (LEARNING/inherit)",
             raw=p,
+            # Slice 07 (2026-08-28): observation-fed mode sub-type and topic phrasing.
+            session_control_mode=p.get("session_control_mode"),
+            topic_phrasing=p.get("topic_phrasing"),
         )
 
 

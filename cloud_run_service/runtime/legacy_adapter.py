@@ -87,16 +87,20 @@ class LegacyTurnAdapter:
         )
 
     def pedagogy_request(self, turn_input: TurnInput, observation, assessment):
+        # Slice 07 (2026-08-28): cue-regex functions from cognitive_classifier.cues
+        # are kept for clarification / visualization / purpose / learning detection
+        # as label approximations are still being rolled in (only the four new labels
+        # — purpose_question, animation_request, real_life_request, learning_request —
+        # are fully promoted; the others remain cue-backed until a later slice).
+        # is_pure_ack / is_question are replaced by "acknowledgment" / "question" signals.
+        # mode_cues is retired; requested_mode reads from observation.route instead.
         from cognitive_classifier.cues import (
             is_clarification_request,
             is_learning_request,
-            is_pure_ack,
             is_purpose_question,
-            is_question,
             is_visualization_request,
         )
         from pedagogy import PedagogyObservation, PedagogyRequest, PedagogyStateView
-        from session_modes import mode_cues
 
         session = copy.deepcopy(self._state.data.get("session") or {})
         # Duplicate concept supplier deleted (ticket 04 / issue 12, site 4):
@@ -126,17 +130,28 @@ class LegacyTurnAdapter:
                 abstained=bool((analysis.get("concept") or {}).get("abstained")),
                 answer_attempt=observation.answer_attempt,
                 perception_degraded=observation.perception_degraded,
-                acknowledged=is_pure_ack(normalized),
+                # Slice 07 (2026-08-28): acknowledged / question read from signals
+                # (label-fed); is_pure_ack / is_question regex arms retired here.
+                acknowledged="acknowledgment" in signals,
                 clarification_requested=(
                     is_clarification_request(normalized)
                     or "simplification_request" in signals
                 ),
                 visualization_requested=is_visualization_request(normalized),
-                purpose_requested=is_purpose_question(normalized),
-                learning_requested=is_learning_request(normalized),
-                question=is_question(normalized),
+                # purpose_requested / learning_requested read from new labels (38→42).
+                purpose_requested=(
+                    "purpose_question" in signals or is_purpose_question(normalized)
+                ),
+                learning_requested=(
+                    "learning_request" in signals or is_learning_request(normalized)
+                ),
+                question="question" in signals,
                 learner_problem=bool(problem and problem.is_directive_problem),
-                requested_mode=mode_cues(normalized),
+                # Slice 07: requested_mode from RouteResult.session_control_mode
+                # (observation-fed); mode_cues(text) retired.
+                requested_mode=getattr(
+                    getattr(observation, "route", None), "session_control_mode", None
+                ),
             ),
             state=PedagogyStateView(
                 session=session,

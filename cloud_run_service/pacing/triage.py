@@ -6,8 +6,10 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from cognitive_classifier.cues import HINT_RE, NEXT_RE, SELF_CORRECTION_RE, is_pure_ack, is_question
-
+# Slice 07 (2026-08-28): cue-regex imports from cognitive_classifier.cues retired.
+# Triage now reads Perception labels from analysis["signals"] instead of running
+# HINT_RE / NEXT_RE / SELF_CORRECTION_RE / is_pure_ack / is_question on text.
+# stt_uncertain stays legacy (unwired to a label; signals are empty on uncertain turns).
 
 YES_NO_RE = re.compile(r"^\s*(yes|yeah|ya|yep|no|nope|nah|ok|okay)\b", re.IGNORECASE)
 
@@ -46,15 +48,16 @@ def triage_turn(text: str, analysis: dict, session: dict, pace: dict, stt_uncert
             reason="empty, very short, or uncertain STT transcript",
         )
 
+    # Slice 07 (2026-08-28): label-fed — read Perception signals instead of cue regexes.
     secondary: list[str] = []
-    if "curiosity" in signals or is_question(normalized):
+    if "curiosity" in signals or "question" in signals:
         secondary.append("curiosity")
-    if SELF_CORRECTION_RE.search(normalized) or "self_correction" in signals:
+    if "self_correction" in signals:
         secondary.append("self_correction")
     if "transfer_attempt" in signals:
         secondary.append("transfer_attempt")
 
-    wants_hint = bool(HINT_RE.search(normalized) or "request_hint" in signals or "hint_requested" in flags)
+    wants_hint = bool("request_hint" in signals or "hint_requested" in flags)
     if pending_check:
         if wants_hint:
             return TriageResult(
@@ -81,7 +84,7 @@ def triage_turn(text: str, analysis: dict, session: dict, pace: dict, stt_uncert
             reason="hint request without graded pending_check; use tutor rules but no deep write-back",
         )
 
-    if is_pure_ack(normalized):
+    if "acknowledgment" in signals:
         return TriageResult(
             "ack",
             secondary,
@@ -90,7 +93,7 @@ def triage_turn(text: str, analysis: dict, session: dict, pace: dict, stt_uncert
             reason="pure acknowledgment should reflect/advance, not re-explain",
         )
 
-    if NEXT_RE.search(normalized):
+    if "ready_for_next" in signals or "topic_shift" in signals:
         return TriageResult(
             "topic_shift",
             secondary,
@@ -101,7 +104,8 @@ def triage_turn(text: str, analysis: dict, session: dict, pace: dict, stt_uncert
 
     if concept.get("concept_id") and not concept.get("abstained") and float(concept.get("concept_confidence") or 0.0) >= 0.72:
         current = session.get("current_concept")
-        if current and current != concept.get("concept_id") and is_question(normalized):
+        # Slice 07: "question" label replaces is_question(normalized) regex.
+        if current and current != concept.get("concept_id") and "question" in signals:
             return TriageResult(
                 "topic_shift",
                 secondary,

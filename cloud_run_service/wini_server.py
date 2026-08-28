@@ -570,12 +570,10 @@ class Brain:
             norm = (transcript or "").strip()
             if not norm:
                 return None
-            try:
-                from cognitive_classifier.cues import is_pure_ack, is_question
-                if is_pure_ack(norm.lower()) or is_question(transcript):
-                    return None
-            except Exception:  # noqa: BLE001 — pre-gate is optional, never fatal
-                pass
+            # Slice 07 (2026-08-28): is_pure_ack / is_question pre-gate removed
+            # (accepted billing regression — recorded in spec §07). The Perception
+            # layer owns all signal decisions; running cue regexes here created a
+            # second intent-ownership path that the slice explicitly retires.
             import tutor_loop as _tl
             from evidence import make_idempotency_key
             grade_key = make_idempotency_key(

@@ -38,6 +38,10 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     "cognitive_load": 0.0, "frustration_risk": 0.0,
                 }
                 problem = ProblemReading.absent()
+                # Slice 07: session_control_mode for mode-request utterances;
+                # acknowledgment signal for "okay". These simulate what Gemini
+                # perception would return for these utterances.
+                sc_mode = None
                 if text == "hint please":
                     flags, signals = ["hint_requested"], ["request_hint"]
                 elif text == "denominators always add":
@@ -52,7 +56,19 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     )
                 elif text == "give me a visual analogy":
                     signals = ["request_representation"]
-                return RouteResult(primary="LEARNING", concept_id="fractions"), {
+                elif text == "okay":
+                    signals = ["acknowledgment"]
+                elif text == "let's practice":
+                    sc_mode = "PRACTICE"
+                elif text == "test me":
+                    sc_mode = "TEST"
+                elif text == "stop the test":
+                    sc_mode = "STOP"
+                route_intent = "SESSION_CONTROL" if sc_mode is not None else "LEARNING"
+                return RouteResult(
+                    primary=route_intent, concept_id="fractions",
+                    session_control_mode=sc_mode,
+                ), {
                     "normalized_text": text,
                     "signals": signals,
                     "signal_scores": {},
@@ -456,8 +472,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             concept_name=lambda concept_id: "Fractions",
             topic_candidates=lambda text, limit: [],
             chapter_for_concept=lambda concept_id: None,
-            extract_topic_request=lambda text: None,
-            is_bare_topic=lambda text: False,
+            # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted.
             wants_different_topic=lambda text: False,
             concept_relates_to_topic=lambda new, old: False,
             mode_cue=lambda text: None,

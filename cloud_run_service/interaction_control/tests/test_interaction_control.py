@@ -34,6 +34,8 @@ class _Route:
     safety_tier: int | None = None
     safety_category: str | None = None
     perception_degraded: bool = False
+    topic_phrasing: str | None = None  # slice 07
+    session_control_mode: str | None = None  # slice 07
 
 
 def _turn(text: str = "help") -> TurnInput:
@@ -68,8 +70,8 @@ def _dependencies(**overrides) -> InteractionControlDependencies:
         "concept_name": lambda concept_id: "Quadratic equations",
         "topic_candidates": lambda text, limit: [],
         "chapter_for_concept": lambda concept_id: None,
-        "extract_topic_request": lambda text: None,
-        "is_bare_topic": lambda text: False,
+        # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted from
+        # InteractionControlDependencies — topic span now comes from route.topic_phrasing.
         "wants_different_topic": lambda text: False,
         "concept_relates_to_topic": lambda new, old: False,
         "mode_cue": lambda text: None,
@@ -441,9 +443,10 @@ class InteractionControlTests(unittest.TestCase):
                 "state_deltas": {},
             }
 
+        # Slice 07: topic span now comes from route.topic_phrasing, not extract_topic_request.
         dependencies = _dependencies(
             analyze=analyze,
-            extract_topic_request=lambda text: "triangles",
+            perception_route=lambda text, session: _Route("LEARNING", topic_phrasing="triangles"),
             topic_candidates=lambda text, limit: [("triangles", "Triangles", 0.55)],
         )
         session = {

@@ -2022,8 +2022,8 @@ class TutorLoop:
     def _build_interaction_control(self):
         """Bind legacy internal ports to the extracted Interaction Control Interface."""
         from cognitive_classifier.cues import (
-            extract_topic_request,
-            is_bare_topic,
+            # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted.
+            # Topic span now comes from RouteResult.topic_phrasing (Gemini perception).
             wants_different_topic,
         )
         from interaction_control import (
@@ -2033,7 +2033,10 @@ class TutorLoop:
         )
         from runtime.contracts import StateChange, StateOperation, StateScope
         from runtime_flags import STT_WRITE_CONFIDENCE_MIN
-        from session_modes import mode_cues
+        # Slice 07 (2026-08-28): mode_cues() is retired. mode_cue now reads
+        # session_control_mode from the RouteResult (observation-fed).
+        # Keep the import for the ModeController's set_mode/consume_offer which
+        # are still used for offer-based mode transitions.
 
         def log_event(event):
             with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as handle:
@@ -2135,11 +2138,11 @@ class TutorLoop:
                 if concept_id
                 else None
             ),
-            extract_topic_request=extract_topic_request,
-            is_bare_topic=is_bare_topic,
             wants_different_topic=wants_different_topic,
             concept_relates_to_topic=getattr(self, "_concept_relates_to_topic", lambda c, t: False),
-            mode_cue=mode_cues,
+            # Slice 07 (2026-08-28): mode_cue reads session_control_mode from the
+            # RouteResult (observation) instead of running cue regexes on text.
+            mode_cue=lambda obs: getattr(obs, "session_control_mode", None),
             current_mode=getattr(modes, "current_mode", lambda s: s.get("mode", "EXPLAIN")),
             set_mode=set_mode,
             consume_mode_offer=consume_mode_offer,
@@ -2269,45 +2272,41 @@ class TutorLoop:
         # the HOPE scorer (1c) and the pedagogy rules so a confusion plea is
         # never written back as a "wrong" diagnostic answer (learning_log
         # regression: "i can not understand" graded wrong → mastery dropped).
-        from cognitive_classifier.cues import (
-            is_pure_ack, is_question, is_clarification_request, is_answer_attempt,
-            is_visualization_request, is_purpose_question,
-            is_animation_request, is_real_life_request,
-        )
+        # Slice 07 (2026-08-28): cue-regex imports retired. All intent/signal decisions
+        # are now driven by Perception labels (_sig). The four formerly-standalone cues
+        # (purpose_question, animation_request, real_life_request, learning_request) are
+        # new labels (38→42); is_answer_attempt regex arm deleted (answer_attempt
+        # authoritative via _interaction_answer_attempt / route / _sig).
+        # is_pure_ack / is_question remain in cues.py for dataset curation only.
         _sig = set(analysis["signals"])
         _norm = analysis["normalized_text"]
-        clarification = is_clarification_request(text) or "simplification_request" in _sig
-        # A visualization plea ("I cannot imagine this") is a representation gap:
-        # the explicit deterministic cue always counts; a generic confusion plea
-        # counts too when perception saw a representation signal on the same turn.
-        # Plain representation signals without distress stay at rule 6 priority.
-        wants_visual = is_visualization_request(text) or (
+        clarification = "simplification_request" in _sig or "confusion" in _sig
+        # A visualization plea ("I cannot imagine this") is a representation gap.
+        # Slice 07: label-fed — "request_representation" and "representation_shift"
+        # are the authoritative signals; a clarification plea with a representation
+        # signal still counts. is_visualization_request regex retired as runtime cue.
+        wants_visual = bool(_sig & {"request_representation", "representation_shift",
+                                     "diagrammatic", "graphical"}) or (
             clarification and bool(_sig & {"request_representation", "representation_shift"}))
-        # A purpose/connection question ("why do I have to learn this", "how is
-        # this related to X", "you didn't answer my question") must be ANSWERED,
-        # not met with a probe/problem — rule 1w.
-        wants_why = is_purpose_question(text)
-        # NEW (structural, 2026-08-01): two refinements of the visual ask that must steer
-        # BOTH the spoken answer and the on-screen board.
-        #  * wants_animation — the child wants to SEE MOTION ("as a grows", "real-time
-        #    graph", "animate it"). The answer must describe a CHANGING quantity (name it +
-        #    its from/to) so the board can ground an `animate_param`; a static answer is why
-        #    animation never fired on real turns (2026-08-01 live trace).
-        #  * wants_real_life — the child wants a CONCRETE real-life example. The answer must
-        #    give one with COUNTABLE everyday objects so the board can show them as stickers,
-        #    making the real-world NEED of the maths felt (not a verbal 'why').
-        # Both are visual asks -> they must earn a board (fold into wants_visual so the gate
-        # + REPRESENTATION_TRANSLATION path fire).
-        wants_animation = is_animation_request(text)
-        wants_real_life = is_real_life_request(text)
+        # Slice 07 (2026-08-28): purpose_question, animation_request, real_life_request
+        # are new Perception labels (38→42). The standalone cue regex arms are retired.
+        #  * wants_why  — label "purpose_question" (was is_purpose_question).
+        #  * wants_animation — label "animation_request" (was is_animation_request).
+        #    The answer must describe a CHANGING quantity so the board grounds animate_param.
+        #  * wants_real_life — label "real_life_request" (was is_real_life_request).
+        #    The answer must give a CONCRETE example so the board shows stickers.
+        wants_why = "purpose_question" in _sig
+        wants_animation = "animation_request" in _sig
+        wants_real_life = "real_life_request" in _sig
         if wants_animation or wants_real_life:
             wants_visual = True
         # §7.4: Gemini's answer_attempt is the primary signal when perception is
-        # authoritative, with the classifier signal + surface cue as fallback. This
-        # attacks the logged regression where "i can not understand" was graded wrong.
+        # authoritative, with the classifier signal as fallback.
+        # Slice 07 (2026-08-28): is_answer_attempt(text) regex arm deleted —
+        # answer_attempt label from Perception is authoritative (spec §07).
         answer_try = bool(_interaction_answer_attempt) \
             or bool(route and route.answer_attempt) \
-            or ("answer_attempt" in _sig) or is_answer_attempt(text)
+            or ("answer_attempt" in _sig)
         # The student brought an instance of their own to be worked out (§6.1
         # deterministic cue, audit A-2/D-1). A reply of "x = 42" to OUR pending
         # diagnostic is an attempt and the grader owns it — so a bare equation
@@ -2332,8 +2331,10 @@ class TutorLoop:
         # setting our question aside, not answering it — grading it as an attempt
         # would mark the pending diagnostic wrong and move mastery on evidence the
         # student never gave (the §13 rule that non-attempts must not move state).
+        # Slice 07 (2026-08-28): is_pure_ack / is_question regex arms retired;
+        # now read "acknowledgment" / "question" labels from Perception (_sig).
         non_attempt = ((not answer_try) and (
-            is_pure_ack(_norm) or clarification or is_question(text) or fresh_request)
+            "acknowledgment" in _sig or clarification or "question" in _sig or fresh_request)
         ) or (student_problem and bool(problem and problem.directive))
 
         # 1b. pending diagnostic from the previous turn (closed loop, section 8):
@@ -2390,9 +2391,10 @@ class TutorLoop:
 
         # 2b. acknowledgment handling + representation write-back (v3): a
         # confirmed REPRESENTATION_TRANSLATION marks the served representations
-        # as known for the session concept (architecture section 9 coverage)
-        from cognitive_classifier.cues import is_pure_ack
-        acknowledged = is_pure_ack(analysis["normalized_text"])
+        # as known for the session concept (architecture section 9 coverage).
+        # Slice 07 (2026-08-28): is_pure_ack regex arm retired; read "acknowledgment"
+        # label from Perception signals (_sig) — already computed above.
+        acknowledged = "acknowledgment" in _sig
         # A-5: this used to be the ONLY writer, and it required BOTH that the
         # previous action was REPRESENTATION_TRANSLATION AND that this utterance is
         # a pure acknowledgment — so narrow that 0 of 40 live concept states had

@@ -522,8 +522,7 @@ def test_low_stt_confidence_preserves_state_and_pending_hook() -> None:
         concept_name=lambda concept_id: "Math",
         topic_candidates=lambda text, limit: [],
         chapter_for_concept=lambda concept_id: None,
-        extract_topic_request=lambda text: None,
-        is_bare_topic=lambda text: False,
+        # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted.
         wants_different_topic=lambda text: False,
         concept_relates_to_topic=lambda new, old: False,
         mode_cue=lambda text: None,
