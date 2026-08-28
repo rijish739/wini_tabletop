@@ -76,7 +76,7 @@ def request(text: str, observed: PedagogyObservation, **state) -> PedagogyReques
         turn_input=TurnInput(
             turn_id="turn-2",
             learner_id="learner-1",
-            interaction={"text": text},
+            interaction={},  # ticket 11: interaction["text"] deleted
             device=DeviceCapabilities(),
             budgets=TurnBudgets(total_ms=10_000),
         ),

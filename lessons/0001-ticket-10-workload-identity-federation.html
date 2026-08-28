@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lesson 0001: Ticket 10 & Workload Identity Federation</title>
+  <link rel="stylesheet" href="../assets/style.css">
+  <script>
+    function checkAnswer(questionNum, selectedIndex, correctIndex, explanation) {
+      const feedbackEl = document.getElementById('feedback-' + questionNum);
+      const options = document.querySelectorAll('#options-' + questionNum + ' .quiz-option');
+      options.forEach(opt => opt.style.pointerEvents = 'none');
+
+      if (selectedIndex === correctIndex) {
+        options[selectedIndex].style.borderColor = 'var(--success)';
+        options[selectedIndex].style.backgroundColor = '#e8f5e9';
+        feedbackEl.className = 'quiz-feedback feedback-correct';
+        feedbackEl.innerHTML = '<strong>Correct!</strong> ' + explanation;
+      } else {
+        options[selectedIndex].style.borderColor = 'var(--error)';
+        options[selectedIndex].style.backgroundColor = '#ffebee';
+        options[correctIndex].style.borderColor = 'var(--success)';
+        options[correctIndex].style.backgroundColor = '#e8f5e9';
+        feedbackEl.className = 'quiz-feedback feedback-incorrect';
+        feedbackEl.innerHTML = '<strong>Incorrect.</strong> ' + explanation;
+      }
+      feedbackEl.style.display = 'block';
+    }
+  </script>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">Lesson 0001 &bull; Deterministic Input Layer</div>
+    <h1>Ticket 10: Workload Identity Federation for Billed CI</h1>
+    <div class="subtitle">How we securely authenticate to Vertex AI and protect cloud spend without static API keys</div>
+  </header>
+
+  <section>
+    <h2>1. The Problem: The Perils of Static Service Account Keys</h2>
+    <p>
+      In automated test pipelines, models often need to run against live cloud APIs (like Google Cloud Vertex AI) to compute evaluation metrics such as safety recall and PII precision.
+    </p>
+    <p>
+      The legacy approach was to generate a long-lived service account JSON key file and paste it into GitHub Repository Secrets. This causes three critical vulnerabilities:
+    </p>
+    <ul>
+      <li><strong>Secret Leaks:</strong> A static key in CI can easily be dumped in logs, leaked through malicious PRs, or compromised if developer laptops are exposed.</li>
+      <li><strong>Runaway Billing Spend:</strong> Any commit or automated PR run can trigger thousands of LLM calls, draining quotas and budgets.</li>
+      <li><strong>Fork Exploits:</strong> Workflows triggered on external forks could potentially inherit repository-level secrets.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2>2. The Architecture: Workload Identity Federation (WIF)</h2>
+    <p>
+      Ticket 10 solves this by using <strong>Workload Identity Federation</strong>. Rather than storing a static secret, GitHub Actions negotiates an ephemeral OpenID Connect (OIDC) token on the fly.
+    </p>
+
+    <div class="diagram-box">
+      <h3 style="margin-top:0;">The OIDC Authentication Handshake</h3>
+      <ol style="margin-left: 1.5rem; margin-bottom: 0;">
+        <li>GitHub Actions runner requests an OIDC token from GitHub's OIDC provider.</li>
+        <li>GitHub issues a cryptographically signed JWT containing claims (e.g., repository name, environment).</li>
+        <li>The <code>google-github-actions/auth@v2</code> action presents this JWT to GCP Workload Identity Pool.</li>
+        <li>GCP verifies the signature and checks the <strong>attribute condition</strong>:
+          <pre><code>assertion.repository == 'org/repo' && assertion.environment == 'billed-eval'</code></pre>
+        </li>
+        <li>If valid, GCP allows the federated principal to impersonate the dedicated service account (<code>wini-billed-ci</code>) and returns a short-lived OAuth2 token for Vertex AI.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>3. The Implementation in Our Codebase</h2>
+    <p>
+      Ticket 10 was implemented across two key files in the repository:
+    </p>
+
+    <div class="step-card">
+      <div class="step-title">1. CI Workflow: <code>.github/workflows/ci.yml</code></div>
+      <p>
+        Added two new jobs: <code>billed-safety</code> and <code>billed-personal-data</code>. Key design properties:
+      </p>
+      <ul>
+        <li><code>needs: [offline]</code> &mdash; The billed jobs only run after the free, offline test suite passes completely.</li>
+        <li><code>environment: billed-eval</code> &mdash; Placed behind a GitHub Environment that requires human reviewer approval before execution.</li>
+        <li><code>permissions: id-token: write</code> &mdash; Grants the runner permission to fetch the OIDC JWT token.</li>
+        <li><strong>Guard Step</strong> &mdash; Checks that <code>WIF_PROVIDER</code> and <code>WIF_SERVICE_ACCOUNT</code> exist. If missing, outputs a clear error annotation instead of failing cryptically.</li>
+        <li><strong>Stub Gate</strong> &mdash; Exits with code 1 until Tickets 12 & 13 land their real evaluation commands, preventing false green passes in CI.</li>
+      </ul>
+    </div>
+
+    <div class="step-card">
+      <div class="step-title">2. Operator Setup Guide: <code>.github/BILLED_EVAL_SETUP.md</code></div>
+      <p>
+        Documents the exact <code>gcloud</code> commands required to:
+      </p>
+      <ul>
+        <li>Create the Workload Identity Pool (<code>github-actions-pool</code>) and OIDC Provider (<code>github-oidc</code>).</li>
+        <li>Create the dedicated service account (<code>wini-billed-ci</code>) with <code>roles/aiplatform.user</code>.</li>
+        <li>Bind <code>roles/iam.workloadIdentityUser</code> strictly to the <code>billed-eval</code> environment principal set.</li>
+        <li>Configure the GitHub Environment secrets.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>4. How Ticket 10 Fits Into the Bigger Roadmap</h2>
+    <p>
+      Ticket 10 was an independent prerequisite that unblocks the downstream vertical slices:
+    </p>
+    <ul>
+      <li><strong>Ticket 12 (Child Safety Stage 2):</strong> Ships <code>eval/safety_eval.py --collect</code> which evaluates safety recall against live Vertex AI Gemini models in <code>asia-south1</code>.</li>
+      <li><strong>Ticket 13 (Personal Data Stage 3):</strong> Ships <code>eval/personal_data_eval.py --collect</code> which measures PII extraction and redaction precision across &ge;500 test rows.</li>
+    </ul>
+  </section>
+
+  <!-- Interactive Quiz / Retrieval Practice -->
+  <section class="quiz-widget">
+    <div class="quiz-title">&#9733; Knowledge Check: Retrieval Practice</div>
+    
+    <div class="quiz-question">
+      1. Why is the GCP Workload Identity Provider configured with <code>assertion.environment == 'billed-eval'</code>?
+    </div>
+    <div class="quiz-options" id="options-1">
+      <div class="quiz-option" onclick="checkAnswer(1, 0, 2, 'Restricting to the billed-eval environment guarantees that tokens are only accepted after a designated human reviewer approves the environment gate, preventing unauthorized spend.')">
+        To allow any PR commit to automatically test the model without requiring manual reviewer interaction
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(1, 1, 2, 'Restricting to the billed-eval environment guarantees that tokens are only accepted after a designated human reviewer approves the environment gate, preventing unauthorized spend.')">
+        To configure the cloud runner to run offline tests in parallel with live Vertex AI billing evaluations
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(1, 2, 2, 'Restricting to the billed-eval environment guarantees that tokens are only accepted after a designated human reviewer approves the environment gate, preventing unauthorized spend.')">
+        To ensure tokens are only granted after a reviewer explicitly approves the billed evaluation run
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(1, 3, 2, 'Restricting to the billed-eval environment guarantees that tokens are only accepted after a designated human reviewer approves the environment gate, preventing unauthorized spend.')">
+        To allow third-party contributors on unapproved repository forks to consume cloud credits freely
+      </div>
+    </div>
+    <div id="feedback-1" class="quiz-feedback"></div>
+
+    <div class="quiz-question" style="margin-top: 1.5rem;">
+      2. Why do the initial Ticket 10 job stubs deliberately exit with non-zero status (code 1)?
+    </div>
+    <div class="quiz-options" id="options-2">
+      <div class="quiz-option" onclick="checkAnswer(2, 0, 1, 'Exiting 1 ensures the CI pipeline fails loudly rather than pretending billed evaluations passed before Tickets 12 and 13 ship their actual test commands.')">
+        Because the GCP service account credentials expired immediately after being created by the developer
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(2, 1, 1, 'Exiting 1 ensures the CI pipeline fails loudly rather than pretending billed evaluations passed before Tickets 12 and 13 ship their actual test commands.')">
+        To prevent CI from falsely reporting green passes before Tickets 12 and 13 deliver the real eval steps
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(2, 2, 1, 'Exiting 1 ensures the CI pipeline fails loudly rather than pretending billed evaluations passed before Tickets 12 and 13 ship their actual test commands.')">
+        Because GitHub Actions workflows cannot parse Google Cloud Workload Identity Federation JSON responses
+      </div>
+      <div class="quiz-option" onclick="checkAnswer(2, 3, 1, 'Exiting 1 ensures the CI pipeline fails loudly rather than pretending billed evaluations passed before Tickets 12 and 13 ship their actual test commands.')">
+        To signal that the free offline unit test runner needs to be recompiled under the new Python runtime
+      </div>
+    </div>
+    <div id="feedback-2" class="quiz-feedback"></div>
+  </section>
+
+  <section>
+    <h2>5. Recommended Primary Sources</h2>
+    <ul>
+      <li><a href="../reference/ticket-10-wif.html">Reference Cheat Sheet: Ticket 10 & WIF Architecture</a></li>
+      <li><a href="../../.github/BILLED_EVAL_SETUP.md">Operator Manual: <code>.github/BILLED_EVAL_SETUP.md</code></a></li>
+      <li><a href="../../.scratch/deterministic-input-layer/impl/10-workload-identity-federation.md">Spec: <code>impl/10-workload-identity-federation.md</code></a></li>
+    </ul>
+  </section>
+
+  <footer>
+    <div>Lesson 0001 &bull; Wini Tabletop Curriculum</div>
+    <div>Have questions? Ask your AI pair programmer!</div>
+  </footer>
+</div>
+</body>
+</html>

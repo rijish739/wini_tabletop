@@ -47,7 +47,11 @@
     "tabular",
     "topic_shift",
     "transfer_attempt",
-    "verbal_analogy"
+    "verbal_analogy",
+    "animation_request",
+    "learning_request",
+    "purpose_question",
+    "real_life_request"
   ],
   "concept_ids": [
     "jemh101__fundamental_theorem_of_arithmetic",

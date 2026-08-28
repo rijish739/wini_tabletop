@@ -141,7 +141,8 @@ class InteractionControlDependencies:
     topic_candidates: Callable[[str, int], list[Any]]
     chapter_for_concept: Callable[[str | None], str | None]
     wants_different_topic: Callable[[str], bool]
-    concept_relates_to_topic: Callable[[str, str], bool]
+    # concept_relates_to_topic removed (ticket 11): the drift guard that called it was
+    # deleted in slice 04; the rule survives as prose in the handover doc only.
     # Slice 07 (2026-08-28): mode_cue signature changed from Callable[[str], str|None]
     # to Callable[[RouteResult], str|None] where the argument is now a RouteResult (observation).
     # The function reads ``route.session_control_mode`` instead of running cue regexes on text.
@@ -224,8 +225,14 @@ class InteractionControl:
                 ),),
             )
         interaction = deep_thaw(request.turn_input.interaction)
-        trusted = deep_thaw(request.turn_input.trusted_observations)
-        text = str(interaction.get("text") or "")
+        # Ticket 11: interaction["text"] channel deleted — text now comes from the typed
+        # observation (always non-None after the walking skeleton wired UtteranceIntake).
+        # Fallback to interaction.get("text") removed; all producers were migrated.
+        text = (
+            request.observation.normalized_text
+            if request.observation is not None
+            else str(interaction.get("text") or "")  # legacy test stubs only
+        )
         session = deep_thaw(request.session)
         starting_session = copy.deepcopy(session)
         perception = request.perception
@@ -269,17 +276,9 @@ class InteractionControl:
                 text=text,
                 compatibility=compatibility,
             ))
-        elif request.observation is None:
-            stt_conf = trusted.get("stt_confidence")
-            if stt_conf is not None and stt_conf < self._dependencies.stt_write_confidence_min:
-                compatibility = self._low_confidence_result(
-                    request.turn_input, session, stt_conf
-                )
-                return ModuleOutcome(value=InteractionDecision(
-                    disposition=InteractionDisposition.COMPLETE,
-                    text=text,
-                    compatibility=compatibility,
-                ))
+        # Ticket 11: trusted_observations["stt_confidence"] channel deleted.
+        # _low_confidence_result is now dead code (its only caller above was removed).
+        # Authorization.UNAUTHORIZED (ticket 05) covers what stt_confidence used to gate.
 
         pending = self._consume_pending_shift(
             text, session, request.turn_input.turn_id
@@ -414,7 +413,11 @@ class InteractionControl:
             )
         if route is not None:
             session["steer_streak"] = 0
-        precomputed_analysis = trusted.get("precomputed_analysis")
+        # Ticket 11: trusted_observations["stt_confidence"] deleted.
+        # precomputed_analysis (coordinator cache) still lives in trusted_observations.
+        precomputed_analysis = deep_thaw(
+            request.turn_input.trusted_observations
+        ).get("precomputed_analysis")
         analysis = (
             precomputed_analysis
             if precomputed_analysis is not None
@@ -687,60 +690,6 @@ class InteractionControl:
             ),
         }
 
-    def _low_confidence_result(
-        self,
-        turn_input: TurnInput,
-        session: Mapping[str, Any],
-        stt_confidence: float,
-    ) -> dict[str, Any]:
-        interaction = deep_thaw(turn_input.interaction)
-        text = str(interaction.get("text") or "")
-        pending = session.get("pending_check") or {}
-        reply = "I may have heard that wrong. Please say that again"
-        if pending.get("question"):
-            reply += f" for this question: {pending['question']}"
-        else:
-            reply += "."
-        self._dependencies.log_event({
-            "ts": self._dependencies.now(),
-            "loop": "tutor_loop_v4",
-            "question": text,
-            "action": "CONFIRM_LOW_CONFIDENCE",
-            "action_reason": (
-                f"STT confidence {stt_confidence:.3f} below write floor; "
-                "no learning write"
-            ),
-            "need": "none",
-            "signals": [],
-            "answer": reply,
-        })
-        return {
-            "action": "CONFIRM_LOW_CONFIDENCE",
-            "action_reason": "low STT confidence; no learning write",
-            "need": "none",
-            "shadow": None,
-            "concept": {
-                "concept_id": session.get("current_concept"),
-                "concept_confidence": 0.0,
-                "abstained": True,
-            },
-            "signals": [],
-            "cognitive_update": {},
-            "n_evidence": 0,
-            "bridge_ids": [],
-            "writeback": None,
-            "hope_update": None,
-            "pending_check": pending.get("id"),
-            "pending_hope": None,
-            "answer_budget": interaction.get("answer_budget"),
-            "pace": copy.deepcopy(session.get("pace", {})),
-            "display": [],
-            "session_ended": False,
-            "answer": reply,
-            "answer_source": "scripted",
-            "gen_backend": None,
-        }
-
     def _unauthorized_repair_result(
         self,
         turn_input: TurnInput,
@@ -750,9 +699,10 @@ class InteractionControl:
         """Ticket 05: produce the repair screen from the observation's
         ``repair_choices`` — the one sanctioned export.  The response layer
         reads ``repair_choices``; nothing reads ``utterance.alternates``.
-        The learner always chooses; nothing auto-selects an alternate."""
+        The learner always chooses; nothing auto-selects an alternate.
+        Ticket 11: text now comes from observation.normalized_text (interaction["text"] deleted)."""
         interaction = deep_thaw(turn_input.interaction)
-        text = str(interaction.get("text") or "")
+        text = observation.normalized_text
         pending = session.get("pending_check") or {}
         choices = list(observation.transcript.repair_choices)
         causes = [c.value for c in observation.transcript.causes]

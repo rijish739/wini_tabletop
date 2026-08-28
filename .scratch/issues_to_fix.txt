@@ -33,13 +33,23 @@ x squared vs x cube	No exponent rule at all.
 minus signs	Folds the word minus. Does not fold the Unicode minus sign − (U+2212).
 local-language pronunciation	No rule.
 
-imagine if user says 'ohhhhh I understood' then legibility will fail and say not legible right? 
+imagine if user says 'hmmmmm I understood' then legibility will fail and say not legible right? 
+"hmmmm" (5 characters, no standard vowels a, e, i, o, u, y)
+"shhhhh" (6 characters, no vowels)
+"zzzzz" (no vowels)
+
 
 safety lexicon is a regex words can create issues like user can ask "if a knife can be used to cut cardboard" this is not safety critical but 'knife' word will trigger safety call and discard whole sentence so word based need to be removed. 
 
 similarly regular expression finding needs to be unwired in math problem detection 
+Word Problems are missed, Conceptual Questions are falsely flagged,  "Why is x^2 - 5x + 6 called a quadratic?"
+
 
 is this the only place anaphor word detection is happening? if yes this is not good. 
+
+how the session control for practice, explain and other modes handled 
+
+-Session Mode Control & Mode Exits (if user says i do not want explanation/test/practice what should happen next) how the exit and entry to any mode happens in fresh restart and in transition
 
 
 2. normalize has no idea what a maths word is. So the root cause becomes the sqrt cause

@@ -204,22 +204,6 @@ class ExemplarCognitiveClassifier:
         return {"signals": sorted(signals, key=lambda l: -scores[l]), "scores": scores, "evidence": evidence}
 
 
-class MiniLMSemanticClassifier:
-    """Adapter implementing the InputProcessor SemanticClassifier protocol.
-
-    Labels requested by the processor that are outside the trained label
-    space (e.g. ``explanation``) score 0.0, so the processor's max-merge
-    keeps its heuristic estimate for those.
-    """
-
-    def __init__(self, classifier: Optional[ExemplarCognitiveClassifier] = None) -> None:
-        self.classifier = classifier or ExemplarCognitiveClassifier.load()
-
-    def score(self, text: str, labels: Sequence[str]) -> Dict[str, float]:
-        result = self.classifier.classify(text, top_evidence=0)
-        return {label: float(result["scores"].get(label, 0.0)) for label in labels}
-
-
 def _main() -> None:
     import argparse
 

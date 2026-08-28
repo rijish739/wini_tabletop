@@ -400,13 +400,13 @@ def score_concepts(test_recs: list[dict], fused: dict | None = None) -> dict:
 def crosscheck_map(test_recs: list[dict]) -> dict:
     """row_id -> fused primary, mirroring GeminiPerception.resolve's §5.5 cross-check
     (same fuse_primary function, same resolver artifacts). Offline, no Gemini calls."""
+    # Ticket 11: InputProcessor deleted; use utterance_intake normalizer.
     from concept_resolver import ConceptResolver
-    from cognitive_input_processor.input_processor import InputProcessor
     from perception.gemini_perception import fuse_primary
+    from utterance_intake.intake import normalize_text
 
     res = ConceptResolver.load()
-    proc = InputProcessor()
-    texts = [proc.normalize_input(r["utterance"]) for r in test_recs]
+    texts = [normalize_text(r["utterance"]) for r in test_recs]
     mat = res.score_texts(texts)
     out = {}
     for i, r in enumerate(test_recs):

@@ -100,7 +100,7 @@ class GeminiPerception:
         self._cache_order: List[str] = []
         self._cache_size = cache_size
         self._last_single_text: Optional[str] = None
-        self._processor = None
+        # _processor removed: ticket 11 — normalize via utterance_intake.intake.normalize_text
         self._anchors = None   # lazy (anchor_emb, concept_ids, concept_names) for candidate hints
         self._xresolver = None  # lazy ConceptResolver for the §5.5 cross-check (shares MiniLM)
         self._cc_resolved = False   # Stage 5 context cache, resolved once per process
@@ -150,10 +150,10 @@ class GeminiPerception:
 
     # ----------------------------------------------------------- normalize
     def _normalize(self, text: str) -> str:
-        if self._processor is None:
-            from cognitive_input_processor.input_processor import InputProcessor
-            self._processor = InputProcessor()
-        return self._processor.normalize_input(text or "")
+        # Ticket 11: InputProcessor deleted; delegate to utterance_intake's canonical
+        # normalizer (NFC + zero-width strip + whitespace collapse).
+        from utterance_intake.intake import normalize_text
+        return normalize_text(text or "")
 
     # ------------------------------------------------------------- perceive
     def timing_reset(self) -> None:

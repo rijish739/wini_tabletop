@@ -1,8 +1,8 @@
 {
   "sources": {
     "label_space.json": {
-      "sha16": "0a2ff4148368fcd1",
-      "n_labels": 38
+      "sha16": "9fd9f1fa65fa256e",
+      "n_labels": 42
     },
     "concepts_meta.json": {
       "sha16": "f64db08a876c713c",
@@ -10,7 +10,7 @@
     }
   },
   "n_intents": 8,
-  "n_fewshot_anchors": 14,
+  "n_fewshot_anchors": 21,
   "n_train_anchors": 6,
-  "context_chars": 20926
+  "context_chars": 25592
 }

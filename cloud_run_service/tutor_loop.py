@@ -1295,9 +1295,7 @@ class TutorLoop:
         if os.getenv("WINI_PREWARM_MINILM", "1").lower() not in ("0", "false", ""):
             threading.Thread(target=self._prewarm_embedder, name="minilm-prewarm",
                              daemon=True).start()
-        # Lazy InputProcessor instance — shared across turns for is_same_problem
-        # detection without the allocation cost of per-turn construction.
-        self._ip = None
+        # Ticket 11: _ip (InputProcessor) removed; is_same_problem_followup inlined below.
 
     def _prewarm_embedder(self) -> None:
         t0 = time.perf_counter()
@@ -1363,6 +1361,12 @@ class TutorLoop:
         return self.state.data.setdefault("session", {}).get("current_concept")
 
     _ANAPHORA_RE = re.compile(r"\b(this|that|it|these|those|the same|here)\b", re.I)
+    # Inlined from cognitive_input_processor (ticket 11 deletion).
+    _NEW_EXAMPLE_RE = re.compile(
+        r"\b(another|different|other|new|fresh|one more)\b.*"
+        r"\b(example|sum|problem|question|one)\b",
+        re.IGNORECASE,
+    )
 
     def _is_anaphoric_followup(self, text: str) -> bool:
         """A short utterance that back-references the current topic ("solve this with
@@ -1373,40 +1377,35 @@ class TutorLoop:
             return False
         return bool(self._ANAPHORA_RE.search(t))
 
-    def _concept_chapters(self, cid: str) -> set:
-        """Chapters the concept is edge-connected to (cached). Used to tell a related
-        cross-chapter concept (jemh102 zero-geometry ↔ quadratics) from an unrelated one
-        (jemh103 linear graphical-method)."""
-        cache = getattr(self, "_concept_chapter_cache", None)
-        if cache is None:
-            cache = {}
-            self._concept_chapter_cache = cache
-        if cid in cache:
-            return cache[cid]
-        chaps = set()
-        if cid in self.graph:
-            nbrs = set()
-            try:  # DiGraph: look both directions so relatedness is symmetric
-                nbrs |= set(self.graph.successors(cid))
-                nbrs |= set(self.graph.predecessors(cid))
-            except Exception:  # noqa: BLE001 — undirected graph
-                nbrs |= set(self.graph.neighbors(cid))
-            for nb in nbrs:
-                c = self.graph.nodes.get(nb, {}).get("chapter_doc")
-                if c:
-                    chaps.add(c)
-        cache[cid] = chaps
-        return chaps
+    def _is_same_problem_followup(
+        self,
+        text: str,
+        context: "list[dict] | None" = None,
+        is_followup: bool = False,
+    ) -> bool:
+        """True when this turn is a follow-up about the SAME worked example already
+        on the table (inlined from cognitive_input_processor, ticket 11).
 
-    def _concept_relates_to_topic(self, new_cid: str, old_cid: str) -> bool:
-        """True if the newly-resolved concept is in the same chapter as the current
-        topic, or shares a graph edge with the current topic's chapter. False only for a
-        genuinely unrelated cross-chapter jump (the case the drift guard suppresses)."""
-        old_chap = self.graph.nodes.get(old_cid, {}).get("chapter_doc")
-        new_chap = self.graph.nodes.get(new_cid, {}).get("chapter_doc")
-        if not old_chap or not new_chap or new_chap == old_chap:
-            return True
-        return old_chap in self._concept_chapters(new_cid)
+        Guards: is_followup already seen; no new student-supplied digits; no explicit
+        request for a different example; a Wini reply with numbers exists in recent ctx.
+        """
+        if not is_followup:
+            return False
+        t = (text or "").strip()
+        if not t or len(re.findall(r"\d", t)) >= 2:
+            return False
+        if self._NEW_EXAMPLE_RE.search(t):
+            return False
+        ctx = context or []
+        return any(
+            c.get("role") == "wini" and len(re.findall(r"\d", str(c.get("text") or ""))) >= 2
+            for c in ctx[-4:]
+        )
+
+    # _concept_chapters and _concept_relates_to_topic deleted (ticket 11):
+    # the drift guard that called them was removed in slice 04. The rule that a
+    # cross-chapter jump should require explicit topic-shift confirmation survives
+    # as prose in cloud_run_service/concept_resolver/CONCEPT_RESOLUTION_HANDOVER.md.
 
     def analyze_only(self, text: str) -> dict:
         """Analyze a student utterance without mutating learner state.
@@ -2109,7 +2108,7 @@ class TutorLoop:
                 else None
             ),
             wants_different_topic=wants_different_topic,
-            concept_relates_to_topic=getattr(self, "_concept_relates_to_topic", lambda c, t: False),
+            # concept_relates_to_topic removed (ticket 11): field deleted from dependencies.
             # Slice 07 (2026-08-28): mode_cue reads session_control_mode from the
             # RouteResult (observation) instead of running cue regexes on text.
             mode_cue=lambda obs: getattr(obs, "session_control_mode", None),
@@ -2631,11 +2630,8 @@ class TutorLoop:
             # child asked about. Suppressed for animate/real-life turns, which
             # deliberately author a new visual scene of their own.
             _is_followup = clarification or self._is_anaphoric_followup(text)
-            if self._ip is None:
-                from cognitive_input_processor.input_processor import InputProcessor
-                self._ip = InputProcessor()
             same_problem = (not answer_try and not wants_animation and not wants_real_life
-                            and self._ip.is_same_problem_followup(
+                            and self._is_same_problem_followup(
                                 text, context=session.get("context"),
                                 is_followup=_is_followup))
             # Board/speech sync (SYNC_VISUAL): when a visual is earned this turn,

@@ -477,75 +477,10 @@ def test_batch_stt_carries_recognition_confidence() -> None:
     assert result.confidence == 0.7
 
 
-def test_low_stt_confidence_preserves_state_and_pending_hook() -> None:
-    """Ticket 05: IC backward-compat gate — stt_confidence < 0.45 with observation=None
-    returns CONFIRM_LOW_CONFIDENCE and never mutates session state.
-
-    The coordinator always supplies an intake observation for typed turns, so this
-    gate is now only reachable via a direct IC call (observation=None).  The
-    production invariant — VOICE below the confidence floor must never mutate learner
-    state — is enforced via Authorization.UNAUTHORIZED (tested in test_repair_roundtrip.py).
-    """
-    from interaction_control import (
-        CapabilityTransition,
-        InteractionControl,
-        InteractionControlDependencies,
-        InteractionControlRequest,
-    )
-    from runtime.contracts import DeviceCapabilities, TurnBudgets, TurnInput
-
-    session = {
-        "pending_check": {"id": "item-1", "question": "What is 2 plus 3?"},
-        "current_concept": "concept-1",
-    }
-    original_session = json.loads(json.dumps(session))
-
-    turn_input = TurnInput(
-        turn_id="t-low-conf",
-        learner_id="l-1",
-        interaction={"text": "maybe five"},
-        device=DeviceCapabilities(),
-        budgets=TurnBudgets(total_ms=10_000),
-        trusted_observations={"stt_confidence": 0.2},
-    )
-    # CONFIRM_LOW_CONFIDENCE fires before any capability port is called,
-    # so all ports can be no-op stubs.
-    _noop_cap = lambda *_a, **_kw: CapabilityTransition()  # noqa: E731
-    deps = InteractionControlDependencies(
-        deterministic_route=lambda text: None,
-        perception_route=lambda text, session: None,
-        analyze=lambda text, current: {},
-        persona={"identity": "Wini", "style": "Warm", "intents": {}},
-        want_answer=False,
-        generation_backend="fixture",
-        generate_persona=lambda prompt: "generated",
-        concept_name=lambda concept_id: "Math",
-        topic_candidates=lambda text, limit: [],
-        chapter_for_concept=lambda concept_id: None,
-        # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted.
-        wants_different_topic=lambda text: False,
-        concept_relates_to_topic=lambda new, old: False,
-        mode_cue=lambda text: None,
-        current_mode=lambda session: "EXPLAIN",
-        set_mode=_noop_cap,
-        consume_mode_offer=_noop_cap,
-        consume_test_resume=_noop_cap,
-        check_frozen_test=_noop_cap,
-        clear_pending_assessment=_noop_cap,
-        log_event=lambda event: None,
-        notify_safety=lambda record: None,
-        now=lambda: "2026-08-28T00:00:00",
-    )
-    request = InteractionControlRequest(
-        turn_input=turn_input,
-        session=dict(session),
-        observation=None,  # backward-compat path: no intake observation
-    )
-    outcome = InteractionControl(deps).control(request)
-    assert outcome.value is not None
-    assert outcome.value.compatibility["action"] == "CONFIRM_LOW_CONFIDENCE"
-    # Session was not mutated (IC returns before any state write)
-    assert session == original_session
+# Ticket 11: test_low_stt_confidence_preserves_state_and_pending_hook deleted.
+# _low_confidence_result and trusted_observations["stt_confidence"] were removed in
+# ticket 11.  The invariant "VOICE below confidence floor must not mutate state" is
+# enforced via Authorization.UNAUTHORIZED — see test_repair_roundtrip.py.
 
 
 def test_non_attempts_never_grade_wrong() -> None:

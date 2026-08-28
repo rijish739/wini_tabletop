@@ -2,18 +2,20 @@
 
 Allows manual testing in PowerShell: type raw student input and view
 session control, disposition (CONTINUE_LEARNING vs COMPLETE fast-path),
-surface cues, state changes, and handoff payloads.
+observation readings, and handoff payloads.
+
+Ticket 11: rewritten against the typed door (UtteranceIntake) only.
+The private safety keyword list and InputProcessor calls have been deleted;
+safety now routes through the production gate() / lexicon path in UtteranceIntake.
 """
 
 from __future__ import annotations
 
 import copy
-import json
-import re
 import sys
+from datetime import datetime, timezone
 from typing import Any
 
-from cognitive_input_processor.input_processor import build_default_input_processor
 from interaction_control import (
     InteractionControl,
     InteractionControlDependencies,
@@ -27,60 +29,15 @@ from runtime.contracts import (
     StateScope,
     TurnBudgets,
     TurnInput,
+    Utterance,
+    UtteranceProvenance,
+    UtteranceSource,
 )
-
-
-def _classify_route(text: str):
-    raw_normalized = text.lower().strip()
-    clean_text = re.sub(r"[^\w\s]", "", raw_normalized).strip()
-
-    # Safety Check
-    safety_keywords = ["bomb", "kill", "die", "suicide", "hurt myself", "poison", "weapon", "abuse", "hate"]
-    if any(k in raw_normalized for k in safety_keywords):
-        class SafetyRoute:
-            primary = "SAFETY"
-            safety_alert = True
-            safety_tier = 1
-            safety_category = "HARMFUL_CONTENT"
-            reason = "Deterministic Safety Triggered"
-            uncertain = False
-            answer_attempt = False
-        return SafetyRoute()
-
-    # Low-Confidence / Nonsense Quality Check
-    gibberish_patterns = ["asdf", "qwerty", "zxcv", "12345", ";;;", "hjkl", "tgbjk"]
-    if any(g in raw_normalized for g in gibberish_patterns) or (len(clean_text) > 6 and not re.search(r"[aeiouy]", clean_text)):
-        class NonsenseRoute:
-            primary = "NONSENSE"
-            safety_alert = False
-            reason = "Low-Confidence / Nonsense Quality Gate"
-            uncertain = False
-            answer_attempt = False
-        return NonsenseRoute()
-
-    # Social / Meta / Exit Check
-    social_keywords = [
-        r"\bhello\b", r"\bhi\b", r"\bhii+\b", r"\bhey\b",
-        r"\bwho are you\b", r"\bwhat is your name\b", r"\bwhat can you do\b",
-        r"\bhelp\b", r"\bbye\b", r"\bgoodbye\b", r"\bgood morning\b", r"\bgood evening\b",
-    ]
-    if any(re.search(pat, raw_normalized) for pat in social_keywords):
-        class SocialRoute:
-            primary = "SOCIAL"
-            safety_alert = False
-            reason = "Social / Meta Greeting"
-            uncertain = False
-            answer_attempt = False
-        return SocialRoute()
-
-    # Academic Learning Query
-    class LearningRoute:
-        primary = "LEARNING"
-        safety_alert = False
-        reason = "Academic Math Query"
-        uncertain = False
-        answer_attempt = bool("=" in raw_normalized or "answer is" in raw_normalized)
-    return LearningRoute()
+from utterance_intake import (
+    ConfidenceFloorPolicy,
+    UtteranceIntake,
+    UtteranceIntakeRequest,
+)
 
 
 def _capability_port(owner, action, callback):
@@ -107,12 +64,28 @@ def _capability_port(owner, action, callback):
     return invoke
 
 
+def _make_intake() -> UtteranceIntake:
+    return UtteranceIntake(transcript_policy=ConfidenceFloorPolicy())
+
+
+def _make_utterance(text: str, turn_id: str) -> Utterance:
+    return Utterance(
+        text=text,
+        source=UtteranceSource.TYPED,
+        provenance=UtteranceProvenance(
+            utterance_id=turn_id,
+            captured_at=datetime.now(timezone.utc).isoformat(),
+            recognizer=None,
+        ),
+    )
+
+
 def main() -> None:
-    processor = build_default_input_processor()
+    intake = _make_intake()
 
     deps = InteractionControlDependencies(
-        deterministic_route=lambda text: _classify_route(text) if _classify_route(text).primary != "LEARNING" else None,
-        perception_route=lambda text, session: _classify_route(text),
+        deterministic_route=lambda text: None,
+        perception_route=lambda text, session: None,
         analyze=lambda text, current: {
             "normalized_text": text.lower(),
             "concept": {"concept_id": current, "concept_confidence": 1.0 if current else 0.0, "abstained": current is None},
@@ -123,24 +96,21 @@ def main() -> None:
             "identity": "Wini",
             "style": "Warm",
             "intents": {
-                "SAFETY": {"scripted": "Safety Alert: This request violates safety policies and has been blocked by Phase 1."},
+                "SAFETY": {"scripted": "Safety Alert: This request violates safety policies."},
                 "SOCIAL": {"scripted": "Hello! I'm Wini, your math AI tutor. Ready to study math today?"},
-                "META_CAPABILITY": {"scripted": "I can teach NCERT math concepts, solve math problems step-by-step, and offer practice exercises."},
-                "NONSENSE": {"scripted": "I didn't quite catch that. Could you please repeat your question?"},
-                "SESSION_CONTROL": {"scripted": "Okay, stopping the session for now. Let me know when you want to learn again!"},
+                "META_CAPABILITY": {"scripted": "I can teach NCERT math concepts step-by-step."},
+                "NONSENSE": {"scripted": "I didn't quite catch that. Could you please repeat?"},
+                "SESSION_CONTROL": {"scripted": "Okay, stopping the session for now."},
             }
         },
         want_answer=True,
         generation_backend="gemini",
-        generate_persona=lambda prompt: "Hello! I am Wini, your math AI tutor. Ready to study math today?",
+        generate_persona=lambda prompt: "Hello! I am Wini, your math AI tutor.",
         concept_name=lambda cid: "NCERT Math Concept",
         topic_candidates=lambda text, limit: [],
         chapter_for_concept=lambda cid: None,
-        extract_topic_request=lambda text: None,
-        is_bare_topic=lambda text: False,
         wants_different_topic=lambda text: False,
-        concept_relates_to_topic=lambda n, o: False,
-        mode_cue=lambda text: "PRACTICE" if "practice" in text.lower() else "TEST" if "test" in text.lower() else None,
+        mode_cue=lambda obs: getattr(obs, "session_control_mode", None),
         current_mode=lambda session: session.get("mode", "EXPLAIN"),
         set_mode=_capability_port("mode_controller", "set_mode", lambda s, mode: s.update({"mode": mode})),
         consume_mode_offer=lambda s, t, tid: None,
@@ -149,11 +119,11 @@ def main() -> None:
         clear_pending_assessment=lambda s, tid: None,
         log_event=lambda e: None,
         notify_safety=lambda r: None,
-        now=lambda: "2026-08-25T12:00:00",
+        now=lambda: datetime.now(timezone.utc).isoformat(),
     )
 
     ctrl = InteractionControl(deps)
-    session = {"mode": "EXPLAIN", "context": []}
+    session: dict[str, Any] = {"mode": "EXPLAIN", "context": []}
     turn_counter = 1
 
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -176,42 +146,41 @@ def main() -> None:
             print("Exiting interactive tester.")
             break
 
-        # 1. Test Input Layer Ingestion (both ingest and process)
-        ingested = processor.ingest(user_input, context=session.get("context"))
-        processed = processor.process(user_input, session_context=session)
+        turn_id = f"turn-{turn_counter}"
+        utterance = _make_utterance(user_input, turn_id)
 
-        # 2. Test Interaction Control Turn
         turn_input = TurnInput(
-            turn_id=f"turn-{turn_counter}",
+            turn_id=turn_id,
             learner_id="learner-1",
-            interaction={"text": user_input, "answer_budget": {"max_words": 20}},
+            interaction={"answer_budget": {"max_words": 20}},
             device=DeviceCapabilities(),
             budgets=TurnBudgets(total_ms=10_000),
-            trusted_observations={"stt_confidence": 1.0},
+            utterance=utterance,
         )
+
+        # Run UtteranceIntake to get the typed observation.
+        observation = intake.observe(UtteranceIntakeRequest(turn_input=turn_input)).value
 
         request = InteractionControlRequest(
             turn_input=turn_input,
             session=dict(session),
+            observation=observation,
         )
 
         outcome = ctrl.control(request)
         decision = outcome.value
 
         print("\n" + "=" * 70)
-        print(f"[1] INPUT LAYER FULL OBSERVATION (InputProcessor)")
+        print(f"[1] UTTERANCE INTAKE (UtteranceObservation)")
         print("=" * 70)
-        print(f"   Raw Text            : \"{processed.raw_text}\"")
-        print(f"   Normalized Text     : \"{processed.normalized_text}\"")
-        print(f"   Tokens              : {processed.tokens}")
-        print(f"   Problem Cue         : {ingested.problem_cue}")
-        print(f"   Surface Cues        : {ingested.surface_cues}")
-        print(f"   Candidate Concepts  : {processed.candidate_concepts}")
-        print(f"   Metadata            : {processed.metadata}")
-        print(f"   Heuristic Signals   :")
-        for sig, val in processed.signals.__dict__.items():
-            if val > 0.0:
-                print(f"     * {sig:20s}: {val:.2f}")
+        print(f"   Raw Text            : \"{utterance.text}\"")
+        print(f"   Normalized Text     : \"{observation.normalized_text}\"")
+        print(f"   Authorization       : {observation.authorization.value}")
+        print(f"   Safety Tripped      : {observation.safety.tripped}")
+        print(f"   Illegible           : {observation.legibility.illegible}")
+        print(f"   Is Problem          : {observation.problem.is_problem}")
+        print(f"   Has Anaphora        : {observation.reference.has_anaphora}")
+        print(f"   Parse Outcome       : {observation.transcript.parse.outcome.value}")
 
         print("\n" + "=" * 70)
         print(f"[2] INTERACTION & SESSION CONTROL (Phase 1)")
@@ -229,14 +198,12 @@ def main() -> None:
                 print(f"   State Changes       : {len(outcome.state_changes)} registered")
                 for sc in outcome.state_changes:
                     print(f"     - {sc.scope.value}.{sc.path}: {sc.value}")
-                    # Apply session state changes locally
                     if sc.scope is StateScope.SESSION and len(sc.path) == 1:
                         if sc.operation is StateOperation.SET:
                             session[sc.path[0]] = sc.value
                         elif sc.operation is StateOperation.DELETE:
                             session.pop(sc.path[0], None)
-            print("\n*** Outcome: ADMITTED_TO_PHASE_2 (Proceeds to Learning & Concept Resolution)")
-
+            print("\n*** Outcome: ADMITTED_TO_PHASE_2")
         else:
             print("\n<-- [FAST-PATH / SESSION CONTROL EXIT IN PHASE 1]")
             if decision.compatibility:
@@ -251,7 +218,7 @@ def main() -> None:
                             session[sc.path[0]] = sc.value
                         elif sc.operation is StateOperation.DELETE:
                             session.pop(sc.path[0], None)
-            print("\n*** Outcome: COMPLETED_IN_PHASE_1 (No downstream LLM / state mutation)")
+            print("\n*** Outcome: COMPLETED_IN_PHASE_1")
 
         print("-" * 70)
         turn_counter += 1

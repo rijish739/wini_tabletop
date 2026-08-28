@@ -205,9 +205,15 @@ class CognitiveAnalyzer:
     def __init__(self, classifier=None, resolver=None, processor=None) -> None:
         self._classifier = classifier
         self._resolver = resolver
+        # Ticket 11: InputProcessor deleted; processor is now the utterance_intake normalizer
+        # shim or None (GeminiPerception path never touches self.processor at runtime).
         if processor is None:
-            from cognitive_input_processor.input_processor import InputProcessor
-            processor = InputProcessor()
+            from utterance_intake.intake import normalize_text as _normalize
+            class _NormShim:
+                """Minimal shim so offline callers of CognitiveAnalyzer still work."""
+                def normalize_input(self, text: str) -> str:  # noqa: D102
+                    return _normalize(text)
+            processor = _NormShim()
         self.processor = processor
 
     @property

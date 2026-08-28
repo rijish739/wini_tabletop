@@ -1,9 +1,9 @@
 {
-  "name": "projects/663265830364/locations/asia-south1/cachedContents/1348389383257980928",
+  "name": "projects/663265830364/locations/asia-south1/cachedContents/226728643496247296",
   "model": "gemini-2.5-flash",
   "region": "asia-south1",
-  "created": "2026-07-02T16:08:07.264430+00:00",
-  "expire_time": "2026-07-03T16:08:07.092504+00:00",
-  "context_sha": "4585bdd31d0b686f",
-  "cached_tokens": 6062
+  "created": "2026-08-28T11:37:27.146713+00:00",
+  "expire_time": "2026-08-29T11:37:26.667729+00:00",
+  "context_sha": "1db78b3c80989f84",
+  "cached_tokens": 7340
 }

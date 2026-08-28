@@ -72,8 +72,8 @@ def _dependencies(**overrides) -> InteractionControlDependencies:
         "chapter_for_concept": lambda concept_id: None,
         # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted from
         # InteractionControlDependencies — topic span now comes from route.topic_phrasing.
+        # Ticket 11: concept_relates_to_topic removed from InteractionControlDependencies.
         "wants_different_topic": lambda text: False,
-        "concept_relates_to_topic": lambda new, old: False,
         "mode_cue": lambda text: None,
         "current_mode": lambda session: session.get("mode", "EXPLAIN"),
         "set_mode": lambda session, mode: session.update({"mode": mode}),
@@ -198,35 +198,9 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(outcome.failures[0].severity, FailureSeverity.DEGRADED)
         self.assertTrue(outcome.failures[0].valid_outcome)
 
-    def test_low_confidence_input_is_observational_and_skips_perception(self) -> None:
-        perception_calls = []
-        dependencies = _dependencies(
-            perception_route=lambda text, session: perception_calls.append(text),
-        )
-        turn_input = TurnInput(
-            turn_id="turn-low-confidence",
-            learner_id="learner-15",
-            interaction={"text": "forty too", "answer_budget": None},
-            device=DeviceCapabilities(),
-            budgets=TurnBudgets(total_ms=10_000),
-            trusted_observations={"stt_confidence": 0.31},
-        )
-        session = {
-            "current_concept": "quadratics",
-            "pending_check": {"id": "check-1", "question": "What is 6 × 7?"},
-        }
-
-        outcome = InteractionControl(dependencies).control(
-            InteractionControlRequest(turn_input=turn_input, session=session)
-        )
-
-        self.assertEqual(outcome.value.disposition, InteractionDisposition.COMPLETE)
-        self.assertEqual(
-            outcome.value.compatibility["action"], "CONFIRM_LOW_CONFIDENCE"
-        )
-        self.assertIn("What is 6 × 7?", outcome.value.compatibility["answer"])
-        self.assertEqual(outcome.state_changes, ())
-        self.assertEqual(perception_calls, [])
+    # test_low_confidence_input_is_observational_and_skips_perception deleted (ticket 11):
+    # trusted_observations["stt_confidence"] channel and _low_confidence_result removed.
+    # Authorization.UNAUTHORIZED (ticket 05) and REPAIR_SCREEN cover STT confidence gating.
 
     def test_identity_mismatch_fails_admission_with_typed_signal(self) -> None:
         outcome = InteractionControl(_dependencies()).control(
@@ -488,7 +462,7 @@ class InteractionControlTests(unittest.TestCase):
                 "signals": [],
                 "state_deltas": {},
             },
-            concept_relates_to_topic=lambda new, old: False,
+            # concept_relates_to_topic removed (ticket 11)
         )
 
         outcome = InteractionControl(dependencies).control(
@@ -592,23 +566,8 @@ class InteractionControlTests(unittest.TestCase):
         self.assertEqual(outcome.value.disposition, InteractionDisposition.CONTINUE_LEARNING)
         self.assertEqual(outcome.value.text, "hi, explain area of circle")
 
-    def test_low_stt_confidence_triggers_confirmation(self) -> None:
-        turn_input = TurnInput(
-            turn_id="turn-low-conf",
-            learner_id="learner-15",
-            interaction={"text": "garbled noisy transcript", "answer_budget": {"max_words": 20}},
-            device=DeviceCapabilities(),
-            budgets=TurnBudgets(total_ms=10_000),
-            trusted_observations={"stt_confidence": 0.42},
-        )
-        outcome = InteractionControl(_dependencies()).control(
-            InteractionControlRequest(
-                turn_input=turn_input,
-                session={"current_concept": "quadratics", "context": []},
-            )
-        )
-        self.assertEqual(outcome.value.disposition, InteractionDisposition.COMPLETE)
-        self.assertEqual(outcome.value.compatibility["action"], "CONFIRM_LOW_CONFIDENCE")
+    # test_low_stt_confidence_triggers_confirmation deleted (ticket 11):
+    # trusted_observations["stt_confidence"] channel and _low_confidence_result removed.
 
     def test_null_concept_id_does_not_write_current_concept(self) -> None:
         """Invariant (ticket 04 / issue 12): concept_id is None => no learner-state write.
@@ -666,9 +625,7 @@ class InteractionControlTests(unittest.TestCase):
         outcome = InteractionControl(
             _dependencies(
                 analyze=analyze,
-                # concept_relates_to_topic returning False was the old guard trigger;
-                # it is now irrelevant — the guard has been deleted.
-                concept_relates_to_topic=lambda new, old: False,
+                # concept_relates_to_topic was the old guard trigger; removed (ticket 11).
             )
         ).control(InteractionControlRequest(
             turn_input=_turn("solve this"),

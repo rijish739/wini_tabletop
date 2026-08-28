@@ -89,9 +89,8 @@ class TutorLoopCompatibilityFacade:
         )
         # The one production construction site of the typed Utterance. This text
         # path is TYPED (an engineering test shortcut); TYPED carries confidence
-        # None, never a fabricated 1.0, with recognizer=None. The legacy
-        # interaction["text"] / stt_confidence channels stay live until legacy
-        # deletion (ticket 11).
+        # None, never a fabricated 1.0, with recognizer=None.
+        # Ticket 11: interaction["text"] and trusted_observations["stt_confidence"] deleted.
         utterance = Utterance(
             text=text,
             source=UtteranceSource.TYPED,
@@ -105,7 +104,6 @@ class TutorLoopCompatibilityFacade:
             turn_id=resolved_turn_id,
             learner_id=resolved_learner_id,
             interaction={
-                "text": text,
                 "answer_budget": answer_budget,
                 "allow_topic_shift": _allow_shift,
             },
@@ -116,7 +114,7 @@ class TutorLoopCompatibilityFacade:
             trusted_observations={
                 "precomputed_analysis": precomputed_analysis,
                 "precomputed_grade": precomputed_grade,
-                "stt_confidence": stt_confidence,
+                # stt_confidence removed (ticket 11): confidence lives on Utterance.confidence.
             },
             utterance=utterance,
         )

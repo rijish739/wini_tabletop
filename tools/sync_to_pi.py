@@ -53,7 +53,6 @@ PACKAGES = [
     "pacing",
     "cognitive_analyzer",
     "cognitive_classifier",
-    "cognitive_input_processor",
     "concept_resolver",
     "hope_detector",
     "policy_shadow",

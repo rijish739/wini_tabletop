@@ -1,0 +1,227 @@
+/* Tufte-inspired typography and layout for interactive lessons */
+:root {
+  --bg: #fffff8;
+  --text: #111111;
+  --accent: #a00000;
+  --muted: #666666;
+  --border: #e0e0d8;
+  --code-bg: #f4f4ec;
+  --card-bg: #fafaf2;
+  --success: #2e7d32;
+  --error: #c62828;
+  --info: #0277bd;
+  --font-serif: "ETBembo", "Palatino", "Palatino Linotype", "Georgia", serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "Fira Code", "Consolas", "Courier New", monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  font-family: var(--font-serif);
+  font-size: 19px;
+  line-height: 1.6;
+  padding: 3rem 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.container {
+  max-width: 840px;
+  width: 100%;
+}
+
+header {
+  border-bottom: 2px solid var(--accent);
+  padding-bottom: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+
+.badge {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background-color: var(--accent);
+  color: #ffffff;
+  padding: 0.25rem 0.6rem;
+  border-radius: 3px;
+  margin-bottom: 0.8rem;
+}
+
+h1 {
+  font-size: 2.4rem;
+  font-weight: normal;
+  line-height: 1.2;
+  margin-bottom: 0.5rem;
+  color: var(--text);
+}
+
+.subtitle {
+  font-style: italic;
+  color: var(--muted);
+  font-size: 1.15rem;
+}
+
+h2 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 2.5rem 0 1rem 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.3rem;
+  color: var(--accent);
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.8rem 0 0.6rem 0;
+}
+
+p {
+  margin-bottom: 1.2rem;
+}
+
+ul, ol {
+  margin-left: 2rem;
+  margin-bottom: 1.2rem;
+}
+
+li {
+  margin-bottom: 0.4rem;
+}
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background-color: var(--code-bg);
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+
+pre {
+  background-color: var(--code-bg);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  padding: 1rem;
+  border-radius: 4px;
+  overflow-x: auto;
+  margin-bottom: 1.5rem;
+}
+
+pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.9em;
+}
+
+.diagram-box {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+  font-family: var(--font-sans);
+}
+
+.step-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1.2rem 1.5rem;
+  margin-bottom: 1.2rem;
+}
+
+.step-title {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 1.05rem;
+  color: var(--accent);
+  margin-bottom: 0.4rem;
+}
+
+/* Quiz component */
+.quiz-widget {
+  background-color: #f7f9fa;
+  border: 2px solid #0277bd;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 2.5rem 0;
+  font-family: var(--font-sans);
+}
+
+.quiz-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #0277bd;
+  margin-bottom: 1rem;
+}
+
+.quiz-question {
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.quiz-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.quiz-option {
+  background: #ffffff;
+  border: 1px solid #ccd0d5;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 0.95rem;
+}
+
+.quiz-option:hover {
+  background-color: #eef5fa;
+  border-color: #0277bd;
+}
+
+.quiz-feedback {
+  margin-top: 1rem;
+  padding: 0.8rem;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  display: none;
+}
+
+.feedback-correct {
+  background-color: #e8f5e9;
+  border: 1px solid var(--success);
+  color: var(--success);
+}
+
+.feedback-incorrect {
+  background-color: #ffebee;
+  border: 1px solid var(--error);
+  color: var(--error);
+}
+
+footer {
+  margin-top: 3.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  color: var(--muted);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}

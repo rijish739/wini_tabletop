@@ -100,9 +100,12 @@ class AssessmentEvidence:
         if integrity_failure is not None:
             return ModuleOutcome(value=None, failures=(integrity_failure,))
 
-        text = str(request.turn_input.interaction.get("text") or "")
+        # Ticket 11: interaction["text"] channel deleted — observation is always non-None
+        # in production. Legacy test stubs that predate the observation field fall back
+        # to interaction["text"] so they keep working without requiring a full rewrite.
         refused_parse = False
         if request.observation is not None:
+            text = request.observation.normalized_text
             parse = request.observation.transcript.parse
             if parse is not None:
                 from utterance_intake.observation import ParseOutcome
@@ -111,13 +114,24 @@ class AssessmentEvidence:
                 elif parse.outcome in (ParseOutcome.REFUSE_AMBIGUOUS, ParseOutcome.REFUSE_OUT_OF_GRAMMAR):
                     refused_parse = True
                 elif parse.outcome is ParseOutcome.PASSTHROUGH:
-                    text = request.observation.normalized_text or text
+                    text = request.observation.normalized_text
+        else:
+            # Legacy test stubs that predate the observation field: try utterance.text
+            # first (compatibility facade always sets utterance), then interaction["text"].
+            _utt = request.turn_input.utterance
+            text = str(
+                (_utt.text if _utt is not None else None)
+                or (request.turn_input.interaction or {}).get("text")
+                or ""
+            )
 
         item_id = str(pending.get("item_id") or pending.get("id"))
         key = make_idempotency_key(
             request.turn_input.learner_id, request.turn_input.turn_id, item_id, text
         )
-        stt_confidence = request.turn_input.trusted_observations.get("stt_confidence")
+        # Ticket 11: trusted_observations["stt_confidence"] deleted; read from Utterance directly.
+        utterance = request.turn_input.utterance
+        stt_confidence = utterance.confidence if utterance is not None else None
         if request.perception_degraded or refused_parse:
             grade = GradeResult(
                 "not_an_answer", "refused_parse" if refused_parse else "uncertain_perception",

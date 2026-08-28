@@ -4,11 +4,10 @@ Frozen all-MiniLM-L6-v2 embeddings + exemplar bank + weighted k-NN label
 evidence + per-label calibrated thresholds. No fine-tuning.
 """
 
-from .classifier import ExemplarCognitiveClassifier, MiniLMSemanticClassifier
+from .classifier import ExemplarCognitiveClassifier
 from .label_space import canonicalize_labels
 
 __all__ = [
     "ExemplarCognitiveClassifier",
-    "MiniLMSemanticClassifier",
     "canonicalize_labels",
 ]

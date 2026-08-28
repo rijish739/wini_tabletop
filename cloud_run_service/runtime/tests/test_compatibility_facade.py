@@ -87,7 +87,9 @@ class CompatibilityFacadeTests(unittest.TestCase):
 
         class Control:
             def control(self, request):
-                if request.turn_input.interaction["text"] == "change topic":
+                # Ticket 11: interaction["text"] deleted; use utterance.text (typed door).
+                text = request.turn_input.utterance.text
+                if text == "change topic":
                     return ModuleOutcome(value=InteractionDecision(
                         disposition=InteractionDisposition.COMPLETE,
                         text="change topic",
@@ -98,7 +100,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
                     ))
                 return ModuleOutcome(value=InteractionDecision(
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
-                    text=request.turn_input.interaction["text"],
+                    text=text,
                     analysis=request.perception.analysis,
                 ))
 
@@ -253,7 +255,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             def control(self, request):
                 return ModuleOutcome(value=InteractionDecision(
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
-                    text=request.turn_input.interaction["text"],
+                    text=request.turn_input.utterance.text,  # ticket 11: interaction["text"] deleted
                     analysis={},
                     answer_attempt=True,
                 ))
@@ -295,7 +297,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
     def test_prior_assessment_edge_cases_cross_the_facade(self) -> None:
         class Control:
             def control(self, request):
-                text = request.turn_input.interaction["text"]
+                text = request.turn_input.utterance.text  # ticket 11: interaction["text"] deleted
                 return ModuleOutcome(value=InteractionDecision(
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
                     text=text,
@@ -397,17 +399,19 @@ class CompatibilityFacadeTests(unittest.TestCase):
 
         class Control:
             def control(self, request):
+                # Ticket 11: interaction["text"] deleted; use utterance.text.
+                utt_text = request.turn_input.utterance.text
                 observation = request.perception
                 if observation.intent != "LEARNING":
                     return ModuleOutcome(value=InteractionDecision(
                         disposition=InteractionDisposition.COMPLETE,
-                        text=request.turn_input.interaction["text"],
+                        text=utt_text,
                         compatibility={"action": observation.intent, "answer": "safe",
                                        "display": [], "session_ended": False},
                     ))
                 return ModuleOutcome(value=InteractionDecision(
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
-                    text=request.turn_input.interaction["text"],
+                    text=utt_text,
                     analysis=observation.analysis,
                     perception_degraded=observation.perception_degraded,
                 ))
@@ -473,8 +477,8 @@ class CompatibilityFacadeTests(unittest.TestCase):
             topic_candidates=lambda text, limit: [],
             chapter_for_concept=lambda concept_id: None,
             # Slice 07 (2026-08-28): extract_topic_request / is_bare_topic deleted.
+            # Ticket 11: concept_relates_to_topic removed from InteractionControlDependencies.
             wants_different_topic=lambda text: False,
-            concept_relates_to_topic=lambda new, old: False,
             mode_cue=lambda text: None,
             current_mode=lambda session: "EXPLAIN",
             set_mode=no_transition,
@@ -547,7 +551,7 @@ class CompatibilityFacadeTests(unittest.TestCase):
             def control(self, request):
                 return ModuleOutcome(value=InteractionDecision(
                     disposition=InteractionDisposition.CONTINUE_LEARNING,
-                    text=request.turn_input.interaction["text"],
+                    text=request.turn_input.utterance.text,  # ticket 11: interaction["text"] deleted
                     analysis=request.turn_input.trusted_observations[
                         "precomputed_analysis"
                     ],

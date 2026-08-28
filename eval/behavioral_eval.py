@@ -217,16 +217,17 @@ def state_move(scores: dict, signals: list[str]) -> dict:
 # Backends
 # --------------------------------------------------------------------------- #
 def _load_heads():
+    # Ticket 11: InputProcessor deleted; normalization delegates to utterance_intake.
     from cognitive_classifier import ExemplarCognitiveClassifier
-    from cognitive_input_processor.input_processor import InputProcessor
-    return ExemplarCognitiveClassifier.load(), InputProcessor()
+    return ExemplarCognitiveClassifier.load()
 
 
-def heads_predict(clf, proc, texts: list[str]) -> list[dict]:
+def heads_predict(clf, texts: list[str]) -> list[dict]:
     """Batch heads scoring exactly as the runtime consumes it: normalized text,
     calibrated per-label signal thresholds for the discrete signals list."""
     from cognitive_classifier.cues import cue_matrix
-    norm = [proc.normalize_input(t) for t in texts]
+    from utterance_intake.intake import normalize_text
+    norm = [normalize_text(t) for t in texts]
     mat = clf.score_matrix(clf.embed(norm), cue_matrix(norm))
     out = []
     for row in mat:
@@ -345,14 +346,14 @@ def _behavior_verdict(probe_results: dict) -> dict:
 # --------------------------------------------------------------------------- #
 # Part 2 — TEST replay (descriptive, offline)
 # --------------------------------------------------------------------------- #
-def replay_test_rows(clf, proc) -> dict:
+def replay_test_rows(clf) -> dict:
     recs = [json.loads(l) for l in RAW_EVAL.read_text(encoding="utf-8").splitlines() if l.strip()]
     recs = [r for r in recs if r.get("kind") == "test" and r.get("pred")]
     if not recs:
         raise SystemExit(f"no cached TEST predictions in {RAW_EVAL.name}; run perception_eval --collect first.")
 
     texts = [r["utterance"] for r in recs]
-    heads = heads_predict(clf, proc, texts)
+    heads = heads_predict(clf, texts)
     moves = {"heads": [], "gemini": [], "gold": []}
     for r, h in zip(recs, heads):
         moves["heads"].append(state_move(h["scores"], h["signals"]))
@@ -566,8 +567,8 @@ def main() -> None:
         missing = [p["u"] for p in PROBES if p["u"] not in cache]
         if missing:
             raise SystemExit(f"{len(missing)} probes still uncached (Gemini fallbacks) — rerun --probes: {missing[:3]}")
-        clf, proc = _load_heads()
-        heads = heads_predict(clf, proc, [p["u"] for p in PROBES])
+        clf = _load_heads()
+        heads = heads_predict(clf, [p["u"] for p in PROBES])
         moves = {
             "heads": [state_move(h["scores"], h["signals"]) for h in heads],
             "gemini": [],
@@ -583,8 +584,8 @@ def main() -> None:
 
     if args.replay or args.run:
         if clf is None:
-            clf, proc = _load_heads()
-        replay = replay_test_rows(clf, proc)
+            clf = _load_heads()
+        replay = replay_test_rows(clf)
         print(json.dumps({k: v for k, v in replay.items() if k != "flags"}, indent=2))
 
     if probe_results is not None:

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Reference: Ticket 10 & Workload Identity Federation (WIF)</title>
+  <link rel="stylesheet" href="../assets/style.css">
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="badge">Cheat Sheet & Quick Reference</div>
+    <h1>Ticket 10: Workload Identity Federation Architecture</h1>
+    <div class="subtitle">Zero static keys, OIDC trust, and human-gated cloud spend for CI testing</div>
+  </header>
+
+  <section>
+    <h2>1. Core Concept Map</h2>
+    <div class="diagram-box">
+      <pre>
+GitHub Actions Runner (CI)
+      │
+      │ 1. Request signed OIDC JWT (permissions: id-token: write)
+      ▼
+GitHub OIDC Provider (token.actions.githubusercontent.com)
+      │
+      │ 2. Issues JWT with claims: sub, repository, environment="billed-eval"
+      ▼
+GCP Workload Identity Provider (github-oidc in pool github-actions-pool)
+      │
+      │ 3. Validates Issuer & Attribute Condition:
+      │    assertion.repository == 'org/repo' && assertion.environment == 'billed-eval'
+      ▼
+GCP Service Account (wini-billed-ci@PROJECT_ID.iam.gserviceaccount.com)
+      │
+      │ 4. Impersonated via roles/iam.workloadIdentityUser
+      ▼
+Vertex AI API (asia-south1)
+      │
+      │ 5. Short-lived access token with roles/aiplatform.user
+      ▼
+Evaluations (safety_eval.py / personal_data_eval.py)
+      </pre>
+    </div>
+  </section>
+
+  <section>
+    <h2>2. Secrets & Configuration Summary</h2>
+    <table>
+      <thead>
+        <tr>
+          <th style="text-align: left; padding: 0.5rem; border-bottom: 2px solid #ccc;">Key Name</th>
+          <th style="text-align: left; padding: 0.5rem; border-bottom: 2px solid #ccc;">Where Configured</th>
+          <th style="text-align: left; padding: 0.5rem; border-bottom: 2px solid #ccc;">Example Value</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>WIF_PROVIDER</code></td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;">GitHub Environment Secret (<code>billed-eval</code>)</td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>projects/123456789/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc</code></td>
+        </tr>
+        <tr>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>WIF_SERVICE_ACCOUNT</code></td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;">GitHub Environment Secret (<code>billed-eval</code>)</td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>wini-billed-ci@&lt;PROJECT_ID&gt;.iam.gserviceaccount.com</code></td>
+        </tr>
+        <tr>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>VERTEX_REGION</code></td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;">Environment / Runtime Default</td>
+          <td style="padding: 0.5rem; border-bottom: 1px solid #eee;"><code>asia-south1</code> (Mandatory for DPDP)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section>
+    <h2>3. The 5-Step CI Job Lifecycle in <code>.github/workflows/ci.yml</code></h2>
+    <ol>
+      <li><strong>Guard Step:</strong> Fails with <code>::error::</code> annotation if <code>WIF_PROVIDER</code> or <code>WIF_SERVICE_ACCOUNT</code> is unset.</li>
+      <li><strong>Checkout:</strong> <code>actions/checkout@v4</code>.</li>
+      <li><strong>Auth Step:</strong> <code>google-github-actions/auth@v2</code> exchanges OIDC JWT for a Google Cloud federated access token.</li>
+      <li><strong>Cost Notice:</strong> Displays cost model to reviewer (calls are per uncached row; cached rows are free).</li>
+      <li><strong>Execution / Stub:</strong> Runs <code>eval/*.py --collect</code> (or exits 1 in stub state prior to Ticket 12/13).</li>
+    </ol>
+  </section>
+
+  <footer>
+    <div>Reference Document &mdash; Wini Tabletop / Input Layer</div>
+    <div><a href="../lessons/0001-ticket-10-workload-identity-federation.html">Back to Lesson 0001</a></div>
+  </footer>
+</div>
+</body>
+</html>

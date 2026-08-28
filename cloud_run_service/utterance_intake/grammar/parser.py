@@ -7,7 +7,8 @@ import re
 import time
 from typing import Optional, Set, Tuple
 
-from lark import Lark, CollapseAmbiguities, ParseError, UnexpectedInput, LarkError
+from lark import Lark, ParseError, UnexpectedInput, LarkError
+from lark.visitors import CollapseAmbiguities
 
 from ..observation import MathParse, ParseOutcome, Span, PASSTHROUGH_PARSE
 from .transformer import MathsInterpretationTransformer
