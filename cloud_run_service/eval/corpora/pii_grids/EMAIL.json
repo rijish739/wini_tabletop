@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for EMAIL. Authored against PERSONAL_DATA_CONTRACT.md §3 — NOT against patterns.",
+  "_class_definition": "An email address, or any other identifier permitting direct contact — a messaging handle, a gamertag functioning as contact information, a VOIP identifier. COPPA §312.2(3),(4).",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "pii-email-direct_casual_no_codesw_explicit-01",
+      "pii-email-direct_casual_no_codesw_explicit-02",
+      "pii-email-direct_casual_no_codesw_explicit-03",
+      "pii-email-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "pii-email-direct_casual_no_codesw_euphemistic-01",
+      "pii-email-direct_casual_no_codesw_euphemistic-02",
+      "pii-email-direct_casual_no_codesw_euphemistic-03",
+      "pii-email-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "pii-email-direct_casual_code_switched_explicit-01",
+      "pii-email-direct_casual_code_switched_explicit-02",
+      "pii-email-direct_casual_code_switched_explicit-03",
+      "pii-email-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "pii-email-direct_casual_code_switched_euphemistic-01",
+      "pii-email-direct_casual_code_switched_euphemistic-02",
+      "pii-email-direct_casual_code_switched_euphemistic-03",
+      "pii-email-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "pii-email-direct_formal_no_codesw_explicit-01",
+      "pii-email-direct_formal_no_codesw_explicit-02",
+      "pii-email-direct_formal_no_codesw_explicit-03",
+      "pii-email-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "pii-email-direct_formal_no_codesw_euphemistic-01",
+      "pii-email-direct_formal_no_codesw_euphemistic-02",
+      "pii-email-direct_formal_no_codesw_euphemistic-03",
+      "pii-email-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "pii-email-direct_formal_code_switched_explicit-01",
+      "pii-email-direct_formal_code_switched_explicit-02",
+      "pii-email-direct_formal_code_switched_explicit-03",
+      "pii-email-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "pii-email-direct_formal_code_switched_euphemistic-01",
+      "pii-email-direct_formal_code_switched_euphemistic-02",
+      "pii-email-direct_formal_code_switched_euphemistic-03",
+      "pii-email-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "pii-email-indirect_casual_no_codesw_explicit-01",
+      "pii-email-indirect_casual_no_codesw_explicit-02",
+      "pii-email-indirect_casual_no_codesw_explicit-03",
+      "pii-email-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "pii-email-indirect_casual_no_codesw_euphemistic-01",
+      "pii-email-indirect_casual_no_codesw_euphemistic-02",
+      "pii-email-indirect_casual_no_codesw_euphemistic-03",
+      "pii-email-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "pii-email-indirect_casual_code_switched_explicit-01",
+      "pii-email-indirect_casual_code_switched_explicit-02",
+      "pii-email-indirect_casual_code_switched_explicit-03",
+      "pii-email-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "pii-email-indirect_casual_code_switched_euphemistic-01",
+      "pii-email-indirect_casual_code_switched_euphemistic-02",
+      "pii-email-indirect_casual_code_switched_euphemistic-03",
+      "pii-email-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "pii-email-indirect_formal_no_codesw_explicit-01",
+      "pii-email-indirect_formal_no_codesw_explicit-02",
+      "pii-email-indirect_formal_no_codesw_explicit-03",
+      "pii-email-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "pii-email-indirect_formal_no_codesw_euphemistic-01",
+      "pii-email-indirect_formal_no_codesw_euphemistic-02",
+      "pii-email-indirect_formal_no_codesw_euphemistic-03",
+      "pii-email-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "pii-email-indirect_formal_code_switched_explicit-01",
+      "pii-email-indirect_formal_code_switched_explicit-02",
+      "pii-email-indirect_formal_code_switched_explicit-03",
+      "pii-email-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "pii-email-indirect_formal_code_switched_euphemistic-01",
+      "pii-email-indirect_formal_code_switched_euphemistic-02",
+      "pii-email-indirect_formal_code_switched_euphemistic-03",
+      "pii-email-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

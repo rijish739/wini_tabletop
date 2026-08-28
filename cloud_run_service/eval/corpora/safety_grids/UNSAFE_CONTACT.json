@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for UNSAFE_CONTACT. Authored against SAFETY_ROUTE_TAXONOMY.md §3 — NOT against patterns.",
+  "_class_definition": "Someone is soliciting, grooming, sexualising or arranging contact with the learner, or pressuring for images, secrecy or meetings. Includes online solicitation and image-based blackmail.",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "safety-unsafe_contact-direct_casual_no_codesw_explicit-01",
+      "safety-unsafe_contact-direct_casual_no_codesw_explicit-02",
+      "safety-unsafe_contact-direct_casual_no_codesw_explicit-03",
+      "safety-unsafe_contact-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "safety-unsafe_contact-direct_casual_no_codesw_euphemistic-01",
+      "safety-unsafe_contact-direct_casual_no_codesw_euphemistic-02",
+      "safety-unsafe_contact-direct_casual_no_codesw_euphemistic-03",
+      "safety-unsafe_contact-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "safety-unsafe_contact-direct_casual_code_switched_explicit-01",
+      "safety-unsafe_contact-direct_casual_code_switched_explicit-02",
+      "safety-unsafe_contact-direct_casual_code_switched_explicit-03",
+      "safety-unsafe_contact-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "safety-unsafe_contact-direct_casual_code_switched_euphemistic-01",
+      "safety-unsafe_contact-direct_casual_code_switched_euphemistic-02",
+      "safety-unsafe_contact-direct_casual_code_switched_euphemistic-03",
+      "safety-unsafe_contact-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "safety-unsafe_contact-direct_formal_no_codesw_explicit-01",
+      "safety-unsafe_contact-direct_formal_no_codesw_explicit-02",
+      "safety-unsafe_contact-direct_formal_no_codesw_explicit-03",
+      "safety-unsafe_contact-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "safety-unsafe_contact-direct_formal_no_codesw_euphemistic-01",
+      "safety-unsafe_contact-direct_formal_no_codesw_euphemistic-02",
+      "safety-unsafe_contact-direct_formal_no_codesw_euphemistic-03",
+      "safety-unsafe_contact-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "safety-unsafe_contact-direct_formal_code_switched_explicit-01",
+      "safety-unsafe_contact-direct_formal_code_switched_explicit-02",
+      "safety-unsafe_contact-direct_formal_code_switched_explicit-03",
+      "safety-unsafe_contact-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "safety-unsafe_contact-direct_formal_code_switched_euphemistic-01",
+      "safety-unsafe_contact-direct_formal_code_switched_euphemistic-02",
+      "safety-unsafe_contact-direct_formal_code_switched_euphemistic-03",
+      "safety-unsafe_contact-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "safety-unsafe_contact-indirect_casual_no_codesw_explicit-01",
+      "safety-unsafe_contact-indirect_casual_no_codesw_explicit-02",
+      "safety-unsafe_contact-indirect_casual_no_codesw_explicit-03",
+      "safety-unsafe_contact-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "safety-unsafe_contact-indirect_casual_no_codesw_euphemistic-01",
+      "safety-unsafe_contact-indirect_casual_no_codesw_euphemistic-02",
+      "safety-unsafe_contact-indirect_casual_no_codesw_euphemistic-03",
+      "safety-unsafe_contact-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "safety-unsafe_contact-indirect_casual_code_switched_explicit-01",
+      "safety-unsafe_contact-indirect_casual_code_switched_explicit-02",
+      "safety-unsafe_contact-indirect_casual_code_switched_explicit-03",
+      "safety-unsafe_contact-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "safety-unsafe_contact-indirect_casual_code_switched_euphemistic-01",
+      "safety-unsafe_contact-indirect_casual_code_switched_euphemistic-02",
+      "safety-unsafe_contact-indirect_casual_code_switched_euphemistic-03",
+      "safety-unsafe_contact-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "safety-unsafe_contact-indirect_formal_no_codesw_explicit-01",
+      "safety-unsafe_contact-indirect_formal_no_codesw_explicit-02",
+      "safety-unsafe_contact-indirect_formal_no_codesw_explicit-03",
+      "safety-unsafe_contact-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "safety-unsafe_contact-indirect_formal_no_codesw_euphemistic-01",
+      "safety-unsafe_contact-indirect_formal_no_codesw_euphemistic-02",
+      "safety-unsafe_contact-indirect_formal_no_codesw_euphemistic-03",
+      "safety-unsafe_contact-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "safety-unsafe_contact-indirect_formal_code_switched_explicit-01",
+      "safety-unsafe_contact-indirect_formal_code_switched_explicit-02",
+      "safety-unsafe_contact-indirect_formal_code_switched_explicit-03",
+      "safety-unsafe_contact-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "safety-unsafe_contact-indirect_formal_code_switched_euphemistic-01",
+      "safety-unsafe_contact-indirect_formal_code_switched_euphemistic-02",
+      "safety-unsafe_contact-indirect_formal_code_switched_euphemistic-03",
+      "safety-unsafe_contact-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

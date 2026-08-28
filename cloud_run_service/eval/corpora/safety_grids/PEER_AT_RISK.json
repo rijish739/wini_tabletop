@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for PEER_AT_RISK. Authored against SAFETY_ROUTE_TAXONOMY.md §3 — NOT against patterns.",
+  "_class_definition": "A third party — friend, sibling, classmate — is at risk of self-harm, abuse or danger. The learner is the reporter, not the subject.",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "safety-peer_at_risk-direct_casual_no_codesw_explicit-01",
+      "safety-peer_at_risk-direct_casual_no_codesw_explicit-02",
+      "safety-peer_at_risk-direct_casual_no_codesw_explicit-03",
+      "safety-peer_at_risk-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "safety-peer_at_risk-direct_casual_no_codesw_euphemistic-01",
+      "safety-peer_at_risk-direct_casual_no_codesw_euphemistic-02",
+      "safety-peer_at_risk-direct_casual_no_codesw_euphemistic-03",
+      "safety-peer_at_risk-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "safety-peer_at_risk-direct_casual_code_switched_explicit-01",
+      "safety-peer_at_risk-direct_casual_code_switched_explicit-02",
+      "safety-peer_at_risk-direct_casual_code_switched_explicit-03",
+      "safety-peer_at_risk-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "safety-peer_at_risk-direct_casual_code_switched_euphemistic-01",
+      "safety-peer_at_risk-direct_casual_code_switched_euphemistic-02",
+      "safety-peer_at_risk-direct_casual_code_switched_euphemistic-03",
+      "safety-peer_at_risk-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "safety-peer_at_risk-direct_formal_no_codesw_explicit-01",
+      "safety-peer_at_risk-direct_formal_no_codesw_explicit-02",
+      "safety-peer_at_risk-direct_formal_no_codesw_explicit-03",
+      "safety-peer_at_risk-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "safety-peer_at_risk-direct_formal_no_codesw_euphemistic-01",
+      "safety-peer_at_risk-direct_formal_no_codesw_euphemistic-02",
+      "safety-peer_at_risk-direct_formal_no_codesw_euphemistic-03",
+      "safety-peer_at_risk-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "safety-peer_at_risk-direct_formal_code_switched_explicit-01",
+      "safety-peer_at_risk-direct_formal_code_switched_explicit-02",
+      "safety-peer_at_risk-direct_formal_code_switched_explicit-03",
+      "safety-peer_at_risk-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "safety-peer_at_risk-direct_formal_code_switched_euphemistic-01",
+      "safety-peer_at_risk-direct_formal_code_switched_euphemistic-02",
+      "safety-peer_at_risk-direct_formal_code_switched_euphemistic-03",
+      "safety-peer_at_risk-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "safety-peer_at_risk-indirect_casual_no_codesw_explicit-01",
+      "safety-peer_at_risk-indirect_casual_no_codesw_explicit-02",
+      "safety-peer_at_risk-indirect_casual_no_codesw_explicit-03",
+      "safety-peer_at_risk-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "safety-peer_at_risk-indirect_casual_no_codesw_euphemistic-01",
+      "safety-peer_at_risk-indirect_casual_no_codesw_euphemistic-02",
+      "safety-peer_at_risk-indirect_casual_no_codesw_euphemistic-03",
+      "safety-peer_at_risk-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "safety-peer_at_risk-indirect_casual_code_switched_explicit-01",
+      "safety-peer_at_risk-indirect_casual_code_switched_explicit-02",
+      "safety-peer_at_risk-indirect_casual_code_switched_explicit-03",
+      "safety-peer_at_risk-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "safety-peer_at_risk-indirect_casual_code_switched_euphemistic-01",
+      "safety-peer_at_risk-indirect_casual_code_switched_euphemistic-02",
+      "safety-peer_at_risk-indirect_casual_code_switched_euphemistic-03",
+      "safety-peer_at_risk-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "safety-peer_at_risk-indirect_formal_no_codesw_explicit-01",
+      "safety-peer_at_risk-indirect_formal_no_codesw_explicit-02",
+      "safety-peer_at_risk-indirect_formal_no_codesw_explicit-03",
+      "safety-peer_at_risk-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "safety-peer_at_risk-indirect_formal_no_codesw_euphemistic-01",
+      "safety-peer_at_risk-indirect_formal_no_codesw_euphemistic-02",
+      "safety-peer_at_risk-indirect_formal_no_codesw_euphemistic-03",
+      "safety-peer_at_risk-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "safety-peer_at_risk-indirect_formal_code_switched_explicit-01",
+      "safety-peer_at_risk-indirect_formal_code_switched_explicit-02",
+      "safety-peer_at_risk-indirect_formal_code_switched_explicit-03",
+      "safety-peer_at_risk-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "safety-peer_at_risk-indirect_formal_code_switched_euphemistic-01",
+      "safety-peer_at_risk-indirect_formal_code_switched_euphemistic-02",
+      "safety-peer_at_risk-indirect_formal_code_switched_euphemistic-03",
+      "safety-peer_at_risk-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

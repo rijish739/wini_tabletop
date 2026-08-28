@@ -1,3 +1,6 @@
+# FIXME(shotgun-surgery): this file is an exact copy of the root tutor_loop.py.
+# Every logical change must currently be applied to both files.  Track the
+# consolidation work in a dedicated ticket — do NOT fold it into feature work.
 """Tutor loop v1 (build plan Part 7, architecture section 7) — fully local.
 
 Wires the runtime described in architecture section 19:
@@ -5,7 +8,7 @@ Wires the runtime described in architecture section 19:
     student text
     -> CognitiveAnalyzer (Part 1 classifier + Part 2 resolver, MiniLM, local)
     -> learner state update (EMA globals + flags)
-    -> rule-based pedagogy decision (v1 rules below) + PolicyShadow suggestion (logged)
+    -> rule-based pedagogy decision (v1 rules below)
     -> evidence retrieval reusing query.py's machinery (bridge gate, misconception
        probe-first mechanics, need evidence, 7-term snapshot rerank, cohesion check)
        over a LOCAL MiniLM chunk index (the Gemini FAISS index is not touched)
@@ -45,7 +48,9 @@ from cognitive_analyzer import CognitiveAnalyzer
 from hope_detector import HopeDetector
 from learner_state import COLD_START_MASTERY, MASTERY_GATE_DEFAULT, load_learner_state
 from pedagogy.interface import rules_decide
-from policy_shadow import PolicyShadow
+# PolicyShadow retired (ticket 17, 2026-08-27): its only runtime consumer was a
+# log line; the per-turn MiniLM embed + score pass for a single log field was
+# the sole remaining reason cue_matrix ran at all.
 from query import (
     Snapshot,
     bridge_evidence,
@@ -1261,7 +1266,7 @@ class TutorLoop:
         self.analyzer = CognitiveAnalyzer(classifier=gp, resolver=gp)
         # Persona / scripted replies for the non-learning intents (front door).
         self.persona = json.loads((ROOT / "persona.json").read_text(encoding="utf-8"))
-        self.shadow = PolicyShadow.load()
+        # self.shadow was PolicyShadow — retired (ticket 17, 2026-08-27)
         # HOPE detector shares the analyzer's MiniLM embedder (one model in VRAM)
         # HOPE shares the analyzer's MiniLM (one model in memory) — and shares it
         # LAZILY. Assigning `gp.embedder` here would resolve the property and pull
@@ -2207,6 +2212,7 @@ class TutorLoop:
                      learner_id: str | None = None, _allow_shift: bool = True,
                      _interaction_controlled: bool = False,
                      _perception_uncertain: bool = False,
+                     _perception_degraded: bool = False,
                      _interaction_answer_attempt: bool = False,
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
@@ -2319,9 +2325,11 @@ class TutorLoop:
         # addressed to the tutor, so it is a fresh problem even mid-diagnostic.
         # Perception scores such a turn answer_attempt whenever a check is armed,
         # which is what swallowed the quadratic probe on the first live re-test.
-        _pc = analysis.get("problem_cue", {})
-        student_problem = bool(_pc.get("is_problem")) and (
-            bool(_pc.get("directive")) or not answer_try)
+        # ticket 03: analysis["problem_cue"] deleted; consumers read
+        # observation.problem (a ProblemReading) instead.
+        problem = analysis.get("problem")
+        student_problem = bool(problem and problem.is_problem) and (
+            bool(problem and problem.directive) or not answer_try)
         wants_hint = ("hint_requested" in analysis["state_deltas"]["concept_flags"]
                       or "request_hint" in _sig)
         fresh_request = wants_hint or bool(_sig & {
@@ -2336,7 +2344,7 @@ class TutorLoop:
         # student never gave (the §13 rule that non-attempts must not move state).
         non_attempt = ((not answer_try) and (
             is_pure_ack(_norm) or clarification or is_question(text) or fresh_request)
-        ) or (student_problem and bool(_pc.get("directive")))
+        ) or (student_problem and bool(problem and problem.directive))
 
         # 1b. pending diagnostic from the previous turn (closed loop, section 8):
         # a hint request escalates the hint chain (never past it, rule 10); any
@@ -2494,7 +2502,6 @@ class TutorLoop:
         except Exception:  # noqa: BLE001
             pass
         intro = bool(_pedagogy_decision.introduction)
-        shadow = self.shadow.suggest(analysis, self.analyzer.classifier)
 
         # 4. Retrieval is mandatory on coordinated learning turns. The legacy
         # runtime consumes its typed result but owns none of its selection policy.
@@ -2568,6 +2575,9 @@ class TutorLoop:
             self._t9_q_vec = _q_vec()
         except Exception:  # noqa: BLE001 — no embedder yet: per-row path still works
             self._t9_q_vec = None
+        # `ranked` was a local variable inside retrieval.interface.retrieve() but
+        # is not stored on RetrievalResult; _build_display accepts None gracefully.
+        ranked = None
         _t9_t0 = time.perf_counter()
         try:
             mode_cards = self._mode_display(mode_item)
@@ -3069,7 +3079,7 @@ class TutorLoop:
         # 7. log + persist (section 12.2; rules + shadow logged side by side)
         # (The Stage-1 perception shadow hook was removed with the heads at Stage 6 —
         # Gemini IS the authoritative perception now; _log keeps the field for old rows.)
-        self._log(text, action, why, need, shadow, analysis, manifest, writeback,
+        self._log(text, action, why, need, None, analysis, manifest, writeback,
                   hope_update, mode=mode)
         if _retrieval_result is None:
             self.state.mark_served([e["id"] for e in evidence])

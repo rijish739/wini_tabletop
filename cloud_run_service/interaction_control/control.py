@@ -11,6 +11,7 @@ from typing import TYPE_CHECKING, Any, Callable, Mapping, Protocol
 
 if TYPE_CHECKING:
     from perception import PerceptionObservation
+    from utterance_intake import UtteranceObservation
 
 from runtime.contracts import (
     FailureSeverity,
@@ -24,6 +25,8 @@ from runtime.contracts import (
     deep_thaw,
 )
 
+from .safety_composition import compose_safety_alert
+
 
 class InteractionDisposition(str, Enum):
     COMPLETE = "complete"
@@ -36,6 +39,10 @@ class InteractionControlRequest:
     session: Mapping[str, Any]
     bound_learner_id: str | None = None
     perception: "PerceptionObservation | None" = None
+    # Utterance Intake observation — always non-None in production (Intake is
+    # total by design); None only in legacy test stubs that predate the field.
+    # No consumer may getattr-fallback to a private regex when this is present.
+    observation: "UtteranceObservation | None" = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -47,7 +54,7 @@ class InteractionDecision:
     text: str
     compatibility: Mapping[str, Any] | None = None
     analysis: Mapping[str, Any] | None = None
-    perception_uncertain: bool = False
+    perception_degraded: bool = False
     answer_attempt: bool = False
     continuity: "InteractionContinuity | None" = None
 
@@ -216,6 +223,7 @@ class InteractionControl:
                 ),),
             )
         interaction = deep_thaw(request.turn_input.interaction)
+        trusted = deep_thaw(request.turn_input.trusted_observations)
         text = str(interaction.get("text") or "")
         session = deep_thaw(request.session)
         starting_session = copy.deepcopy(session)
@@ -226,7 +234,9 @@ class InteractionControl:
             else self._dependencies.deterministic_route(text)
         )
         if route is not None:
-            if bool(getattr(route, "safety_alert", False)):
+            if compose_safety_alert(
+                perception_safety_alert=bool(getattr(route, "safety_alert", False))
+            ):
                 route.primary = "SAFETY"
                 self._record_safety(request.turn_input, text, route, session)
             compatibility, failures = self._complete_nonlearning(
@@ -244,20 +254,31 @@ class InteractionControl:
                 failures=failures,
             )
 
-        trusted = deep_thaw(request.turn_input.trusted_observations)
-        stt_confidence = trusted.get("stt_confidence")
-        stt_confidence = 1.0 if stt_confidence is None else max(
-            0.0, min(1.0, float(stt_confidence))
-        )
-        if stt_confidence < self._dependencies.stt_write_confidence_min:
-            compatibility = self._low_confidence_result(
-                request.turn_input, session, stt_confidence
+        # Ticket 05: the LEARNING path gates on authorization, not the raw
+        # stt_confidence float.  An UNAUTHORIZED turn produces the repair
+        # screen; perception is NOT run (the gate fires first).
+        from utterance_intake.observation import Authorization as _Authorization
+        if (request.observation is not None
+                and request.observation.authorization is _Authorization.UNAUTHORIZED):
+            compatibility = self._unauthorized_repair_result(
+                request.turn_input, session, request.observation,
             )
             return ModuleOutcome(value=InteractionDecision(
                 disposition=InteractionDisposition.COMPLETE,
                 text=text,
                 compatibility=compatibility,
             ))
+        elif request.observation is None:
+            stt_conf = trusted.get("stt_confidence")
+            if stt_conf is not None and stt_conf < self._dependencies.stt_write_confidence_min:
+                compatibility = self._low_confidence_result(
+                    request.turn_input, session, stt_conf
+                )
+                return ModuleOutcome(value=InteractionDecision(
+                    disposition=InteractionDisposition.COMPLETE,
+                    text=text,
+                    compatibility=compatibility,
+                ))
 
         pending = self._consume_pending_shift(
             text, session, request.turn_input.turn_id
@@ -302,12 +323,14 @@ class InteractionControl:
             if perception is not None
             else self._dependencies.perception_route(text, session)
         )
-        perception_uncertain = bool(
-            perception.uncertain
+        perception_degraded = bool(
+            perception.perception_degraded
             if perception is not None
-            else getattr(route, "uncertain", False)
+            else getattr(route, "perception_degraded", False)
         )
-        if route is not None and bool(getattr(route, "safety_alert", False)):
+        if route is not None and compose_safety_alert(
+            perception_safety_alert=bool(getattr(route, "safety_alert", False))
+        ):
             route.primary = "SAFETY"
             self._record_safety(request.turn_input, text, route, session)
         if (
@@ -353,8 +376,13 @@ class InteractionControl:
             self._dependencies.pedagogy_owns_modes
             and self._dependencies.mode_cue(text) is not None
         )
+        is_also_learning = bool(
+            getattr(perception, "also_learning", False)
+            or getattr(route, "also_learning", False)
+        )
         if (route is not None and str(route.primary) != "LEARNING"
-                and not pedagogical_mode_control):
+                and not pedagogical_mode_control
+                and not (is_also_learning and str(route.primary) in {"SOCIAL", "EMOTIONAL"})):
             compatibility, failures = self._complete_nonlearning(
                 request.turn_input, route, text, session
             )
@@ -418,17 +446,12 @@ class InteractionControl:
         analysis = deep_thaw(analysis)
         concept = dict(analysis.get("concept") or {})
         primary = concept.get("concept_id")
-        current = session.get("current_concept")
-        if (
-            current
-            and primary
-            and primary != current
-            and self._is_anaphoric_followup(text)
-            and not self._dependencies.concept_relates_to_topic(primary, current)
-        ):
-            concept["concept_id"] = current
-            analysis["concept"] = concept
-            primary = current
+        # Drift guard deleted (ticket 04 / issue 12): a confident resolution to an
+        # unrelated concept is now accepted and session["current_concept"] follows
+        # it. This is a deliberate behaviour change recorded in issue 15; the
+        # concept resolver (handover doc) is the future owner of topic-continuity
+        # decisions. ReferenceReading on observation is supplied and unread here
+        # until that layer exists.
         test_state = session.get("test_state")
         test_locked = test_state is not None and test_state.get("phase") not in (None, "done")
         if primary and not test_locked:
@@ -438,7 +461,7 @@ class InteractionControl:
                 disposition=InteractionDisposition.CONTINUE_LEARNING,
                 text=text,
                 analysis=analysis,
-                perception_uncertain=perception_uncertain,
+                perception_degraded=perception_degraded,
                 answer_attempt=bool(
                     perception.answer_attempt
                     if perception is not None
@@ -660,13 +683,6 @@ class InteractionControl:
             ),
         }
 
-    @staticmethod
-    def _is_anaphoric_followup(text: str) -> bool:
-        value = (text or "").strip()
-        if not value or len(value.split()) > 12:
-            return False
-        return bool(re.search(r"\b(this|that|it|these|those|the same|here)\b", value, re.I))
-
     def _low_confidence_result(
         self,
         turn_input: TurnInput,
@@ -719,6 +735,72 @@ class InteractionControl:
             "answer": reply,
             "answer_source": "scripted",
             "gen_backend": None,
+        }
+
+    def _unauthorized_repair_result(
+        self,
+        turn_input: TurnInput,
+        session: Mapping[str, Any],
+        observation: "UtteranceObservation",
+    ) -> dict[str, Any]:
+        """Ticket 05: produce the repair screen from the observation's
+        ``repair_choices`` — the one sanctioned export.  The response layer
+        reads ``repair_choices``; nothing reads ``utterance.alternates``.
+        The learner always chooses; nothing auto-selects an alternate."""
+        interaction = deep_thaw(turn_input.interaction)
+        text = str(interaction.get("text") or "")
+        pending = session.get("pending_check") or {}
+        choices = list(observation.transcript.repair_choices)
+        causes = [c.value for c in observation.transcript.causes]
+
+        if choices:
+            options = " / ".join(f'"{c}"' for c in choices[:3])
+            reply = f"I'm not sure I heard that right. Did you say {options}? Pick one, or say something else."
+        else:
+            reply = "I'm not sure I heard that right. Please say that again"
+            if pending.get("question"):
+                reply += f" for this question: {pending['question']}"
+            reply += "."
+
+        self._dependencies.log_event({
+            "ts": self._dependencies.now(),
+            "loop": "tutor_loop_v4",
+            "question": text,
+            "action": "REPAIR_SCREEN",
+            "action_reason": (
+                f"unauthorized transcript (causes: {', '.join(causes)}); "
+                "repair screen presented"
+            ),
+            "need": "none",
+            "signals": [],
+            "answer": reply,
+        })
+        return {
+            "action": "REPAIR_SCREEN",
+            "action_reason": f"unauthorized transcript; causes: {', '.join(causes)}",
+            "need": "none",
+            "shadow": None,
+            "concept": {
+                "concept_id": session.get("current_concept"),
+                "concept_confidence": 0.0,
+                "abstained": True,
+            },
+            "signals": [],
+            "cognitive_update": {},
+            "n_evidence": 0,
+            "bridge_ids": [],
+            "writeback": None,
+            "hope_update": None,
+            "pending_check": pending.get("id"),
+            "pending_hope": None,
+            "answer_budget": interaction.get("answer_budget"),
+            "pace": copy.deepcopy(session.get("pace", {})),
+            "display": [],
+            "session_ended": False,
+            "answer": reply,
+            "answer_source": "scripted",
+            "gen_backend": None,
+            "repair_choices": choices,
         }
 
     def _maybe_stop_mode(

@@ -14,6 +14,31 @@ reply. They own their decisions absolutely:
 `gate()` returns a RouteResult when a gate fires, else None (pass through to the
 Gemini route / learning pipeline). It is pure and model-free, so it runs
 regardless of PERCEPTION_BACKEND.
+
+--------------------------------------------------------------------------
+SUPERSEDED BY A DECISION, 2026-08-26 -- DECIDED, NOT YET IMPLEMENTED.
+Everything above still describes what this file DOES. It no longer describes
+what this file is FOR.
+
+`docs/architecture/SAFETY_ROUTE_TAXONOMY.md` (normative) inverts the SAFETY
+arrangement: a dedicated Gemini call in a new `cloud_run_service/child_safety/`
+package becomes the PRIMARY safety detector, and this lexicon is demoted to the
+DEGRADED-MODE OUTAGE NET -- it runs only when that call fails or times out, may
+emit the axis only (`{UNSPECIFIED_CONCERN}` / `ELEVATED`, never `CRITICAL`,
+never a class), and is FROZEN: never edited toward the model, never edited by
+reading a missed-corpus row.
+
+The "may only add recall, never remove" rule survives, retargeted: nothing may
+ever remove a finding, whatever made it.
+
+Before editing this file, read that document. Two things it records that are
+easy to rediscover the hard way:
+  * the 1.0 SAFETY recall reported by `eval.perception_eval --gates` is measured
+    on a 20-phrase corpus that mirrors these patterns -- it is memorization, not
+    evidence, and peer-at-risk / online-solicitation disclosures are total misses;
+  * `classify_safety`'s tier-3 regex is much narrower than `_SAFETY_RE`, so 6 of
+    9 self-harm probes land in the tier-2 catch-all.
+--------------------------------------------------------------------------
 """
 
 from __future__ import annotations
@@ -121,13 +146,36 @@ def is_nonsense(text: str) -> bool:
     return False
 
 
-def gate(text: str) -> Optional[RouteResult]:
-    """Run the deterministic gates in priority order. Returns a RouteResult if a
-    gate fires (SAFETY wins over NONSENSE), else None to pass through."""
-    if is_safety(text):
+def gate(text_or_observation) -> Optional[RouteResult]:
+    """Run the deterministic front-door gates in priority order (SAFETY wins over
+    NONSENSE), else return None to pass through.
+
+    Two callers, one priority order in one place:
+
+    * ``gate(text: str)`` — the legacy path, still read by callers that have not
+      yet moved to the observation.
+    * ``gate(observation: UtteranceObservation)`` — the walking-skeleton path
+      (ticket 01): a **pure translation** of the observation's readings. Safety
+      reading tripped -> SAFETY; else legibility illegible -> NONSENSE; else None.
+      It reads the **textual** axis only — nothing acoustic feeds NONSENSE. That
+      ``gate()`` has no detection logic of its own left in it on this path is the
+      tell that the Utterance Intake seam landed, not a reason to move it.
+    """
+    observation = None if isinstance(text_or_observation, str) else text_or_observation
+    if observation is not None:
+        text = observation.normalized_text
+        safety_tripped = observation.safety.tripped
+        illegible = observation.legibility.illegible
+    else:
+        text = text_or_observation or ""
+        safety_tripped = is_safety(text)
+        illegible = is_nonsense(text)
+    if safety_tripped:
+        # tier/category are a transitional detail the safety inversion (ticket 12)
+        # removes; recomputed here so the RouteResult stays byte-identical.
         tier, category = classify_safety(text) or (2, "safety_concern")
         if _dbg:
-            _dbg.emit(_dbg.L2, "gate_fired", gate="SAFETY", text_len=len(text or ""))
+            _dbg.emit(_dbg.L2, "gate_fired", gate="SAFETY", text_len=len(text))
         return RouteResult(
             primary="SAFETY",
             safety_alert=True,
@@ -136,14 +184,14 @@ def gate(text: str) -> Optional[RouteResult]:
             source="gate",
             reason="deterministic SAFETY lexicon match",
         )
-    if is_nonsense(text):
+    if illegible:
         if _dbg:
-            _dbg.emit(_dbg.L2, "gate_fired", gate="NONSENSE", text_len=len(text or ""))
+            _dbg.emit(_dbg.L2, "gate_fired", gate="NONSENSE", text_len=len(text))
         return RouteResult(
             primary="NONSENSE",
             source="gate",
             reason="deterministic NONSENSE gate (empty / symbols / keyboard-mash)",
         )
     if _dbg:
-        _dbg.emit(_dbg.L2, "gate_pass", text_len=len(text or ""))
+        _dbg.emit(_dbg.L2, "gate_pass", text_len=len(text))
     return None

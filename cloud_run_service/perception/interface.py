@@ -42,6 +42,10 @@ class PerceptionRequest:
     turn_input: TurnInput
     session: Mapping[str, Any]
     learner_state: Mapping[str, Any] | None = None
+    # The Utterance Intake observation, threaded by the Turn Coordinator when the
+    # UTTERANCE_INTAKE phase ran. Perception reads its `normalized_text`; the
+    # legacy interaction["text"] channel stays live until legacy deletion.
+    observation: Any = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -61,10 +65,11 @@ class PerceptionObservation:
     cognitive_update: Mapping[str, float]
     safety_alert: bool
     answer_attempt: bool
-    uncertain: bool
+    perception_degraded: bool
     source: str
     route: RouteResult
     analysis: Mapping[str, Any]
+    also_learning: bool = False
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "secondary_concepts", tuple(self.secondary_concepts))
@@ -97,8 +102,17 @@ class Perception:
         self, request: PerceptionRequest
     ) -> ModuleOutcome[PerceptionObservation]:
         interaction = deep_thaw(request.turn_input.interaction)
-        text = str(interaction.get("text") or "")
-        deterministic = gate(text)
+        # Walking skeleton (ticket 01): when the UTTERANCE_INTAKE phase produced
+        # an observation, read the one published normalized form and translate
+        # the front-door gate from the observation's readings. The legacy
+        # interaction["text"] channel stays live for turns without an observation.
+        observation = getattr(request, "observation", None)
+        if observation is not None:
+            text = observation.normalized_text
+            deterministic = gate(observation)
+        else:
+            text = str(interaction.get("text") or "")
+            deterministic = gate(text)
         if deterministic is not None:
             return ModuleOutcome(value=self._from_route(deterministic, {}))
 
@@ -110,7 +124,7 @@ class Perception:
             trusted = deep_thaw(request.turn_input.trusted_observations)
             if trusted.get("precomputed_analysis") is not None:
                 analysis = trusted["precomputed_analysis"]
-            if bool(getattr(route, "uncertain", False)):
+            if bool(getattr(route, "perception_degraded", False)):
                 return self._degraded(
                     session, "degraded_fallback", text=text, analysis=analysis
                 )
@@ -135,9 +149,12 @@ class Perception:
     ) -> PerceptionObservation:
         if not isinstance(route, RouteResult) or route.primary not in INTENT_SET:
             raise ValueError("invalid route")
-        if route.primary != "LEARNING":
+        is_also_learning = bool(getattr(route, "also_learning", False))
+        if route.primary != "LEARNING" and not is_also_learning:
             return self._from_route(route, {})
         if not isinstance(analysis, Mapping) or not self._REQUIRED_ANALYSIS <= analysis.keys():
+            if is_also_learning:
+                return self._from_route(route, analysis if isinstance(analysis, Mapping) else {})
             raise ValueError("invalid analysis")
         mutable = deep_thaw(analysis)
         concept = mutable.get("concept")
@@ -165,10 +182,11 @@ class Perception:
             cognitive_update={str(key): float(value) for key, value in cognitive.items()},
             safety_alert=bool(route.safety_alert),
             answer_attempt=bool(route.answer_attempt),
-            uncertain=bool(route.uncertain),
+            perception_degraded=bool(route.perception_degraded),
             source=route.source,
             route=route,
             analysis=mutable,
+            also_learning=is_also_learning,
         )
 
     def _from_route(
@@ -184,10 +202,11 @@ class Perception:
             cognitive_update={},
             safety_alert=bool(route.safety_alert),
             answer_attempt=bool(route.answer_attempt),
-            uncertain=bool(route.uncertain),
+            perception_degraded=bool(route.perception_degraded),
             source=route.source,
             route=route,
             analysis=analysis,
+            also_learning=bool(getattr(route, "also_learning", False)),
         )
 
     @staticmethod
@@ -235,11 +254,13 @@ class Perception:
         current = session.get("current_concept")
         route = RouteResult(
             primary="LEARNING", concept_id=current, concept_confidence=0.0,
-            source="fallback", uncertain=True,
+            source="fallback", perception_degraded=True,
             reason="perception fallback (LEARNING/inherit)",
         )
+        from utterance_intake.observation import ProblemReading as _ProblemReading
         neutral_analysis = {
-            "raw_text": text, "normalized_text": text.strip(), "problem_cue": {},
+            "raw_text": text, "normalized_text": text.strip(),
+            "problem": _ProblemReading.absent(),
             "signals": [], "signal_scores": {},
             "concept": {
                 "concept_id": current, "concept_confidence": 0.0,

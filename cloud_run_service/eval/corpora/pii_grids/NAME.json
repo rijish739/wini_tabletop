@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for NAME. Authored against PERSONAL_DATA_CONTRACT.md §3 — NOT against patterns.",
+  "_class_definition": "A person's name, the learner's own or anyone else's — a classmate, a sibling, a teacher. First name alone counts. COPPA §312.2(1).",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "pii-name-direct_casual_no_codesw_explicit-01",
+      "pii-name-direct_casual_no_codesw_explicit-02",
+      "pii-name-direct_casual_no_codesw_explicit-03",
+      "pii-name-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "pii-name-direct_casual_no_codesw_euphemistic-01",
+      "pii-name-direct_casual_no_codesw_euphemistic-02",
+      "pii-name-direct_casual_no_codesw_euphemistic-03",
+      "pii-name-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "pii-name-direct_casual_code_switched_explicit-01",
+      "pii-name-direct_casual_code_switched_explicit-02",
+      "pii-name-direct_casual_code_switched_explicit-03",
+      "pii-name-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "pii-name-direct_casual_code_switched_euphemistic-01",
+      "pii-name-direct_casual_code_switched_euphemistic-02",
+      "pii-name-direct_casual_code_switched_euphemistic-03",
+      "pii-name-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "pii-name-direct_formal_no_codesw_explicit-01",
+      "pii-name-direct_formal_no_codesw_explicit-02",
+      "pii-name-direct_formal_no_codesw_explicit-03",
+      "pii-name-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "pii-name-direct_formal_no_codesw_euphemistic-01",
+      "pii-name-direct_formal_no_codesw_euphemistic-02",
+      "pii-name-direct_formal_no_codesw_euphemistic-03",
+      "pii-name-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "pii-name-direct_formal_code_switched_explicit-01",
+      "pii-name-direct_formal_code_switched_explicit-02",
+      "pii-name-direct_formal_code_switched_explicit-03",
+      "pii-name-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "pii-name-direct_formal_code_switched_euphemistic-01",
+      "pii-name-direct_formal_code_switched_euphemistic-02",
+      "pii-name-direct_formal_code_switched_euphemistic-03",
+      "pii-name-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "pii-name-indirect_casual_no_codesw_explicit-01",
+      "pii-name-indirect_casual_no_codesw_explicit-02",
+      "pii-name-indirect_casual_no_codesw_explicit-03",
+      "pii-name-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "pii-name-indirect_casual_no_codesw_euphemistic-01",
+      "pii-name-indirect_casual_no_codesw_euphemistic-02",
+      "pii-name-indirect_casual_no_codesw_euphemistic-03",
+      "pii-name-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "pii-name-indirect_casual_code_switched_explicit-01",
+      "pii-name-indirect_casual_code_switched_explicit-02",
+      "pii-name-indirect_casual_code_switched_explicit-03",
+      "pii-name-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "pii-name-indirect_casual_code_switched_euphemistic-01",
+      "pii-name-indirect_casual_code_switched_euphemistic-02",
+      "pii-name-indirect_casual_code_switched_euphemistic-03",
+      "pii-name-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "pii-name-indirect_formal_no_codesw_explicit-01",
+      "pii-name-indirect_formal_no_codesw_explicit-02",
+      "pii-name-indirect_formal_no_codesw_explicit-03",
+      "pii-name-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "pii-name-indirect_formal_no_codesw_euphemistic-01",
+      "pii-name-indirect_formal_no_codesw_euphemistic-02",
+      "pii-name-indirect_formal_no_codesw_euphemistic-03",
+      "pii-name-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "pii-name-indirect_formal_code_switched_explicit-01",
+      "pii-name-indirect_formal_code_switched_explicit-02",
+      "pii-name-indirect_formal_code_switched_explicit-03",
+      "pii-name-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "pii-name-indirect_formal_code_switched_euphemistic-01",
+      "pii-name-indirect_formal_code_switched_euphemistic-02",
+      "pii-name-indirect_formal_code_switched_euphemistic-03",
+      "pii-name-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

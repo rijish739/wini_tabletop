@@ -1,5 +1,9 @@
 # Dataset and Neural Architecture Plan for Learner Cognitive State Models
 
+**Status: ARCHIVED 2026-08-27 (ticket 18).** Was lockstep doc 3 (datasets + models).
+Now a **dated measurement record**; numbers here reflect the state at time of writing, not
+the current state.
+
 ## 1. Executive Summary
 
 The product architecture should be trained around a learner-state loop, not a single intent-routing loop. The datasets must therefore capture:

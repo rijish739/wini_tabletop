@@ -61,6 +61,88 @@ class TurnBudgets:
                 raise ValueError(f"{name} cannot be negative")
 
 
+class UtteranceSource(str, Enum):
+    """How the text of one Utterance reached the runtime."""
+
+    VOICE = "VOICE"
+    TYPED = "TYPED"
+    REPAIR_SELECTION = "REPAIR_SELECTION"
+    REPAIR_DISCARD = "REPAIR_DISCARD"
+
+
+@dataclass(frozen=True)
+class WordConfidence:
+    """One recognized word with the acoustic evidence for it. Absence is never a number."""
+
+    word: str
+    confidence: float | None = None
+    start_ms: int | None = None
+    end_ms: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("WordConfidence.confidence out of [0, 1]")
+
+
+@dataclass(frozen=True)
+class UtteranceProvenance:
+    """An opaque transcription handle; never bytes, never normalized text."""
+
+    utterance_id: str
+    captured_at: str
+    duration_ms: int | None = None
+    recognizer: str | None = None          # model + language; None for TYPED
+    repairs: str | None = None             # utterance_id this repairs
+    selected_alternate_index: int | None = None
+
+    def __post_init__(self) -> None:
+        if not self.utterance_id:
+            raise ValueError("Utterance Provenance requires an utterance_id")
+
+
+@dataclass(frozen=True)
+class Utterance:
+    """The raw learner input of one Turn welded to its transcription evidence.
+
+    ``text`` is raw as received and is never normalized here — normalization
+    exists in exactly one place, the Utterance Observation. ``confidence`` is
+    ``None`` when not reported, never a fabricated ``1.0``; ``None`` is not
+    comparable to a floor. Empty sequences mean "not reported", never "none
+    exist". Invariants raise, never clamp.
+    """
+
+    text: str                              # raw, as received; never normalized
+    source: UtteranceSource
+    provenance: UtteranceProvenance
+    confidence: float | None = None        # None = not reported
+    alternates: tuple[str, ...] = ()       # recognizer rank order, index 0 == text
+    word_confidences: tuple[WordConfidence, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "source", UtteranceSource(self.source))
+        object.__setattr__(self, "alternates", tuple(self.alternates))
+        object.__setattr__(self, "word_confidences", tuple(self.word_confidences))
+        if self.confidence is not None and not 0.0 <= self.confidence <= 1.0:
+            raise ValueError("Utterance.confidence out of [0, 1]")
+        if self.word_confidences and self.source is not UtteranceSource.VOICE:
+            raise ValueError("word_confidences requires source=VOICE")
+        if self.source is UtteranceSource.REPAIR_SELECTION:
+            if self.provenance.repairs is None or (
+                self.provenance.selected_alternate_index is None
+            ):
+                raise ValueError(
+                    "REPAIR_SELECTION requires provenance.repairs and "
+                    "selected_alternate_index"
+                )
+        if self.source is UtteranceSource.REPAIR_DISCARD:
+            if self.provenance.repairs is None:
+                raise ValueError("REPAIR_DISCARD requires provenance.repairs")
+            if self.text != "":
+                raise ValueError("REPAIR_DISCARD carries empty text")
+            if self.provenance.selected_alternate_index is not None:
+                raise ValueError("REPAIR_DISCARD carries no selected_alternate_index")
+
+
 @dataclass(frozen=True)
 class TurnInput:
     turn_id: str
@@ -69,6 +151,12 @@ class TurnInput:
     device: DeviceCapabilities
     budgets: TurnBudgets
     trusted_observations: Mapping[str, Any] = field(default_factory=dict)
+    # Added by the deterministic-input-layer walking skeleton (ticket 01). The
+    # legacy interaction["text"] / trusted_observations["stt_confidence"] channels
+    # remain live until legacy deletion (ticket 11); until then this defaults to
+    # None so hand-built Turn Inputs in tests stay valid. The production
+    # construction site (runtime/compatibility.py) always mints one.
+    utterance: Utterance | None = None
 
     def __post_init__(self) -> None:
         if not self.turn_id or not self.learner_id:

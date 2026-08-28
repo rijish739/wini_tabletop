@@ -7,7 +7,7 @@ import json
 from typing import Any, Iterable
 
 from response_layer.contracts import OutcomeEvent
-from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN, STT_WRITE_CONFIDENCE_MIN
+from runtime_flags import GRADER_WRITE_CONFIDENCE_MIN
 
 LEDGER_SCHEMA_VERSION = 1
 STATE_SCHEMA_VERSION = 2
@@ -194,9 +194,10 @@ def record_outcome(state, event: OutcomeEvent | dict) -> dict:
     if event.outcome not in {"correct", "partial", "wrong"}:
         return {"status": "rejected", "reason": "insufficient_evidence",
                 "idempotency_key": key}
-    if event.stt_confidence is not None and event.stt_confidence < STT_WRITE_CONFIDENCE_MIN:
-        return {"status": "suppressed", "reason": "low_stt_confidence",
-                "idempotency_key": key}
+    # Ticket 05: the stt_confidence float check is deleted.  The AUTHORIZED
+    # precondition lives in assessment_evidence/interface.py (which raises on
+    # a non-AUTHORIZED observation); by the time record_outcome is reached,
+    # authorization has already been verified upstream.
     if event.grader_confidence is None or event.grader_confidence < GRADER_WRITE_CONFIDENCE_MIN:
         return {"status": "suppressed", "reason": "low_grader_confidence",
                 "idempotency_key": key}

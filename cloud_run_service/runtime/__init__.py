@@ -16,6 +16,10 @@ from .contracts import (
     TurnContext,
     TurnInput,
     TurnResult,
+    Utterance,
+    UtteranceProvenance,
+    UtteranceSource,
+    WordConfidence,
     deep_thaw,
 )
 from .coordinator import (
@@ -48,6 +52,10 @@ __all__ = [
     "TurnContext",
     "TurnInput",
     "TurnResult",
+    "Utterance",
+    "UtteranceProvenance",
+    "UtteranceSource",
+    "WordConfidence",
     "deep_thaw",
     "LOGICAL_TURN_PHASES",
     "CoordinatedTurn",

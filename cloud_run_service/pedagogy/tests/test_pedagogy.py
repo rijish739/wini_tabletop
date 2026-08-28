@@ -13,6 +13,7 @@ from cognitive_classifier.cues import (
     is_purpose_question, is_question, is_visualization_request,
 )
 from session_modes import mode_cues
+from utterance_intake.observation import ProblemCue, ProblemReading
 
 
 def observation(
@@ -21,7 +22,7 @@ def observation(
     signals=(),
     flags=(),
     cognitive=None,
-    problem_cue=None,
+    problem: ProblemReading | None = None,
 ) -> PedagogyObservation:
     update = {
         "confusion": 0.0,
@@ -30,7 +31,6 @@ def observation(
         "frustration_risk": 0.0,
     }
     update.update(cognitive or {})
-    problem = problem_cue or {}
     return PedagogyObservation(
         normalized_text=text.lower(),
         concept_id="fractions",
@@ -38,14 +38,14 @@ def observation(
         concept_flags=tuple(flags),
         cognitive_update=update,
         answer_attempt=False,
-        uncertain=False,
+        perception_degraded=False,
         acknowledged=is_pure_ack(text),
         clarification_requested=is_clarification_request(text),
         visualization_requested=is_visualization_request(text),
         purpose_requested=is_purpose_question(text),
         learning_requested=is_learning_request(text),
         question=is_question(text),
-        learner_problem=bool(problem.get("is_problem") and problem.get("directive")),
+        learner_problem=bool(problem and problem.is_directive_problem),
         requested_mode=mode_cues(text),
     )
 
@@ -78,7 +78,7 @@ class PedagogyInterfaceTests(unittest.TestCase):
             ("give me a harder one", observation(text="give me a harder one", signals=("ready_for_next",)), {"transfer_readiness": 0.9}, "TRANSFER_PROBLEM"),
             ("I don't understand", observation(text="I don't understand", cognitive={"confusion": 0.8}), {}, "EXPLAIN"),
             ("okay", observation(text="okay"), {}, "METACOGNITIVE_REFLECT"),
-            ("solve 2x + 3 = 7", observation(text="solve 2x + 3 = 7", problem_cue={"is_problem": True, "directive": True}), {}, "SOLVE_STUDENT_PROBLEM"),
+            ("solve 2x + 3 = 7", observation(text="solve 2x + 3 = 7", problem=ProblemReading(is_problem=True, directive=True, cue=ProblemCue.EQUATION)), {}, "SOLVE_STUDENT_PROBLEM"),
         )
         module = Pedagogy()
 
@@ -106,7 +106,7 @@ class PedagogyInterfaceTests(unittest.TestCase):
 
     def test_uncertain_perception_never_selects_an_assessment(self) -> None:
         observed = observation(text="test me")
-        object.__setattr__(observed, "uncertain", True)
+        object.__setattr__(observed, "perception_degraded", True)
 
         outcome = Pedagogy().decide(request("test me", observed))
 

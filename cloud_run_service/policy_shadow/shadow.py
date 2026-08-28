@@ -75,12 +75,14 @@ class PolicyShadow:
     def suggest(self, analysis: dict, classifier) -> dict:
         """Suggest from a CognitiveAnalyzer.analyze() result. Recomputes the
         embedding + full label-score vector via the Part-1 classifier (the
-        analysis dict only keeps scores >= 0.05)."""
-        from cognitive_classifier.cues import cue_matrix
+        analysis dict only keeps scores >= 0.05).
 
+        The 9-cue vector was retired (ticket 17, 2026-08-27); score_matrix now
+        zero-fills those dims automatically.
+        """
         text = analysis["normalized_text"]
         emb = classifier.embed([text])
-        scores = classifier.score_matrix(emb, cue_matrix([text]))[0]
+        scores = classifier.score_matrix(emb)[0]
         return self.suggest_from_features(
             feature_vector(emb[0], scores, analysis["cognitive_update"])
         )

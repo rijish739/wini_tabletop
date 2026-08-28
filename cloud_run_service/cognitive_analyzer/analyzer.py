@@ -231,17 +231,18 @@ class CognitiveAnalyzer:
         resolution = self.resolver.resolve(normalized, current_concept=current_concept)
         update = derive_cognitive_update(clf["scores"])
         deltas = derive_state_deltas(update, clf["signals"], resolution)
-        # §6.1's deterministic "the student brought their own instance" cue. Run
-        # on the RAW text: normalization is math-preserving, but the raw string is
-        # what the generator receives, so the router and the generator agree on
-        # exactly one string. This is the one part of InputProcessor the live
-        # pipeline still needs (audit D-1) — the signal/candidate-concept layer
-        # it also computes is Gemini's job since Part 11, and stays uncalled.
-        problem = self.processor.detect_student_problem(text)
+        # §6.1's deterministic "the student brought their own instance" cue.
+        # Migrated to normalized text (ticket 03): detect_problem is the ONE
+        # implementation; the analyzer calls it on the NFKC-normalized text it
+        # already holds.  The intake's observe() calls the same function on its
+        # NFC-normalized text.  analysis["problem_cue"] is deleted — consumers
+        # read analysis["problem"] (a ProblemReading) instead.
+        from utterance_intake.intake import detect_problem
+        problem = detect_problem(normalized)
         return {
             "raw_text": text,
             "normalized_text": normalized,
-            "problem_cue": problem,
+            "problem": problem,
             "signals": clf["signals"],
             "signal_scores": {k: v for k, v in clf["scores"].items() if v >= 0.05},
             "concept": resolution,

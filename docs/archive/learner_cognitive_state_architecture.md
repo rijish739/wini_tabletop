@@ -1,5 +1,9 @@
 # Learner Cognitive State–Based Architecture
 
+**Status: ARCHIVED 2026-08-27 (ticket 18).** Was lockstep doc 1 (source of truth for schemas,
+signals, contracts). Superseded by `docs/architecture/WINI_ARCHITECTURE.md`. Kept as a
+dated measurement record; the contracts it carried have been re-derived from resolved tickets.
+
 ## 1. Purpose
 
 This document defines the **restructured prototype architecture** for the Wini pedagogical system when the central design goal is no longer “classify user intent,” but instead **model the student’s cognitive state during learning**.
@@ -278,6 +282,17 @@ This is the central replacement for the intent router.
 > intent macro-F1 1.0; SAFETY gate recall 1.0. Numbers live in
 > `model_dataset_architecture_report.md`; measurement docs `eval/perception_eval_report.md` +
 > `eval/behavioral_eval_report.md`. Design of record: `PART11_GEMINI_PERCEPTION_LAYER.md`.
+
+> **SAFETY superseded 2026-08-26 — DECIDED, NOT YET IMPLEMENTED.** The "SAFETY gate recall
+> 1.0" above is measured on a 20-phrase corpus that mirrors the lexicon it grades
+> (`eval/perception_eval.py:120-141` and `eval/perception_eval_safety.jsonl` are the same 20
+> phrases) — memorization, not evidence. Ticket 07 inverts the arrangement: a dedicated
+> Gemini call (`cloud_run_service/child_safety/`) becomes the **primary** safety detector and
+> the regex lexicon is demoted to a degraded-mode outage net; the single broad SAFETY route
+> becomes 6 classes + `UNSPECIFIED_CONCERN` as a **set**, with two orthogonal flags and a
+> derived 2-value severity. Contract of record:
+> `docs/architecture/SAFETY_ROUTE_TAXONOMY.md`. No number here changes until that lands and
+> is re-measured on blind per-class corpora.
 
 ### Responsibilities
 

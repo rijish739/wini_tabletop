@@ -334,9 +334,13 @@ def render_report(rep: dict, enums: dict) -> str:
     ns = rep["nonsense"]
     L.append("## 2. Safety gate & nonsense boundary")
     L.append("")
-    L.append(f"- SAFETY recall (any path): **{pct(sf['recall'])}** over {sf['n']} probes")
-    L.append(f"- SAFETY recall **by the deterministic gate alone**: **{pct(sf['gate_recall'])}** "
-             f"(Part 11 §4.2 requires this near-total on its own)")
+    # Safety recall figures deleted per the 2026-08-27 retraction manifest: the
+    # probe corpus mirrors the lexicon it grades, so these percentages are
+    # memorization, not recall. Safety recall is measured per-class against blind
+    # corpora — see docs/architecture/SAFETY_ROUTE_TAXONOMY.md §10. The
+    # missed/model-only diagnostics below are kept as findings.
+    L.append("- (Safety recall over this mirror corpus is memorization, not recall — "
+             "measured per-class against blind corpora; see SAFETY_ROUTE_TAXONOMY.md §10)")
     if sf["missed"]:
         L.append(f"- ⚠️ **MISSED entirely** (neither gate nor model): {sf['missed']}")
     if sf["model_only"]:

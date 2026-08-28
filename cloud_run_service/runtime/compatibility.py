@@ -3,9 +3,17 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
-from .contracts import DeviceCapabilities, TurnBudgets, TurnInput
+from .contracts import (
+    DeviceCapabilities,
+    TurnBudgets,
+    TurnInput,
+    Utterance,
+    UtteranceProvenance,
+    UtteranceSource,
+)
 from .coordinator import TurnCoordinator
 from .turn_runtime import TurnRuntime
 from .supervisor import RuntimeHealthSnapshot, RuntimeSupervisor
@@ -38,6 +46,8 @@ class TutorLoopCompatibilityFacade:
             from response_planning import ResponsePlanning
 
             response_planning = ResponsePlanning()
+        from utterance_intake import UtteranceIntake
+
         self._supervisor = RuntimeSupervisor()
         behavior = turn_behavior or legacy_turn
         if behavior is None:
@@ -49,6 +59,7 @@ class TutorLoopCompatibilityFacade:
                 state=state,
             ),
             interaction_control=interaction_control,
+            utterance_intake=UtteranceIntake(),
             perception=perception,
             assessment_evidence=assessment_evidence,
             pedagogy=pedagogy,
@@ -82,6 +93,20 @@ class TutorLoopCompatibilityFacade:
             or self._state.data.get("learner_id")
             or "local_single_learner"
         )
+        # The one production construction site of the typed Utterance. This text
+        # path is TYPED (an engineering test shortcut); TYPED carries confidence
+        # None, never a fabricated 1.0, with recognizer=None. The legacy
+        # interaction["text"] / stt_confidence channels stay live until legacy
+        # deletion (ticket 11).
+        utterance = Utterance(
+            text=text,
+            source=UtteranceSource.TYPED,
+            provenance=UtteranceProvenance(
+                utterance_id=resolved_turn_id,
+                captured_at=datetime.now(timezone.utc).isoformat(),
+                recognizer=None,
+            ),
+        )
         turn_input = TurnInput(
             turn_id=resolved_turn_id,
             learner_id=resolved_learner_id,
@@ -99,5 +124,6 @@ class TutorLoopCompatibilityFacade:
                 "precomputed_grade": precomputed_grade,
                 "stt_confidence": stt_confidence,
             },
+            utterance=utterance,
         )
         return self._coordinator.run(turn_input).serialize_compatibility()

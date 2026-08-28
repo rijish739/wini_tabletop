@@ -17,7 +17,10 @@ Baselines to beat (from the heads, §8):
     concept top-1 / top-3   : 0.895 / 0.971   (resolver)
     signal micro / macro F1 : 0.77  / 0.62    (cognitive classifier)
     intent macro-F1         : set after first run
-    SAFETY recall           : ~100% via the deterministic gate
+    (Safety recall is measured per-class against blind corpora — see
+     docs/architecture/SAFETY_ROUTE_TAXONOMY.md §10. No aggregate safety
+     number is published here; the deterministic gate coverage below is raw
+     per-corpus coverage, never a validated recall figure.)
 
 Runs:
     python -m eval.perception_eval --build               # write eval jsonl sets (offline)
@@ -515,7 +518,6 @@ def score_all(labels: list[str]) -> dict:
     material = score_material(test_recs)
     intent_macro, intent_pairs = score_intents(intent_recs)
     gates = measure_gates()
-    safety_recall = round(max(gates["safety_gate_recall"], 0.0), 4)   # gate is the floor (§4.2)
 
     promote = _promotion_verdict(concept, gates, intent_macro, material)
     return {
@@ -528,7 +530,6 @@ def score_all(labels: list[str]) -> dict:
         "signal_material": material,
         "intent_macro_f1": round(intent_macro, 4),
         "intent_pairs": intent_pairs,
-        "safety_recall_gate_or_model": safety_recall,
         "gates": gates,
         "promotion": promote,
     }
@@ -559,7 +560,11 @@ def _promotion_verdict(concept, gates, intent_macro, material) -> dict:
         "concept_top1": (concept["top1"] is not None and concept["top1"] >= BASE_CONCEPT_TOP1),
         "concept_top3": (concept["top3"] is not None and concept["top3"] >= BASE_CONCEPT_TOP3),
         "signal_behavioral_eval": _behavioral_pass() is True,
-        "safety_recall": gates["safety_gate_recall"] >= 1.0,
+        # The `safety_recall >= 1.0` promotion criterion was deleted (retraction
+        # manifest, 2026-08-27): it was measured on a 20-phrase corpus that
+        # mirrors the lexicon it grades, by a code path that cannot run, so it
+        # guarded nothing. Safety recall is measured per-class against blind
+        # corpora — see docs/architecture/SAFETY_ROUTE_TAXONOMY.md §10.
         "no_false_gate": gates["learning_false_gate"] == 0,
         "intent_ok": intent_macro >= INTENT_MACRO_BAR,
     }
@@ -605,7 +610,6 @@ def write_report(results: dict) -> None:
         f"{'PASS' if ch['signal_behavioral_eval'] else 'FAIL / not run'} | 3 pre-fixed gates | "
         f"{_mark(ch['signal_behavioral_eval'])} |",
         f"| Intent macro-F1 (non-safety) | {_fmt(results['intent_macro_f1'])} | ≥ {INTENT_MACRO_BAR} | {_mark(ch['intent_ok'])} |",
-        f"| SAFETY recall (gate floor) | {_fmt(results['safety_recall_gate_or_model'])} | ~1.0 | {_mark(ch['safety_recall'])} |",
         f"| No LEARNING falsely gated | {g['learning_false_gate']} | 0 | {_mark(ch['no_false_gate'])} |",
         f"| Concept rows graded | {c['gradable']} | — | — |",
     ]
@@ -666,8 +670,12 @@ def write_report(results: dict) -> None:
 
     lines += [
         "",
-        "## Deterministic gate coverage (offline, model-independent — the safety floor, §4.2)",
-        f"- SAFETY gate recall: **{g['safety_gate_recall']}** ({g['safety_hits']}/{g['safety_total']})",
+        "## Deterministic gate coverage (offline, model-independent)",
+        "> Raw coverage over the fixed gate corpora, **not** a validated recall "
+        "figure: the safety corpus mirrors the lexicon it grades, so its coverage "
+        "is memorization. Safety recall is measured per-class against blind "
+        "corpora — see `docs/architecture/SAFETY_ROUTE_TAXONOMY.md` §10.",
+        f"- SAFETY gate coverage over the mirror corpus: {g['safety_hits']}/{g['safety_total']} (memorization, not recall)",
         f"- NONSENSE gate recall: **{g['nonsense_gate_recall']}** ({g['nonsense_hits']}/{g['nonsense_total']})",
         f"- LEARNING utterances falsely gated: **{g['learning_false_gate']}** (must be 0)",
     ]
@@ -694,7 +702,9 @@ def write_report(results: dict) -> None:
         "3. Signals: the state-material-vs-heads gate above is a **label-reproduction proxy the "
         "heads win by construction** — supersede it with a **behavioral state-trajectory eval** "
         "before promoting (see the honest note).",
-        "4. Intent macro-F1 acceptable; SAFETY gate recall ~1.0. (Both PASS.)",
+        "4. Intent macro-F1 acceptable (PASS). Safety recall is measured "
+        "per-class against blind corpora (SAFETY_ROUTE_TAXONOMY.md §10), not "
+        "as an aggregate here.",
         "5. Re-measure, then edit the four lockstep docs with the measured numbers.",
         "",
     ]

@@ -1,0 +1,120 @@
+{
+  "_comment": "Grid for ADDRESS. Authored against PERSONAL_DATA_CONTRACT.md §3 — NOT against patterns.",
+  "_class_definition": "A home or other physical address, or any fragment of one specific enough to locate a dwelling — street name, building name, flat number, locality. COPPA §312.2(2).",
+  "_dimensions": {
+    "directness": [
+      "direct",
+      "indirect"
+    ],
+    "register": [
+      "casual",
+      "formal"
+    ],
+    "code_switching": [
+      "no_codesw",
+      "code_switched"
+    ],
+    "euphemism": [
+      "explicit",
+      "euphemistic"
+    ]
+  },
+  "cells": {
+    "direct|casual|no_codesw|explicit": [
+      "pii-address-direct_casual_no_codesw_explicit-01",
+      "pii-address-direct_casual_no_codesw_explicit-02",
+      "pii-address-direct_casual_no_codesw_explicit-03",
+      "pii-address-direct_casual_no_codesw_explicit-04"
+    ],
+    "direct|casual|no_codesw|euphemistic": [
+      "pii-address-direct_casual_no_codesw_euphemistic-01",
+      "pii-address-direct_casual_no_codesw_euphemistic-02",
+      "pii-address-direct_casual_no_codesw_euphemistic-03",
+      "pii-address-direct_casual_no_codesw_euphemistic-04"
+    ],
+    "direct|casual|code_switched|explicit": [
+      "pii-address-direct_casual_code_switched_explicit-01",
+      "pii-address-direct_casual_code_switched_explicit-02",
+      "pii-address-direct_casual_code_switched_explicit-03",
+      "pii-address-direct_casual_code_switched_explicit-04"
+    ],
+    "direct|casual|code_switched|euphemistic": [
+      "pii-address-direct_casual_code_switched_euphemistic-01",
+      "pii-address-direct_casual_code_switched_euphemistic-02",
+      "pii-address-direct_casual_code_switched_euphemistic-03",
+      "pii-address-direct_casual_code_switched_euphemistic-04"
+    ],
+    "direct|formal|no_codesw|explicit": [
+      "pii-address-direct_formal_no_codesw_explicit-01",
+      "pii-address-direct_formal_no_codesw_explicit-02",
+      "pii-address-direct_formal_no_codesw_explicit-03",
+      "pii-address-direct_formal_no_codesw_explicit-04"
+    ],
+    "direct|formal|no_codesw|euphemistic": [
+      "pii-address-direct_formal_no_codesw_euphemistic-01",
+      "pii-address-direct_formal_no_codesw_euphemistic-02",
+      "pii-address-direct_formal_no_codesw_euphemistic-03",
+      "pii-address-direct_formal_no_codesw_euphemistic-04"
+    ],
+    "direct|formal|code_switched|explicit": [
+      "pii-address-direct_formal_code_switched_explicit-01",
+      "pii-address-direct_formal_code_switched_explicit-02",
+      "pii-address-direct_formal_code_switched_explicit-03",
+      "pii-address-direct_formal_code_switched_explicit-04"
+    ],
+    "direct|formal|code_switched|euphemistic": [
+      "pii-address-direct_formal_code_switched_euphemistic-01",
+      "pii-address-direct_formal_code_switched_euphemistic-02",
+      "pii-address-direct_formal_code_switched_euphemistic-03",
+      "pii-address-direct_formal_code_switched_euphemistic-04"
+    ],
+    "indirect|casual|no_codesw|explicit": [
+      "pii-address-indirect_casual_no_codesw_explicit-01",
+      "pii-address-indirect_casual_no_codesw_explicit-02",
+      "pii-address-indirect_casual_no_codesw_explicit-03",
+      "pii-address-indirect_casual_no_codesw_explicit-04"
+    ],
+    "indirect|casual|no_codesw|euphemistic": [
+      "pii-address-indirect_casual_no_codesw_euphemistic-01",
+      "pii-address-indirect_casual_no_codesw_euphemistic-02",
+      "pii-address-indirect_casual_no_codesw_euphemistic-03",
+      "pii-address-indirect_casual_no_codesw_euphemistic-04"
+    ],
+    "indirect|casual|code_switched|explicit": [
+      "pii-address-indirect_casual_code_switched_explicit-01",
+      "pii-address-indirect_casual_code_switched_explicit-02",
+      "pii-address-indirect_casual_code_switched_explicit-03",
+      "pii-address-indirect_casual_code_switched_explicit-04"
+    ],
+    "indirect|casual|code_switched|euphemistic": [
+      "pii-address-indirect_casual_code_switched_euphemistic-01",
+      "pii-address-indirect_casual_code_switched_euphemistic-02",
+      "pii-address-indirect_casual_code_switched_euphemistic-03",
+      "pii-address-indirect_casual_code_switched_euphemistic-04"
+    ],
+    "indirect|formal|no_codesw|explicit": [
+      "pii-address-indirect_formal_no_codesw_explicit-01",
+      "pii-address-indirect_formal_no_codesw_explicit-02",
+      "pii-address-indirect_formal_no_codesw_explicit-03",
+      "pii-address-indirect_formal_no_codesw_explicit-04"
+    ],
+    "indirect|formal|no_codesw|euphemistic": [
+      "pii-address-indirect_formal_no_codesw_euphemistic-01",
+      "pii-address-indirect_formal_no_codesw_euphemistic-02",
+      "pii-address-indirect_formal_no_codesw_euphemistic-03",
+      "pii-address-indirect_formal_no_codesw_euphemistic-04"
+    ],
+    "indirect|formal|code_switched|explicit": [
+      "pii-address-indirect_formal_code_switched_explicit-01",
+      "pii-address-indirect_formal_code_switched_explicit-02",
+      "pii-address-indirect_formal_code_switched_explicit-03",
+      "pii-address-indirect_formal_code_switched_explicit-04"
+    ],
+    "indirect|formal|code_switched|euphemistic": [
+      "pii-address-indirect_formal_code_switched_euphemistic-01",
+      "pii-address-indirect_formal_code_switched_euphemistic-02",
+      "pii-address-indirect_formal_code_switched_euphemistic-03",
+      "pii-address-indirect_formal_code_switched_euphemistic-04"
+    ]
+  }
+}

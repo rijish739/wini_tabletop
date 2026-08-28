@@ -16,6 +16,11 @@ _Avoid_: Tutor loop, god object
 An independently owned tutoring capability with explicit inputs, outputs, invariants, and verification. A Feature Module participates in a Turn without controlling the entire Turn.
 _Avoid_: Helper, section, phase file
 
+**Utterance**:
+The raw learner input of one Turn as received, together with the transcription evidence that
+produced it, before any normalization or interpretation.
+_Avoid_: Input, query, message, transcript, input string
+
 **Turn Input**:
 The immutable learner interaction, identity, device capabilities, budgets, and any trusted precomputed observations available when a Turn begins.
 _Avoid_: Request dictionary, arguments bag
@@ -46,9 +51,13 @@ _Avoid_: Learner State, global dictionary
 The capability that governs whether and how an interaction enters, continues, redirects, or ends a tutoring session.
 _Avoid_: Front door, routing helpers
 
+**Utterance Intake**:
+The capability that turns one raw Utterance into a screened, normalized, model-free observation of what was said. It observes; it decides nothing.
+_Avoid_: Input layer, input processor, preprocessing step, cue extraction
+
 **Perception**:
-The capability that derives the learner's apparent intent, cognitive signals, and subject concept from a Turn Input.
-_Avoid_: Classification step, analyzer call
+The capability that derives the learner's apparent intent, session-control action, cognitive signals, subject concept, and topic phrasing from an Utterance Intake observation.
+_Avoid_: Classification step, analyzer call, surface cue
 
 **Pedagogy**:
 The capability that selects the teaching strategy, learning mode, and pacing appropriate to the learner's current situation.

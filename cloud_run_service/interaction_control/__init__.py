@@ -10,8 +10,10 @@ from .control import (
     InteractionDecision,
     InteractionDisposition,
 )
+from .safety_composition import compose_safety_alert
 
 __all__ = [
+    "compose_safety_alert",
     "CapabilityTransition",
     "InteractionControl",
     "InteractionControlDependencies",
