@@ -50,7 +50,14 @@ is this the only place anaphor word detection is happening? if yes this is not g
 how the session control for practice, explain and other modes handled 
 
 -Session Mode Control & Mode Exits (if user says i do not want explanation/test/practice what should happen next) how the exit and entry to any mode happens in fresh restart and in transition
+this includes even stop, how to do . 
 
+when student says "I'm bored of this", "teach me something else", or "change the topic" without specifying a new topic: 
+
+what should happen in this case. 
+
+
+Non-Learning Intent Fast-Paths: social interaction (hi how are you), emotional intent (i am not in a mood to study, i am feeling low), META_CAPABILITY ( who are you, what can you do for me)
 
 2. normalize has no idea what a maths word is. So the root cause becomes the sqrt cause
 

@@ -35,6 +35,7 @@ class TutorLoopCompatibilityFacade:
         retrieval: Any = None,
         response_planning: Any = None,
         response_generation: Any = None,
+        personal_data: Any = None,
     ) -> None:
         if assessment_evidence is None:
             from assessment_evidence import AssessmentEvidence
@@ -46,6 +47,22 @@ class TutorLoopCompatibilityFacade:
             response_planning = ResponsePlanning()
         from utterance_intake import UtteranceIntake
 
+        # PERSONAL_DATA_CONTRACT.md §2: one Gemini call per turn, fired immediately
+        # after Intake. This is the one production construction site.
+        #
+        # `PERSONAL_DATA_ENABLED` defaults OFF because this same facade is what the
+        # offline suite drives, and a default of ON would bill a call per test turn on
+        # any machine with working ADC (see `personal_data/config.py` for the full
+        # reasoning). With it off, every persisting sink writes structured fields and
+        # a withheld transcript — §8's fail-closed, working as decided.
+        if personal_data is None:
+            from personal_data import config as _pd_config
+
+            if _pd_config.PERSONAL_DATA_ENABLED:
+                from personal_data import PersonalDataGateway
+
+                personal_data = PersonalDataGateway()
+
         self._supervisor = RuntimeSupervisor()
         self._coordinator = TurnCoordinator(
             adapter=LegacyTurnAdapter(
@@ -55,6 +72,7 @@ class TutorLoopCompatibilityFacade:
             ),
             interaction_control=interaction_control,
             utterance_intake=UtteranceIntake(),
+            personal_data=personal_data,
             perception=perception,
             assessment_evidence=assessment_evidence,
             pedagogy=pedagogy,

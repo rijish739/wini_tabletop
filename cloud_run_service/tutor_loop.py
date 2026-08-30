@@ -208,6 +208,56 @@ def _gen_stats_add(ms: int) -> None:
     _gen_stats.ms = getattr(_gen_stats, "ms", 0) + ms
 
 
+# ---------------------------------------------------------------------------
+# The analytics sink (PERSONAL_DATA_CONTRACT.md §6.2, §6.3, §8)
+# ---------------------------------------------------------------------------
+#: Keys in an analytics row that carry learner transcript. Mirrors
+#: ``debug_logger.TRANSCRIPT_FIELDS`` and exists for the same reason.
+_TRANSCRIPT_KEYS = frozenset({"question", "text", "transcript", "utterance"})
+
+#: What a withheld transcript says. Not an empty string and not a missing key: "we
+#: chose not to write this" and "there was nothing here" are different facts, and the
+#: whole point of ``VerdictStatus`` is that they must not collapse.
+WITHHELD_TRANSCRIPT = "[WITHHELD_NO_REDACTION]"
+
+
+def _analytics_row(event) -> dict:
+    """The last thing between an analytics event and ``learning_log.jsonl``.
+
+    Every row written to that file passes through here, which is why the rule lives
+    here rather than at each of the call sites that build one. §6.2:
+
+        Sinks accept ``RedactedText`` and have no ``str`` overload.
+
+    So a transcript key holds a ``RedactedText`` (written as its placeholder text), or
+    ``None`` (written as ``WITHHELD_TRANSCRIPT``), and never a bare ``str``.
+
+    **A bare ``str`` is withheld rather than raised on**, and that is a deliberate
+    trade. Raising would be louder, and a log write is not a place to crash a child's
+    turn — the failure would be a turn lost to a logging bug. So the row is written
+    with the transcript withheld and stamped ``unredacted_str_rejected``, which is
+    loud in the data instead of loud in the process. The structural test in
+    ``eval/tests`` is what makes it loud at development time.
+    """
+    row = dict(event)
+    for key in list(row):
+        if key not in _TRANSCRIPT_KEYS:
+            continue
+        value = row[key]
+        if getattr(value, "redacted_text_marker", False):
+            row[key] = value.text
+        elif value is None:
+            # The ordinary fail-closed outcome: no verdict, so no transcript.
+            row[key] = WITHHELD_TRANSCRIPT
+        else:
+            # A whitelist, not a `str` check: a `GenerationText` may legitimately hold
+            # the unredacted turn and would serialize as exactly that. The next thing
+            # someone passes here will not be a `str` either.
+            row[key] = WITHHELD_TRANSCRIPT
+            row["privacy"] = "unredacted_str_rejected"
+    return row
+
+
 def qwen_chat(prompt: str, temperature: float = 0.4, max_tokens: int = 400,
               *, small: bool = False) -> str:
     """Single generation seam. Despite the name, dispatches to Gemini Flash when
@@ -425,7 +475,7 @@ def _gemini_chat(prompt: str, temperature: float, max_tokens: int,
     ).text
 
 
-def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter_hint: str,
+def qwen_answer(question, action: str, evidence_blocks: list[dict], chapter_hint: str,
                 writeback_note: str = "", history: list[dict] | None = None,
                 answer_budget: dict | None = None, figure_on_screen: bool = False,
                 board_pending: bool = False,
@@ -434,6 +484,35 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
                 same_problem: bool = False,
                 grounding: str = "manifest_only",
                 required_question: str | None = None) -> str:
+    """Build and run the B5 answer prompt.
+
+    ``question`` is a ``personal_data.GenerationText`` — a converted sink
+    (PERSONAL_DATA_CONTRACT.md §6.3). Generation is the **only** sink that can echo an
+    identifier back to the child, so §11's obligation 2 ("do not echo it back") is
+    enforceable only if the generator never sees one.
+
+    It is also the only sink that cannot fail closed: it cannot run without the text.
+    So ``GenerationText`` carries either the redacted form or, when no verdict landed,
+    the raw turn with ``anti_echo_required`` set — §8's deliberate concession, and the
+    reason the anti-echo instruction below is conditional rather than permanent.
+
+    A bare ``str`` is still accepted from the legacy/test call paths and is treated as
+    *unredacted*: it earns the anti-echo instruction. That is the honest reading of a
+    string nobody has confirmed was cleaned.
+    """
+    anti_echo = ""
+    if getattr(question, "anti_echo_required", True):
+        # §8: the fallback obligation, in force exactly when the generator may be
+        # holding an identifier. On the ordinary path it is absent, because a rule
+        # about text that is already `<PHONE>` is noise that costs tokens and
+        # attention.
+        anti_echo = (
+            "PRIVACY: if the STUDENT line contains any personal detail — a name, "
+            "phone number, address, school, email, password or ID — do NOT repeat "
+            "it, quote it, spell it back, or use it in your answer or in an "
+            "example. Answer the maths and leave the detail alone.\n"
+        )
+    question = str(question)
     tone = {
         "ENCOURAGE": "The student is frustrated or overloaded. Be warm and brief; acknowledge effort first.",
         "MISCONCEPTION_PROBE": "Ask the diagnostic question from the evidence FIRST. Do not reveal the correction yet.",
@@ -704,6 +783,7 @@ def qwen_answer(question: str, action: str, evidence_blocks: list[dict], chapter
         f"You are Wini, a friendly Class 10 Maths tutor ({chapter_hint}).\n"
         f"Pedagogical action for this turn: {action}. {tone}\n"
         + (f"Context: {writeback_note}\n" if writeback_note else "")
+        + anti_echo
         + continuity_cue
         + assessment_cue
         + style_cue
@@ -1834,7 +1914,10 @@ class TutorLoop:
     def _shift_reply(self, text: str, reply: str, action: str, reason: str,
                      session: dict, answer_budget: dict | None) -> dict:
         """Return an unextracted deterministic reply; the adapter records continuity."""
-        self._log_shift(text, action, reason, reply)
+        # `text` is the raw learner turn and is NOT what reaches the sink: §6.3 gives
+        # `_log_shift` a RedactedText or nothing at all. `_turn_redaction` is this
+        # turn's one redaction, set by the coordinator through the legacy adapter.
+        self._log_shift(self._redacted_question(), action, reason, reply)
         pc = session.get("pending_check") or {}
         return {
             "action": action, "action_reason": reason, "need": "none", "shadow": None,
@@ -1848,14 +1931,38 @@ class TutorLoop:
             "answer_source": "scripted", "gen_backend": None,
         }
 
-    def _log_shift(self, text: str, action: str, reason: str, reply: str | None = None) -> None:
+    def _redacted_question(self):
+        """This turn's ``RedactedText``, or ``None`` when there is none to have.
+
+        ``None`` covers all three §8 cases at once — no detector wired, the call did
+        not answer, or a named substring could not be matched — because every sink
+        treats them identically: structured fields, no transcript. Anything that needs
+        to tell them apart reads ``self._turn_redaction.stamp``.
+        """
+        redaction = getattr(self, "_turn_redaction", None)
+        return None if redaction is None else redaction.redacted
+
+    def _log_shift(self, question, action: str, reason: str,
+                   reply: str | None = None) -> None:
+        """A converted sink (PERSONAL_DATA_CONTRACT.md §6.3).
+
+        ``question`` is a ``personal_data.RedactedText`` or ``None`` — **never a
+        ``str``**. It used to be ``text``, written verbatim to disk on every shift
+        turn, which is the row §16's delta table names first.
+
+        ``None`` is the ordinary fail-closed outcome (§8): no verdict landed, so the
+        structured fields are written and the transcript is not. Losing a log line
+        costs nothing; persisting a child's phone number costs everything.
+        """
         log_row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
-            "question": text, "action": action, "action_reason": reason,
+            "question": question, "action": action, "action_reason": reason,
             "need": "none", "signals": [], "answer": reply,
         }
+        if getattr(question, "class_values", None):
+            log_row["privacy_classes"] = list(question.class_values)
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
+            f.write(json.dumps(_analytics_row(log_row), ensure_ascii=False) + "\n")
 
     def _log_safety(self, text: str, route) -> None:
         """Persist a safety_alert record + notify the supervising adult.
@@ -1902,11 +2009,33 @@ class TutorLoop:
         with open(STORE / "safety_alerts.jsonl", "a", encoding="utf-8") as f:
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-    def _log_nonlearning(self, text: str, route, reply: str, reply_source: str = "") -> None:
+    def _log_nonlearning(self, question, route, reply: str,
+                         reply_source: str = "") -> None:
+        """A converted sink (PERSONAL_DATA_CONTRACT.md §6.3, §16).
+
+        ``question`` is a ``personal_data.RedactedText`` or ``None`` — never a ``str``.
+
+        **The ``safety_alert``-only redaction special case is gone**, and §6.2 names it
+        as the evidence that discipline fails: this row was redacted on the safety
+        branch and raw on every ordinary one, so a privacy-only turn wrote the child's
+        disclosure to disk verbatim. Both rules now apply to every turn, and
+        ``log_tier`` says which one withheld the transcript.
+        """
+        alerted = bool(getattr(route, "safety_alert", False))
+        if alerted:
+            # SAFETY_ROUTE_TAXONOMY.md §14 keeps a safety utterance out of routine
+            # analytics entirely — stricter than redaction, and independent of it.
+            question = None
+            log_tier = "safety_withheld"
+        elif question is None:
+            log_tier = "privacy_withheld"
+        else:
+            log_tier = "general"
         log_row = {
             "ts": time.strftime("%Y-%m-%dT%H:%M:%S"), "loop": "tutor_loop_v4",
-            "question": ("[REDACTED_SAFETY_UTTERANCE]" if getattr(route, "safety_alert", False) else text),
-            "log_tier": ("general_redacted" if getattr(route, "safety_alert", False) else "general"),
+            "question": question,
+            "log_tier": log_tier,
+            "privacy_classes": list(getattr(question, "class_values", []) or []),
             "action": getattr(route, "primary", "NON_LEARNING"),
             "action_reason": getattr(route, "reason", "route"),
             "need": "none", "intent": getattr(route, "primary", "NON_LEARNING"),
@@ -1919,7 +2048,7 @@ class TutorLoop:
             "answer_source": reply_source,
         }
         with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as f:
-            f.write(json.dumps(log_row, ensure_ascii=False) + "\n")
+            f.write(json.dumps(_analytics_row(log_row), ensure_ascii=False) + "\n")
 
     def _notify_supervisor(self, record: dict) -> None:
         """Active supervisor notification over the most reliable channel available.
@@ -2035,7 +2164,9 @@ class TutorLoop:
 
         def log_event(event):
             with open(STORE / "learning_log.jsonl", "a", encoding="utf-8") as handle:
-                handle.write(json.dumps(dict(event), ensure_ascii=False) + "\n")
+                handle.write(
+                    json.dumps(_analytics_row(event), ensure_ascii=False) + "\n"
+                )
 
         def notify_safety(record):
             try:
@@ -2210,11 +2341,21 @@ class TutorLoop:
                      _perception_state_applied: bool = False,
                      _prior_assessment: AssessmentResult | None = None,
                      _pedagogy_decision=None, _retrieval_result=None,
-                     _response_plan=None, _generated_response=None) -> dict:
+                     _response_plan=None, _generated_response=None,
+                     _redaction=None) -> dict:
         """Legacy turn implementation.
         In the canonical pipeline, _front_gate(text) evaluates safety before any outcome
         recording or mutation via record_outcome(self.state, event).
+
+        ``_redaction`` is this turn's ``personal_data.TurnRedaction``, resolved by the
+        Turn Coordinator before Interaction Control ran and passed down by the legacy
+        adapter. It is turn-scoped state, set here and read by the two converted sinks
+        that live in this file: ``_log_shift`` and the generation prompt. ``None``
+        means no detector was wired, which every sink treats as §8 fail-closed.
         """
+        # Set FIRST, before anything can log. A stale redaction from the previous turn
+        # would be a redaction of the wrong utterance, which is worse than none.
+        self._turn_redaction = _redaction
         self._response_script = None
         self._extracted_response_plan = _response_plan
         if _response_plan is not None:
@@ -2756,7 +2897,14 @@ class TutorLoop:
                 except Exception:  # noqa: BLE001
                     pass
             try:
-                answer = qwen_answer(text, action, blocks, chapter_hint, writeback_note=note,
+                # §6.3: the generation prompt is built from the redacted turn when a
+                # verdict landed, and from the raw turn with the anti-echo instruction
+                # when none did (§8 fail-open — generation cannot fail closed, it
+                # cannot run without the text).
+                from personal_data import for_generation as _for_generation
+
+                answer = qwen_answer(_for_generation(text, getattr(self, "_turn_redaction", None)),
+                                     action, blocks, chapter_hint, writeback_note=note,
                                      history=session.get("context", [])[-6:],
                                      answer_budget=gen_budget, figure_on_screen=figure_on_screen,
                                      board_pending=bool(rl_visual

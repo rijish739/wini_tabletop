@@ -6,10 +6,15 @@ name: ci
 # NOT mean" statement lives at the top of that document, verbatim.
 #
 # Ticket 01 shipped the `offline` job. `billed-safety` is REAL as of ticket 12
-# (child_safety/ Stage 2); `billed-personal-data` is still a stub awaiting ticket
-# 13. Both sit behind a GitHub Environment with required reviewers and a
-# WIF_PROVIDER secret (ticket 10). Every check named in the spec's pass set
-# corresponds to a step here; a check with no step is a spec bug.
+# (child_safety/ Stage 2) and `billed-personal-data` as of ticket 13
+# (personal_data/ Stage 3). Both sit behind a GitHub Environment with required
+# reviewers and a WIF_PROVIDER secret (ticket 10). Every check named in the spec's
+# pass set corresponds to a step here; a check with no step is a spec bug.
+#
+# NEITHER BILLED JOB HAS BEEN RUN. Both are implemented, both are tested offline,
+# and both block inside their own gate on things a workflow cannot do for itself:
+# WIF configured, corpora signed off, model version pinned. No recall number and no
+# precision number exists for either detector.
 
 on:
   push:
@@ -37,6 +42,12 @@ jobs:
       - name: Runtime coordinator, phase trace, and turn-level properties
         working-directory: cloud_run_service
         run: python -m unittest discover -s runtime/tests -v
+      - name: Personal-data contract — redaction, fail-closed sinks, no leak
+        # Named separately from the full sweep below because the two structural
+        # assertions in this suite ARE the contract: `RedactedText` is unconstructable
+        # without a landed verdict, and no raw identifier appears in any repr.
+        working-directory: cloud_run_service
+        run: python -m unittest discover -s personal_data/tests -v
       - name: Full offline suite across every cloud_run_service module
         working-directory: cloud_run_service
         run: python -m unittest discover -s . -p "test_*.py" -v
@@ -172,7 +183,6 @@ jobs:
     # Gating: same billed-eval environment as billed-safety; both require approval.
     # No path-based skip conditions.
     #
-    # Ticket 13 (personal_data/ Stage 3) inserts the eval steps below the auth step.
     name: billed-personal-data (Vertex AI — requires approval)
     needs: [offline]           # offline must be green before a billed run is worth approving
     runs-on: ubuntu-latest
@@ -210,31 +220,79 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      # ── ticket 13 inserts steps here ──────────────────────────────────────────
-      # (personal_data/ Stage 3: eval/personal_data_eval.py --collect / --score,
-      #  per-class recall + hard precision gate on maths-dense corpus, no aggregate)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install eval dependencies
+        run: python -m pip install --upgrade pip numpy networkx google-genai python-dotenv
+
       - name: Cost notice — one Vertex call per uncached eval row
-        # Kept in stub state so a reviewer approving the billed-eval gate has a cost
-        # signal before committing spend. When ticket 13 ships it replaces this step
-        # with the real --collect invocation, which prints the exact row count and
-        # estimated cost before making any Vertex calls.
+        # A reviewer approving the billed-eval gate gets the row count BEFORE any
+        # spend. `--collect` is resumable and caches per prompt hash, so an
+        # interrupted run never re-bills and a re-run of an unchanged prompt is free.
+        # Note the shape of the bill here: the maths-dense precision corpus is ~half
+        # the rows, and it is not optional — §12 makes the precision gate hard because
+        # over-redaction is the failure that breaks the product.
+        working-directory: cloud_run_service
         shell: bash
         run: |
           echo "======================================================================"
           echo "  billed-personal-data cost notice"
           echo "======================================================================"
-          echo "  This job calls eval/personal_data_eval.py --collect (ticket 13)."
-          echo "  Cost: one Vertex AI call per UNCACHED row, including the"
-          echo "  >=500-row maths-dense corpus."
-          echo "  Cached rows (same prompt hash) are free."
-          echo "  Row counts and per-run cost estimate will be printed here once"
-          echo "  ticket 13 ships the eval steps."
+          python - <<'EOF'
+          import sys; sys.path.insert(0, ".")
+          from eval import personal_data_eval as pde
+          rows = pde._all_rows()
+          cached = pde.load_cache()
+          pending = [r for r in rows if r["id"] not in cached]
+          disclosure = [r for r in pending if r["gold_class"]]
+          maths = [r for r in pending if not r["gold_class"]]
+          print(f"  prompt hash : {pde.prompt_hash()}")
+          print(f"  corpus rows : {len(rows)}")
+          print(f"  cached      : {len(cached)} (free)")
+          print(f"  TO BE BILLED: {len(pending)} Vertex calls")
+          print(f"                {len(disclosure)} per-class disclosure rows")
+          print(f"                {len(maths)} maths-dense precision rows")
+          EOF
           echo "======================================================================"
-      - name: Stub — eval steps arrive with ticket 13
-        # Remove this step when ticket 13 fills in the real eval steps above.
-        shell: bash
+
+      - name: Eval harness discipline + corpus integrity (offline)
+        # Runs before the billed half on purpose: if the harness would publish an
+        # aggregate number, or a corpus is below its §12 size floor, or the cache would
+        # mix prompt hashes, there is no point paying for a collection.
+        working-directory: cloud_run_service
+        run: python -m unittest eval.tests.test_personal_data_eval -v
+
+      - name: Collect model verdicts against the blind corpora (BILLED, resumable)
+        working-directory: cloud_run_service
+        env:
+          VERTEX_PERSONAL_DATA_MODEL: ${{ vars.VERTEX_PERSONAL_DATA_MODEL || 'gemini-2.5-flash' }}
+          VERTEX_PERSONAL_DATA_LOCATION: ${{ vars.VERTEX_PERSONAL_DATA_LOCATION || 'asia-south1' }}
+          VERTEX_PERSONAL_DATA_MODEL_VERSION: ${{ vars.VERTEX_PERSONAL_DATA_MODEL_VERSION }}
+        run: python -m eval.personal_data_eval --collect
+
+      - name: Score per-class recall and maths-dense precision (offline, from the cache)
+        # Per-class only. There is no aggregate in this report by design — a single
+        # number is what hid whole safety classes at zero behind a shipped "1.0".
+        working-directory: cloud_run_service
         run: |
-          echo "billed-personal-data eval steps will be added by ticket 13 (personal_data/ Stage 3)."
-          echo "WIF auth succeeded — the environment gate and federation wiring are proven."
-          echo "Exiting non-zero so this job does not silently pass before the eval exists."
-          exit 1
+          python -m eval.personal_data_eval --score --report eval/records/personal_data_eval_report.md
+          cat eval/records/personal_data_eval_report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the eval cache and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: personal-data-eval-records
+          path: |
+            cloud_run_service/eval/records/personal_data_eval_cache/
+            cloud_run_service/eval/records/personal_data_eval_report.md
+
+      - name: Release gate (stop-ship)
+        # Non-blocking until the corpora are signed off and the model version is
+        # pinned — both are deliberate hard blocks inside the gate, and both are human
+        # acts this job cannot perform for itself. It reports; it does not pretend the
+        # gate passed.
+        continue-on-error: true
+        working-directory: cloud_run_service
+        run: python -m eval.personal_data_eval --gate

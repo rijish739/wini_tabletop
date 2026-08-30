@@ -281,18 +281,19 @@ class LegacyTurnAdapter:
 
     def execute(self, turn_input: TurnInput, interaction=None, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None):
+                generated_response=None, personal_data=None):
         return self._execute(
             turn_input, interaction_outcome=interaction, assessment_outcome=assessment,
             pedagogy_outcome=pedagogy, retrieval_outcome=retrieval,
             response_plan_outcome=response_plan,
             generated_response_outcome=generated_response,
+            personal_data=personal_data,
         )
 
     def _execute(self, turn_input: TurnInput, interaction_outcome=None,
                  assessment_outcome=None, pedagogy_outcome=None,
                  retrieval_outcome=None, response_plan_outcome=None,
-                 generated_response_outcome=None):
+                 generated_response_outcome=None, personal_data=None):
         # Imported lazily to keep the adapter/coordinator modules acyclic.
         from .coordinator import LOGICAL_TURN_PHASES, LegacyExecution
 
@@ -334,6 +335,10 @@ class LegacyTurnAdapter:
                     "turn_id": turn_input.turn_id,
                     "learner_id": turn_input.learner_id,
                     "_allow_shift": bool(interaction.get("allow_topic_shift", True)),
+                    # The turn's one TurnRedaction (PERSONAL_DATA_CONTRACT.md §6).
+                    # `None` means no detector was wired, which the legacy sinks
+                    # treat exactly like an outage: structured fields, no transcript.
+                    "_redaction": personal_data,
                 }
                 if decision is not None:
                     kwargs["precomputed_analysis"] = deep_thaw(decision.analysis)

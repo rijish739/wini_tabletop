@@ -160,17 +160,30 @@ writing a new record; it does not mean editing a sentence in the architecture do
     (policy-shadow use), and one Gemini call/turn is memoized by *normalized* text — keep
     `InputProcessor.normalize_input` idempotent. (Ticket 02 moves that memo key to
     `utterance_id`; until then, idempotency still matters.)
-- **PERSONAL DATA: contract DECIDED 2026-08-27, NOT YET IMPLEMENTED.** Read
-  `docs/architecture/PERSONAL_DATA_CONTRACT.md` (normative) before touching redaction, logging
-  of learner text, or the generation prompt; decision log in
-  `.scratch/deterministic-input-layer/issues/09-decide-the-personal-data-contract.md`. Three
-  things to know before you touch anything nearby: today there is **no detector at all** and
-  `_log_shift`/`_log_nonlearning` write the child's raw turn to `learning_log.jsonl`
-  (`tutor_loop.py:1856`, `:1884` — the latter redacts only on a `safety_alert` turn); detection
-  is decided as **model-only with no regex fallback**, because a pattern detector scores
-  F1 0.379 on maths dialogue by eating the maths; and personal data is **off the safety axis**
-  (annotation, never a route) with the §3 write boundary landing on **fields, not turns** —
-  there is no do-not-learn-from-this-turn flag.
+- **PERSONAL DATA: contract DECIDED 2026-08-27, IMPLEMENTED 2026-08-28 (slice 13), UNMEASURED.**
+  Read `docs/architecture/PERSONAL_DATA_CONTRACT.md` (normative) before touching redaction,
+  logging of learner text, or the generation prompt; decision log in
+  `.scratch/deterministic-input-layer/issues/09-decide-the-personal-data-contract.md`.
+  - **The sinks are typed now.** `learning_log.jsonl`, `debug_logger` (SSE + disk) and the
+    generation prompt take `personal_data.RedactedText` / `GenerationText`, never a `str`.
+    `RedactedText` is constructible only by `personal_data.redact()` from a landed verdict, so
+    a new log line cannot write the child's raw turn even by accident — that is the point, and
+    it replaces a discipline that had already failed (`_log_nonlearning` redacted on the safety
+    branch and not on the ordinary one).
+  - **Detection is model-only with no regex fallback**, because a pattern detector scores
+    F1 0.379 on maths dialogue **by eating the maths**. Do not add a shape rule, a digit-run
+    heuristic or a threshold anywhere on this path; the package's test suite asserts their
+    absence. A Vertex outage therefore means zero detection, and what makes that safe is
+    fail-closed sinks (§8), not detection.
+  - **`PERSONAL_DATA_ENABLED` defaults OFF** (the production facade is also what the test suite
+    drives, and on would bill a call per test turn). Off ⇒ every analytics row logs
+    `[WITHHELD_NO_REDACTION]` in place of the transcript. That is §8 working, not a bug — but
+    it is the first thing to check when the learning log looks empty.
+  - **No number has been measured.** `eval/personal_data_eval.py --collect` has never run: it
+    needs WIF, signed-off corpora and a pinned model version. Do not describe the detector as
+    meeting §12's 0.80 recall floor or its 1% precision gate.
+  - Personal data is **off the safety axis** (annotation, never a route), and the §3 write
+    boundary lands on **fields, not turns** — there is no do-not-learn-from-this-turn flag.
 - **CONCEPT INHERITANCE: partly executed, resolution UNOWNED (2026-08-27).** Read
   `cloud_run_service/concept_resolver/CONCEPT_RESOLUTION_HANDOVER.md` before touching anything
   that decides which concept an utterance is about; decision log in
@@ -207,6 +220,8 @@ writing a new record; it does not mean editing a sentence in the architecture do
 - Perception eval: `python -m eval.perception_eval --build --gates` (offline); `--hardened --score` (offline re-score of the prompt-of-record v2 cache); `--hardened --collect` (BILLED re-collect)
 - Behavioral signals eval: `python -m eval.behavioral_eval --hardened --run` (48 probe calls billed once, then cached; `--replay` alone is offline)
 - Perception context cache (Stage 5): `python -m perception.vertex_cache --create [--ttl-hours 24] | --status | --delete` — recreate after `build_perception` rebuilds or TTL expiry; calls fall back to the full system prompt automatically if absent/expired/stale
+- Personal-data prompt-of-record / cache: `python -m personal_data.build_personal_data`; `python -m personal_data.vertex_cache --create | --status | --delete`
+- Personal-data eval: `python -m eval.personal_data_eval --collect` (BILLED, resumable) / `--score` (offline) / `--gate` (release gate). Per-class recall + maths-dense precision, **no aggregate**
 - Perception is gemini-only at runtime since Stage 6 (2026-07-02); `PERCEPTION_BACKEND=qwen_heads` is retired (prints a notice, uses gemini). Head artifacts stay for the evals + §5.5 cross-check.
 - Tutor chat: `python tutor_loop.py` (Qwen server must be up); scripted: `--once "msg" [--no-answer]`
 - Store scorecard: `python verify_store.py --fail-under 90`

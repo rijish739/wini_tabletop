@@ -137,6 +137,30 @@ class Brain:
 
         ChildSafetyDetector().warm()
 
+    def _warm_personal_data(self):
+        """Warm the personal-data detector, and say out loud whether it is wired.
+
+        Same cold-start arithmetic as `_warm_child_safety`: `genai.Client(...)`
+        construction is 4-9s (CLAUDE.md, measured), larger than the whole 5s envelope,
+        so a first turn that builds the client inside `detect()` is a guaranteed
+        non-answer. On this path a non-answer is not a degraded verdict — it is a turn
+        logged with no transcript at all (PERSONAL_DATA_CONTRACT.md §8).
+
+        The boot line matters as much as the warming. With `PERSONAL_DATA_ENABLED`
+        unset, `learning_log.jsonl` fills with withheld transcripts and there is
+        nothing anywhere else to explain why.
+        """
+        from personal_data import PersonalDataDetector
+        from personal_data import config as pd_config
+
+        if not pd_config.PERSONAL_DATA_ENABLED:
+            print("[server] personal_data: DISABLED "
+                  "(PERSONAL_DATA_ENABLED unset) — analytics transcripts withheld")
+            return
+        ok = PersonalDataDetector().warm()
+        print(f"[server] personal_data: enabled, warm={ok}, "
+              f"model={pd_config.resolved_model()}@{pd_config.VERTEX_PERSONAL_DATA_LOCATION}")
+
     def _load(self):
         try:
             import tutor_loop
@@ -150,7 +174,7 @@ class Brain:
             # is file loads — so serialising them made boot the SUM of the waits
             # instead of the longest one.
             t_boot = time.perf_counter()
-            with ThreadPoolExecutor(max_workers=5) as boot:
+            with ThreadPoolExecutor(max_workers=6) as boot:
                 f_tutor = boot.submit(tutor_loop.TutorLoop)
                 f_stt = boot.submit(CloudStt)
                 f_tts = boot.submit(CloudTts)
@@ -158,6 +182,7 @@ class Brain:
                 # perception will reuse (the memo is lock-guarded for exactly this).
                 f_gem = boot.submit(self._warm_gemini)
                 f_safety = boot.submit(self._warm_child_safety)
+                f_pd = boot.submit(self._warm_personal_data)
                 self.tutor = f_tutor.result()
                 self.stt = f_stt.result()
                 self.tts = f_tts.result()
@@ -169,6 +194,10 @@ class Brain:
                     f_safety.result()
                 except Exception as _se:  # noqa: BLE001
                     print(f"[server] child_safety warm note: {_se}")
+                try:
+                    f_pd.result()
+                except Exception as _pe:  # noqa: BLE001
+                    print(f"[server] personal_data warm note: {_pe}")
             print(f"[server] components built in "
                   f"{(time.perf_counter() - t_boot) * 1000:.0f} ms")
             # Pacing governor: runs the before_turn / turn / after_turn sequence

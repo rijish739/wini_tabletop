@@ -1,0 +1,27 @@
+{
+  "prompt_version": "personal-data-prompt-v1",
+  "schema_version": "personal-data-schema-v1",
+  "prompt_hash": "527a146a2e302581",
+  "classes": [
+    "NAME",
+    "SCHOOL",
+    "ADDRESS",
+    "LIVE_LOCATION",
+    "PHONE",
+    "EMAIL",
+    "CREDENTIAL",
+    "GOVERNMENT_ID",
+    "OTHER_IDENTIFIER"
+  ],
+  "schema_fields": [
+    "findings"
+  ],
+  "finding_fields": [
+    "identifier_class",
+    "value"
+  ],
+  "model": "gemini-2.5-flash",
+  "model_pinned": false,
+  "location": "asia-south1",
+  "timeout_s": 5.0
+}

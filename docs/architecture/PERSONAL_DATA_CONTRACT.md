@@ -1,9 +1,23 @@
 # The Personal-Data Contract (NORMATIVE)
 
-**Status: DECIDED 2026-08-27 (ticket 09, `/grilling`, 24 questions). NOT YET IMPLEMENTED.**
-The code described here does not exist yet. What ships today is **nothing**: there is no
-detector, no redactor, and `learning_log.jsonl` receives the child's raw turn verbatim
-(`tutor_loop.py:1856`, `:1884`). See §16 for the exact delta.
+**Status: DECIDED 2026-08-27 (ticket 09, `/grilling`, 24 questions). IMPLEMENTED
+2026-08-28 (ticket 13) — with two things NOT done, named here so nobody has to find them:**
+
+1. **No number has been measured.** `eval/personal_data_eval.py` and the `billed-personal-data`
+   CI job exist and are tested offline, but the billed collection has never run: it needs WIF
+   configured, the ten corpora signed off (all are `review_scope: unreviewed`), and
+   `VERTEX_PERSONAL_DATA_MODEL_VERSION` pinned. Two of those three are hard blocks inside the
+   gate itself. **Do not describe this detector as meeting §12's 0.80 floor or its 1% precision
+   gate. Neither has been measured.**
+2. **The detector is not enabled by default.** `PERSONAL_DATA_ENABLED` defaults off, because
+   the production construction site is also what the offline test suite drives and a default of
+   on would bill a call per test turn. With it off the system behaves exactly as §8 says it
+   should on a total outage: every persisting sink writes its structured fields and no
+   transcript. Set `PERSONAL_DATA_ENABLED=1` in the Cloud Run environment.
+
+What *is* implemented: `cloud_run_service/personal_data/` (call, prompt-of-record, schema,
+context cache, redactor), the Turn Coordinator seam, and the sink conversion — `learning_log.jsonl`
+can no longer receive the child's raw turn from any path. See §16 for the delta as it now stands.
 
 **Owner:** `.scratch/deterministic-input-layer/issues/09-decide-the-personal-data-contract.md`
 (the decision log — every rule here traces to a numbered question there).
@@ -234,6 +248,27 @@ will be too. §11 is an obligation that must survive the next person adding a lo
 | **grading** prompt (`evidence/grading.py:58`, `LEARNER RESPONSE: …`) | not redacted | Vertex-to-Vertex; returns a verdict, not a spoken reply, so no echo path. **But its logged output must not quote the learner response.** |
 | `_log_safety` (`tutor_loop.py:1863`) | unchanged | already SHA-256 hashes the utterance |
 | **parent dashboard** / tutor-visible summaries | **no code change** | fed from learner state (`learner_state.py:635`, `analyzer.py:35`), which holds no raw utterance text. Protected *by construction* — and §9 makes that a rule instead of an accident |
+
+> **CORRECTION, measured 2026-08-28 (ticket 13).** The last row's premise is **false**, and the
+> row above it is incomplete.
+>
+> `session["context"]` is a SESSION-scoped state change written by
+> `InteractionContinuity.response_state_changes`, and it lands in `learner_state.json`: **the
+> learner-state document holds up to eight raw learner turns, verbatim.** "Learner state holds
+> no raw utterance text" is not true today. (Whether any dashboard *reads* that field is a
+> separate question this correction does not answer; the document contains it either way.)
+>
+> It was **not** converted by ticket 13, deliberately. Unlike a log line this text is
+> load-bearing — it is the conversation history the generation prompt reads and the
+> `context[-2:]` window both model calls read — so §8's fail-closed rule would silently drop a
+> turn out of the conversation whenever a verdict was late. Feeding it the redacted form
+> instead is probably right and is a **contract decision, not an implementation one**: it
+> changes what the tutor can remember about the child mid-lesson. Recorded at the site in
+> `interaction_control/control.py`. This is the highest-value open item on this axis.
+>
+> Also added by ticket 13, and not a correction so much as a completion: the live analytics
+> rows come from **five `interaction_control.log_event` call sites**, not from `tutor_loop`'s
+> two helpers named above. Same rows, same criterion; all five converted.
 
 The criterion, stated once so future sinks can be classified without re-litigating: **a sink is
 converted if it persists the turn, streams it, or can speak it back to the child.** A sink is
@@ -479,15 +514,28 @@ def redact(normalized_text: str,
 
 ## 16. Delta from the shipped code
 
-| Shipped today | Decided |
+Every row below is **done** as of ticket 13 (2026-08-28) unless marked otherwise.
+
+| Was | Is now |
 |---|---|
-| **no detector at all**; a grep for `redact` / `PII` / `personal_data` over `cloud_run_service/**` finds only safety-log tier labels | a dedicated Gemini call in `cloud_run_service/personal_data/` |
-| `_log_shift` writes `"question": text` verbatim (`tutor_loop.py:1856`) | takes `RedactedText`; no `str` overload |
-| `_log_nonlearning` redacts **only** when `safety_alert` is set (`tutor_loop.py:1884`) — a privacy-only turn writes raw text to disk | takes `RedactedText`; the safety special-case disappears into the general rule |
-| `debug_logger._fan_out` serializes anything to SSE + disk | takes `RedactedText` |
-| the generation prompt is built from the raw turn | built from `RedactedText`; this is what makes §11's no-echo obligation structural |
-| nothing distinguishes "no identifiers found" from "we never looked" | `VerdictStatus.UNAVAILABLE`, and the sink writes no transcript |
-| `PrivacyReading` is a required slot on `UtteranceObservation` (ticket 03) | **deleted** — Intake is model-free and cannot fill it; six readings become five (§17) |
+| **no detector at all**; a grep for `redact` / `PII` / `personal_data` over `cloud_run_service/**` found only safety-log tier labels | a dedicated Gemini call in `cloud_run_service/personal_data/`, dispatched by the Turn Coordinator immediately after Intake |
+| `_log_shift` wrote `"question": text` verbatim | takes `RedactedText` or `None`; no `str` overload |
+| `_log_nonlearning` redacted **only** when `safety_alert` was set — a privacy-only turn wrote raw text to disk | takes `RedactedText` or `None`; the safety special case is gone, and `log_tier` records which rule withheld the transcript (`safety_withheld` / `privacy_withheld` / `general`) |
+| `debug_logger._fan_out` serialized anything to SSE + disk | `_scrub` runs first: a transcript field holds a `RedactedText` or it is withheld |
+| the generation prompt was built from the raw turn | built from `GenerationText` — the redacted form when a verdict landed, the raw turn plus an anti-echo instruction when none did (§8 fail-open) |
+| nothing distinguished "no identifiers found" from "we never looked" | `VerdictStatus.UNAVAILABLE`, and the sink writes no transcript |
+| `PrivacyReading` was a required slot on `UtteranceObservation` (ticket 03) | **deleted** — Intake is model-free and cannot fill it; six readings became five (§17) |
+
+**Added by the implementation, beyond the table above.** §6.3's sink inventory was written
+against `tutor_loop`'s line numbers, and by the time it was implemented the live analytics rows
+came from **five `interaction_control.log_event` call sites** — the same rows, written from the
+post-extraction code. §6.3's own criterion (*a sink is converted if it persists the turn,
+streams it, or can speak it back to the child*) covers them, so they were converted too. The
+rule followed the rows, not the line numbers.
+
+**The safety case record's `privacy` field is now real.** It was a hardcoded
+`"privacy_unavailable"` literal; it now carries `<CLASS>_PRESENT` labels from the landed
+verdict, and the literal only when none landed (§9.2).
 
 ---
 

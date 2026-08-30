@@ -376,21 +376,69 @@ def test_identity_is_distinct_and_never_defaults() -> None:
                 os.environ[name] = value
 
 
-def test_safety_general_log_is_redacted() -> None:
+def _nonlearning_row(question, *, safety_alert: bool) -> dict:
+    route = SimpleNamespace(
+        primary="SAFETY" if safety_alert else "SOCIAL",
+        reason="deterministic safety", source="gate",
+        safety_alert=safety_alert, concept_id=None, concept_confidence=0.0)
     old_store = tl.STORE
     try:
         with tempfile.TemporaryDirectory() as td:
             tl.STORE = Path(td)
             loop = tl.TutorLoop.__new__(tl.TutorLoop)
-            route = SimpleNamespace(
-                primary="SAFETY", reason="deterministic safety", source="gate",
-                safety_alert=True, concept_id=None, concept_confidence=0.0)
-            loop._log_nonlearning("private crisis text", route, "safe scripted reply")
-            row = json.loads((tl.STORE / "learning_log.jsonl").read_text().strip())
-            assert row["question"] == "[REDACTED_SAFETY_UTTERANCE]"
-            assert row["log_tier"] == "general_redacted"
+            loop._log_nonlearning(question, route, "safe scripted reply")
+            return json.loads((tl.STORE / "learning_log.jsonl").read_text().strip())
     finally:
         tl.STORE = old_store
+
+
+def test_safety_general_log_withholds_the_utterance() -> None:
+    # SAFETY_ROUTE_TAXONOMY.md §14: a safety utterance stays out of routine
+    # analytics entirely. Stricter than redaction and independent of it — the
+    # transcript is withheld even when a privacy verdict landed and could have
+    # supplied a clean one.
+    row = _nonlearning_row(None, safety_alert=True)
+    assert row["question"] == tl.WITHHELD_TRANSCRIPT
+    assert row["log_tier"] == "safety_withheld"
+
+
+def test_a_privacy_only_turn_does_not_write_raw_text() -> None:
+    # PERSONAL_DATA_CONTRACT.md §6.2 names this row as the evidence that discipline
+    # fails: before slice 13 it was redacted on the safety branch and RAW on every
+    # ordinary one, so a turn where the child disclosed a phone number and nothing
+    # else wrote it to disk verbatim. Both branches now go through the same rule.
+    row = _nonlearning_row(None, safety_alert=False)
+    assert row["question"] == tl.WITHHELD_TRANSCRIPT
+    assert row["log_tier"] == "privacy_withheld"
+
+
+def test_a_bare_string_never_reaches_the_analytics_file() -> None:
+    # §6.2: the sink has no `str` overload. A caller that hands it one gets the
+    # transcript withheld and the row stamped, rather than the child's words on disk.
+    row = _nonlearning_row("my number is 9876543210", safety_alert=False)
+    assert row["question"] == tl.WITHHELD_TRANSCRIPT
+    assert row["privacy"] == "unredacted_str_rejected"
+    assert "9876543210" not in json.dumps(row)
+
+
+def test_a_redacted_transcript_is_written_with_its_class_labels() -> None:
+    from personal_data import (
+        IdentifierClass, IdentifierFinding, PersonalDataVerdict, VerdictStatus, redact,
+    )
+
+    verdict = PersonalDataVerdict(
+        utterance_id="u1", status=VerdictStatus.LANDED,
+        findings=frozenset({IdentifierFinding(
+            identifier_class=IdentifierClass.PHONE, value="9876543210")}),
+    )
+    redacted = redact("my number is 9876543210 and 9 x 25 = 225", verdict)
+    row = _nonlearning_row(redacted, safety_alert=False)
+    assert row["question"] == "my number is <PHONE> and 9 x 25 = 225"
+    assert row["log_tier"] == "general"
+    assert row["privacy_classes"] == ["PHONE"]
+    # §5: the maths is protected by construction — nothing here has a shape rule.
+    assert "9 x 25 = 225" in row["question"]
+    assert "9876543210" not in json.dumps(row)
 
 
 def test_safety_alert_store_is_tiered_and_contains_no_raw_child_text() -> None:

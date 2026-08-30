@@ -99,6 +99,55 @@ def _gate_lexicon_reading():
     )
 
 
+def _privacy_fields(redaction: Any) -> dict[str, Any]:
+    """The transcript field of an analytics row, plus §9's class labels.
+
+    ``log_event`` is a **persisting sink**: its writer appends to
+    ``learning_log.jsonl``. PERSONAL_DATA_CONTRACT.md §6.3's criterion — *a sink is
+    converted if it persists the turn, streams it, or can speak it back to the child* —
+    puts every one of the five call sites below squarely inside the conversion, even
+    though §6.3's table names ``tutor_loop``'s two older helpers rather than these.
+    Those helpers are the same rows written from the pre-extraction code; the rule
+    followed the rows, not the line numbers.
+
+    So ``question`` is a ``RedactedText`` or it is ``None``, and it is never a ``str``.
+    ``None`` is the fail-closed state (§8) and means the writer must record that a
+    transcript was withheld rather than record nothing — the two are different facts.
+
+    Duck-typed rather than imported: this keeps ``interaction_control`` importable with
+    no ``personal_data`` dependency, which is what lets the module's own test stubs
+    construct requests with ``personal_data=None`` and get the honest degraded row.
+    """
+    if redaction is None:
+        return {
+            "question": None,
+            "privacy": "privacy_unavailable",
+            "privacy_classes": [],
+        }
+    fields: dict[str, Any] = {"question": redaction.redacted}
+    fields.update(redaction.analytics())
+    fields.setdefault("privacy_classes", [])
+    return fields
+
+
+def _case_record_privacy(redaction: Any) -> Any:
+    """§9.2: the safeguarding case record's privacy field.
+
+    Class labels in ``<CLASS>_PRESENT`` form, never a value and never a count of
+    occurrences — 07 §14's exact shape. ``"privacy_unavailable"`` when no verdict
+    landed, which is 07's own ``safety_model_unavailable`` convention applied to this
+    axis: an honest *unknown* is acceptable, a fabricated value is a stop-ship.
+
+    An empty list is a real answer and is not the same as unavailable: it says the
+    detector ran and found nothing.
+    """
+    if redaction is None or getattr(redaction, "status", None) is None:
+        return "privacy_unavailable"
+    if str(getattr(redaction.status, "value", redaction.status)) != "LANDED":
+        return "privacy_unavailable"
+    return [f"{name}_PRESENT" for name in redaction.class_values]
+
+
 def _stamps(verdict: "SafetyVerdict") -> list[str]:
     """The applicable §14.1 stamps — visible, never silent."""
     stamps: list[str] = []
@@ -135,6 +184,17 @@ class InteractionControlRequest:
     # whose ``available`` is False means one ran and did not answer. Both put the
     # turn in degraded mode, where the outage net contributes.
     safety: Any = None
+    # The turn's ``personal_data.TurnRedaction`` (slice 13), threaded by the Turn
+    # Coordinator after §7's persisting-sink deadline. ``None`` means no detector was
+    # wired; a redaction whose ``redacted`` is ``None`` means one ran and did not
+    # answer, or answered with a substring that could not be matched. All three cases
+    # mean the same thing to every sink here: **structured fields, no transcript**
+    # (PERSONAL_DATA_CONTRACT.md §8).
+    #
+    # It is identifier-FREE by construction — placeholder text and class labels. The
+    # verdict that produced it was dropped at the redactor and never reaches this
+    # module (§4).
+    personal_data: Any = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "session", deep_freeze(self.session))
@@ -176,6 +236,35 @@ class InteractionDecision:
 
 @dataclass(frozen=True)
 class InteractionContinuity:
+    """Session continuity — and an UNCONVERTED persisting sink (slice 13 finding).
+
+    ``response_state_changes`` writes ``{"role": "student", "text": learner_text[:250]}``
+    into ``session["context"]``, which is a SESSION-scoped ``StateChange`` and therefore
+    lands in ``learner_state.json`` on disk. **The learner-state document holds up to
+    eight raw learner turns**, verbatim.
+
+    That contradicts PERSONAL_DATA_CONTRACT.md §9, which lists the parent dashboard and
+    tutor-visible summaries as needing "no code change" because they are "fed from
+    learner state, which holds no raw utterance text. Protected *by construction*."
+    The premise is false: the construction does not hold. §6.3's sink inventory does
+    not list this path either — it was written against `tutor_loop`'s log helpers.
+
+    **It was deliberately NOT converted in slice 13**, and the reason is not oversight:
+
+    * unlike a log line, this text is load-bearing. It is the conversation history the
+      generation prompt reads, the ``session["context"][-2:]`` window both model calls
+      read, and the thing that makes a follow-up question answerable. §8's fail-closed
+      rule — write no transcript — would silently drop a turn out of the conversation
+      whenever a verdict was late, which is a functional regression the contract never
+      weighed;
+    * feeding it the redacted form instead is *probably* right and is genuinely a
+      contract decision, not an implementation one: it changes what the tutor can
+      remember about the child mid-lesson.
+
+    So it is recorded here rather than quietly widened or quietly fixed. Whoever owns
+    the next amendment to §6.3 and §9 owns this.
+    """
+
     turn_id: str
     learner_text: str
     prior_context: tuple[Mapping[str, Any], ...]
@@ -354,7 +443,8 @@ class InteractionControl:
                 route = None
         if route is not None:
             compatibility, failures = self._complete_nonlearning(
-                request.turn_input, route, text, session
+                request.turn_input, route, text, session,
+                redaction=request.personal_data,
             )
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -389,6 +479,7 @@ class InteractionControl:
                 )
             compatibility = self._unauthorized_repair_result(
                 request.turn_input, session, request.observation,
+                redaction=request.personal_data,
             )
             return ModuleOutcome(value=InteractionDecision(
                 disposition=InteractionDisposition.COMPLETE,
@@ -400,7 +491,8 @@ class InteractionControl:
         # Authorization.UNAUTHORIZED (ticket 05) covers what stt_confidence used to gate.
 
         pending = self._consume_pending_shift(
-            text, session, request.turn_input.turn_id
+            text, session, request.turn_input.turn_id,
+            redaction=request.personal_data,
         )
         if pending is not None:
             text, completed = pending
@@ -410,7 +502,8 @@ class InteractionControl:
                         disposition=InteractionDisposition.COMPLETE,
                         text=text,
                         compatibility=self._shift_result(
-                            request.turn_input, text, session, **completed
+                            request.turn_input, text, session,
+                            redaction=request.personal_data, **completed
                         ),
                     ),
                     state_changes=self._state_changes(
@@ -429,7 +522,8 @@ class InteractionControl:
                     disposition=InteractionDisposition.COMPLETE,
                     text=text,
                     compatibility=self._shift_result(
-                        request.turn_input, text, session, **pending_mode
+                        request.turn_input, text, session,
+                        redaction=request.personal_data, **pending_mode
                     ),
                 ),
                 state_changes=self._state_changes(
@@ -469,7 +563,8 @@ class InteractionControl:
                         disposition=InteractionDisposition.COMPLETE,
                         text=text,
                         compatibility=self._shift_result(
-                            request.turn_input, text, session, **stopped
+                            request.turn_input, text, session,
+                            redaction=request.personal_data, **stopped
                         ),
                     ),
                     state_changes=self._state_changes(
@@ -485,7 +580,8 @@ class InteractionControl:
                     disposition=InteractionDisposition.COMPLETE,
                     text=text,
                     compatibility=self._shift_result(
-                        request.turn_input, text, session, **declined
+                        request.turn_input, text, session,
+                        redaction=request.personal_data, **declined
                     ),
                 ),
                 state_changes=self._state_changes(
@@ -504,7 +600,8 @@ class InteractionControl:
                 and not pedagogical_mode_control
                 and not (is_also_learning and str(route.primary) in {"SOCIAL", "EMOTIONAL"})):
             compatibility, failures = self._complete_nonlearning(
-                request.turn_input, route, text, session
+                request.turn_input, route, text, session,
+                redaction=request.personal_data,
             )
             return ModuleOutcome(
                 value=InteractionDecision(
@@ -524,7 +621,8 @@ class InteractionControl:
                     disposition=InteractionDisposition.COMPLETE,
                     text=text,
                     compatibility=self._shift_result(
-                        request.turn_input, text, session, **resumed
+                        request.turn_input, text, session,
+                        redaction=request.personal_data, **resumed
                     ),
                 ),
                 state_changes=self._state_changes(
@@ -550,7 +648,8 @@ class InteractionControl:
         allow_shift = bool(interaction.get("allow_topic_shift", True))
         if allow_shift:
             shifted = self._maybe_topic_shift(
-                text, analysis, session, request.turn_input.turn_id, route=route
+                text, analysis, session, request.turn_input.turn_id, route=route,
+                redaction=request.personal_data,
             )
             if shifted is not None:
                 text, analysis, completed = shifted
@@ -560,7 +659,8 @@ class InteractionControl:
                             disposition=InteractionDisposition.COMPLETE,
                             text=text,
                             compatibility=self._shift_result(
-                                request.turn_input, text, session, **completed
+                                request.turn_input, text, session,
+                                redaction=request.personal_data, **completed
                             ),
                         ),
                         state_changes=self._state_changes(
@@ -735,6 +835,7 @@ class InteractionControl:
         session: dict[str, Any],
         turn_id: str,
         route: Any = None,
+        redaction: Any = None,
     ) -> tuple[str, Mapping[str, Any], dict[str, str] | None] | None:
         test_state = session.get("test_state")
         if test_state is not None and test_state.get("phase") != "done":
@@ -774,7 +875,7 @@ class InteractionControl:
             self._dependencies.log_event({
                 "ts": self._dependencies.now(),
                 "loop": "tutor_loop_v4",
-                "question": text,
+                **_privacy_fields(redaction),
                 "action": "TOPIC_SHIFT",
                 "action_reason": (
                     f"explicit request grounded to {concept_id} (sim {similarity:.2f})"
@@ -815,6 +916,7 @@ class InteractionControl:
         turn_input: TurnInput,
         session: Mapping[str, Any],
         observation: "UtteranceObservation",
+        redaction: Any = None,
     ) -> dict[str, Any]:
         """Ticket 05: produce the repair screen from the observation's
         ``repair_choices`` — the one sanctioned export.  The response layer
@@ -839,7 +941,7 @@ class InteractionControl:
         self._dependencies.log_event({
             "ts": self._dependencies.now(),
             "loop": "tutor_loop_v4",
-            "question": text,
+            **_privacy_fields(redaction),
             "action": "REPAIR_SCREEN",
             "action_reason": (
                 f"unauthorized transcript (causes: {', '.join(causes)}); "
@@ -904,7 +1006,8 @@ class InteractionControl:
         }
 
     def _consume_pending_shift(
-        self, text: str, session: dict[str, Any], turn_id: str
+        self, text: str, session: dict[str, Any], turn_id: str,
+        redaction: Any = None,
     ) -> tuple[str, dict[str, str] | None] | None:
         if not session.get("pending_shift"):
             return None
@@ -922,7 +1025,7 @@ class InteractionControl:
             self._dependencies.log_event({
                 "ts": self._dependencies.now(),
                 "loop": "tutor_loop_v4",
-                "question": text,
+                **_privacy_fields(redaction),
                 "action": "TOPIC_SHIFT",
                 "action_reason": f"confirmed switch to {target['concept_id']}",
                 "need": "none",
@@ -948,6 +1051,7 @@ class InteractionControl:
         reply: str,
         action: str,
         reason: str,
+        redaction: Any = None,
     ) -> dict[str, Any]:
         context = list(session.get("context") or [])
         context.extend((
@@ -958,7 +1062,7 @@ class InteractionControl:
         self._dependencies.log_event({
             "ts": self._dependencies.now(),
             "loop": "tutor_loop_v4",
-            "question": text,
+            **_privacy_fields(redaction),
             "action": action,
             "action_reason": reason,
             "need": "none",
@@ -1100,7 +1204,8 @@ class InteractionControl:
         )
         self._record_safety(request, text, route, session, verdict)
         compatibility, failures = self._complete_nonlearning(
-            request.turn_input, route, text, session
+            request.turn_input, route, text, session,
+            redaction=request.personal_data,
         )
         return ModuleOutcome(
             value=InteractionDecision(
@@ -1162,11 +1267,23 @@ class InteractionControl:
             "model_verdict": model.as_record() if model is not None else None,
             "eval_numbers": _eval_numbers_in_force(),
             "stamps": _stamps(verdict),
-            # The case record never waits for the personal-data verdict (§14).
-            # Between the safety and personal-data cutovers this stamp is permanent
-            # rather than transient, which is a true statement about a system whose
-            # PII detector does not exist yet.
-            "privacy": "privacy_unavailable",
+            # SAFETY_ROUTE_TAXONOMY.md §14 / PERSONAL_DATA_CONTRACT.md §9.2: where
+            # personal data co-occurs with a safety trip, the case record carries
+            # identifier **class labels** (`ADDRESS_PRESENT`), never raw values.
+            #
+            # **The case record never waits for it.** The personal-data verdict is
+            # resolved by the Turn Coordinator before Interaction Control runs, so in
+            # practice it is already here; when it is not — outage, or no detector
+            # wired — the field is stamped `privacy_unavailable` and the record is
+            # written anyway. A safeguarding case must not be delayed by an annotation
+            # about a phone number, and 07 already established that an honest
+            # `unknown` is acceptable while a fabricated value is a stop-ship.
+            #
+            # A late verdict may union in (07 §6, add-only). Nothing collects one
+            # today, for the same reason 12's `late_verdict()` has no caller: the sink
+            # is a session dict plus a `notify_safety` callback, neither revisable
+            # after the turn is released. The gap is in the store, not here.
+            "privacy": _case_record_privacy(request.personal_data),
             "source": getattr(route, "source", "unknown"),
             "handled": "unknown",
         }
@@ -1218,6 +1335,7 @@ class InteractionControl:
         route: Any,
         text: str,
         session: dict[str, Any],
+        redaction: Any = None,
     ) -> tuple[dict[str, Any], tuple[FailureSignal, ...]]:
         intent = str(route.primary)
         if intent == "SESSION_CONTROL":
@@ -1273,11 +1391,29 @@ class InteractionControl:
             verdict.analytics() if isinstance(verdict, SafetyVerdict)
             else {"safety_alert": alerted, "safety_severity": None}
         )
+        # PERSONAL_DATA_CONTRACT.md §6.3 / §16: the `safety_alert`-only redaction
+        # special case is GONE. It was the evidence that discipline fails — this row
+        # was redacted on the safety branch and raw on every ordinary one, so a
+        # privacy-only turn wrote the child's disclosure to disk verbatim. Every turn
+        # now goes through the same `_privacy_fields`, and `log_tier` records which
+        # rule withheld what: the safety rule (hash-only, taxonomy §14), the privacy
+        # rule (fail-closed, §8), or neither.
+        privacy = _privacy_fields(redaction)
+        if alerted:
+            # A safety turn's transcript is withheld regardless of the privacy
+            # verdict — SAFETY_ROUTE_TAXONOMY.md §14 keeps the utterance out of
+            # routine analytics entirely, which is stricter than redaction.
+            privacy["question"] = None
+            log_tier = "safety_withheld"
+        elif privacy["question"] is None:
+            log_tier = "privacy_withheld"
+        else:
+            log_tier = "general"
         self._dependencies.log_event({
             "ts": self._dependencies.now(),
             "loop": "tutor_loop_v4",
-            "question": "[REDACTED_SAFETY_UTTERANCE]" if alerted else text,
-            "log_tier": "general_redacted" if alerted else "general",
+            **privacy,
+            "log_tier": log_tier,
             "action": intent,
             "action_reason": getattr(route, "reason", ""),
             "need": "none",

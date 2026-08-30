@@ -45,7 +45,7 @@ class _SuccessfulLegacyAdapter:
     def interaction_request(self, turn_input: TurnInput) -> InteractionControlRequest:
         return InteractionControlRequest(turn_input=turn_input, session={})
 
-    def execute(self, turn_input: TurnInput, interaction=None) -> LegacyExecution:
+    def execute(self, turn_input: TurnInput, interaction=None, **_) -> LegacyExecution:
         compatibility = {"answer": "One half.", "display": [{"kind": "text"}]}
         return LegacyExecution(
             result=TurnResult(
@@ -217,7 +217,7 @@ class TurnCoordinatorTests(unittest.TestCase):
 
     def test_maps_returned_failure_signals_into_current_turn_recovery(self) -> None:
         class DegradedAdapter(_SuccessfulLegacyAdapter):
-            def execute(self, turn_input, interaction=None):
+            def execute(self, turn_input, interaction=None, **_):
                 execution = super().execute(turn_input, interaction=interaction)
                 signal = FailureSignal(
                     capability="presentation",

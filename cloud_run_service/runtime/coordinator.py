@@ -121,7 +121,7 @@ class TemporaryLegacyAdapter(Protocol):
 
     def execute(self, turn_input: TurnInput, interaction, assessment=None,
                 pedagogy=None, retrieval=None, response_plan=None,
-                generated_response=None) -> LegacyExecution: ...
+                generated_response=None, personal_data=None) -> LegacyExecution: ...
 
 
 @dataclass(frozen=True)
@@ -146,6 +146,7 @@ class TurnCoordinator:
         interaction_control: "InteractionControlInterface",
         utterance_intake: Any = None,
         child_safety: Any = None,
+        personal_data: Any = None,
         perception: "PerceptionInterface | None" = None,
         assessment_evidence: "AssessmentEvidenceInterface | None" = None,
         pedagogy: "PedagogyInterface | None" = None,
@@ -159,6 +160,7 @@ class TurnCoordinator:
         self._interaction_control = interaction_control
         self._utterance_intake = utterance_intake
         self._child_safety = child_safety
+        self._personal_data = personal_data
         self._perception = perception
         self._assessment_evidence = assessment_evidence
         self._pedagogy = pedagogy
@@ -200,8 +202,29 @@ class TurnCoordinator:
         if self._child_safety is not None:
             safety_dispatch = self._child_safety.dispatch(
                 utterance_id=self._utterance_id(turn_input, observation),
-                text=self._safety_text(turn_input, observation),
+                text=self._turn_text(turn_input, observation),
                 summary=self._safety_summary(interaction_request.session),
+            )
+        # ---------------------------------------------------------------
+        # Personal data is dispatched IMMEDIATELY AFTER INTAKE
+        # (PERSONAL_DATA_CONTRACT.md §2), and immediately after safety —
+        # 12's safety-first ordering is preserved, and both are non-blocking.
+        #
+        # "After Intake" is forced, not preferred: redaction is exact-match
+        # against `normalized_text` (§4), and Intake is what produces it.
+        # Intake is pure, deterministic and sub-millisecond, so this costs
+        # nothing.
+        #
+        # Dispatched on EVERY turn, including an UNAUTHORIZED one: a repair
+        # screen still writes an analytics row, and that row is a persisting
+        # sink like any other.
+        # ---------------------------------------------------------------
+        personal_data_dispatch = None
+        if self._personal_data is not None:
+            personal_data_dispatch = self._personal_data.dispatch(
+                utterance_id=self._utterance_id(turn_input, observation),
+                text=self._turn_text(turn_input, observation),
+                context=self._personal_data_context(interaction_request.session),
             )
         # Ticket 05: perception is NOT run on an UNAUTHORIZED turn —
         # Interaction Control's authorization gate produces the repair screen.
@@ -253,6 +276,36 @@ class TurnCoordinator:
             interaction_request = replace(
                 interaction_request, safety=safety_dispatch.await_verdict()
             )
+        # ---------------------------------------------------------------
+        # THE PERSISTING-SINK DEADLINE (PERSONAL_DATA_CONTRACT.md §7).
+        #
+        # Interaction Control writes the turn's analytics row, so the verdict
+        # has to be resolved before it runs. §7 gives persisting sinks the
+        # **full 5s envelope**, and that is what `await_verdict` waits — this
+        # is the one place the personal-data path is allowed to cost the child
+        # wall-clock, and it is bounded.
+        #
+        # In practice it costs nothing: the call was dispatched right after
+        # Intake, its envelope has been running through the whole
+        # perception span, and (when safety is wired) the hold above has
+        # already consumed the same wall-clock. What lands here is normally a
+        # verdict that arrived several hundred milliseconds ago.
+        #
+        # `turn_redaction` is where the identifier-bearing verdict STOPS. What
+        # continues past this line is placeholder text and class labels; the
+        # verdict object is dropped and never crosses another seam (§4).
+        # ---------------------------------------------------------------
+        redaction = None
+        if personal_data_dispatch is not None:
+            from personal_data import turn_redaction
+
+            redaction = turn_redaction(
+                self._turn_text(turn_input, observation),
+                personal_data_dispatch.await_verdict(),
+            )
+        interaction_request = replace(
+            interaction_request, personal_data=redaction
+        )
         interaction = self._interaction_control.control(interaction_request)
         # `_skip_perception` leaves `perception` unbound, so it must be re-tested
         # here and not only at the dispatch above: an UNAUTHORIZED turn has no
@@ -371,29 +424,38 @@ class TurnCoordinator:
                     value=replace(planned.value, assessment_proposal=None),
                 )
         try:
+            # `personal_data` is the same TurnRedaction the Interaction Control
+            # request carries — the legacy turn holds the other converted sinks
+            # (`_log_shift`, the generation prompt), and both must see one
+            # redaction for the turn rather than each redacting for itself.
             if planned is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
                     response_plan=planned_for_execution,
                     generated_response=generated,
+                    personal_data=redaction,
                 )
             elif retrieved is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
                     pedagogy=pedagogical, retrieval=retrieved,
+                    personal_data=redaction,
                 )
             elif pedagogical is not None:
                 execution = self._adapter.execute(
                     turn_input, interaction=interaction, assessment=assessment,
-                    pedagogy=pedagogical,
+                    pedagogy=pedagogical, personal_data=redaction,
                 )
             elif assessment is not None:
                 execution = self._adapter.execute(
-                    turn_input, interaction=interaction, assessment=assessment
+                    turn_input, interaction=interaction, assessment=assessment,
+                    personal_data=redaction,
                 )
             else:
-                execution = self._adapter.execute(turn_input, interaction=interaction)
+                execution = self._adapter.execute(
+                    turn_input, interaction=interaction, personal_data=redaction
+                )
         except LegacyAdapterFailure as failure:
             self._supervisor.observe_turn((failure.signal,))
             action = self._recovery_policy.decide(failure.signal)
@@ -470,10 +532,16 @@ class TurnCoordinator:
         return getattr(provenance, "utterance_id", None) or turn_input.turn_id
 
     @staticmethod
-    def _safety_text(turn_input: TurnInput, observation: Any) -> str:
+    def _turn_text(turn_input: TurnInput, observation: Any) -> str:
         """The normalized published form when Intake produced one, else the raw
-        interaction text. Normalization exists in exactly one place; the safety
-        call reads its output rather than re-deriving a second form."""
+        interaction text. Normalization exists in exactly one place; both model
+        calls read its output rather than re-deriving a second form.
+
+        For the safety call this is a preference. For the personal-data call it is
+        load-bearing: redaction is exact-match on this exact string
+        (PERSONAL_DATA_CONTRACT.md §4), so handing the detector one form and the
+        redactor another would fail every turn closed.
+        """
         if observation is not None:
             return observation.normalized_text
         return str(turn_input.interaction.get("text") or "")
@@ -501,6 +569,30 @@ class TurnCoordinator:
             prior_max_severity=accumulator.get("max_severity"),
             recent_context=tuple(context[-2:]),
         )
+
+    @staticmethod
+    def _personal_data_context(session: Mapping[str, Any]) -> Any:
+        """§14: ``session["context"][-2:]`` — one preceding exchange, and nothing else.
+
+        It is the only thing that catches the split disclosure: the tutor asks
+        something and the child answers *"it's 98765"*, which without context is
+        indistinguishable from an answer and must be left alone.
+
+        Note what is deliberately absent, and how it differs from ``_safety_summary``
+        one method above. The safety prompt gets a count and a max severity; this one
+        gets **no session summary at all**. §9 forbids the standing behavioural record
+        ("this child disclosed an address on this date") that would be needed to supply
+        a prior-disclosure count — building one in the name of privacy is exactly the
+        thing DPDP §9(3) bans.
+        """
+        from personal_data import PersonalDataContext
+
+        # Thaw BEFORE slicing, for the reason spelled out in `_safety_summary`: a
+        # frozen session holds `context` as a tuple of mappingproxies, and slicing
+        # first hands `deep_thaw` a plain list that falls through to `copy.deepcopy`
+        # and raises "cannot pickle 'mappingproxy'".
+        context = deep_thaw(session.get("context") or ())
+        return PersonalDataContext(recent_context=tuple(context[-2:]))
 
     @staticmethod
     def _validate_phase_trace(execution: LegacyExecution) -> None:
