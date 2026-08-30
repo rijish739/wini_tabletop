@@ -13,8 +13,8 @@ message → Interaction Control → Perception & Grading → Pedagogy Decision
 
 1. **New to the project?** Read [DEVELOPER_ONBOARDING.md](DEVELOPER_ONBOARDING.md).
 2. **Domain concepts & terminology:** [CONTEXT.md](CONTEXT.md).
-3. **Agent & coding guidelines:** [CLAUDE.md](CLAUDE.md).
-4. **Active ticket tracking & decisions:** [`.scratch/modular-tutor-runtime/map.md`](.scratch/modular-tutor-runtime/map.md).
+3. **Architecture & layer boundaries:** [`docs/architecture/WINI_ARCHITECTURE.md`](docs/architecture/WINI_ARCHITECTURE.md).
+4. **Agent & coding guidelines:** [CLAUDE.md](CLAUDE.md).
 
 ---
 
@@ -22,42 +22,45 @@ message → Interaction Control → Perception & Grading → Pedagogy Decision
 
 | Directory / File | Description |
 |---|---|
-| [`cloud_run_service/`](cloud_run_service/) | **Canonical Modular Tutor Runtime** containing all 9 feature modules (`runtime/`, `interaction_control/`, `pedagogy/`, `retrieval/`, `assessment_evidence/`, `response_planning/`, `response_generation/`, `state_and_persistence/`, `baseline_oracle/`, and `perception/`). |
-| [`rag_store/`](rag_store/) | NCERT Class-10 Maths knowledge base, 1,017 chunks, 3,562 graph nodes, and embeddings. |
+| [`cloud_run_service/`](cloud_run_service/) | **Canonical Modular Tutor Runtime** containing all core modules (`runtime/`, `utterance_intake/`, `interaction_control/`, `child_safety/`, `personal_data/`, `perception/`, `pedagogy/`, `retrieval/`, `assessment_evidence/`, `response_planning/`, `response_generation/`, `state_and_persistence/`, `baseline_oracle/`, and `response_layer/`). |
+| [`rag_store/`](rag_store/) | NCERT Class-10 Maths knowledge base, 1,017 chunks, 3,562 graph nodes, page images, and embeddings. |
 | [`figures/`](figures/) | Cropped textbook geometric and algebraic figures. |
 | [`dataset/`](dataset/) | Curriculum exemplars and seed datasets. |
-| [`models/`](models/) | Local MiniLM embeddings and concept classifier models. |
-| [`pi_game/`](pi_game/), [`pi_client_package/`](pi_client_package/) | Raspberry Pi tabletop display client and packaging. |
-| [`voice/`](voice/) | Voice STT/TTS streaming pipelines. |
-| [`wini_platform/`](wini_platform/), [`wini_client/`](wini_client/) | Hardware platform runner and client interfaces. |
-| [`docs/`](docs/) | Complete project documentation, architecture specifications, runbooks, and historical archives. |
+| [`models/`](models/) | Local MiniLM embeddings, concept classifiers, and HOPE models. |
+| [`wini_client/`](wini_client/) | Python thin client for voice & display streaming over HTTP. |
+| [`wini_platform/`](wini_platform/) | Tabletop device orchestrator (display drivers, eyes animation, touch interface). |
+| [`wini_ui/`](wini_ui/) | Embedded C / LVGL user interface client for physical display. |
+| [`pi_game/`](pi_game/), [`pi_client_package/`](pi_client_package/) | Raspberry Pi tabletop client packaging. |
+| [`tools/`](tools/) | Hardware, latency, and debug diagnostic utilities. |
+| [`docs/`](docs/) | Normative architecture specifications, contracts, runbooks, and historical archives. |
 
 ---
 
 ## 📚 Documentation Index (`docs/`)
 
-- **Architecture Specifications** ([`docs/architecture/`](docs/architecture/)):
-  - [`WINI_ARCHITECTURE.md`](docs/architecture/WINI_ARCHITECTURE.md) — System architecture overview.
-  - [`WINI_V2_ARCHITECTURE.md`](docs/architecture/WINI_V2_ARCHITECTURE.md) — Deep architectural specification.
-  - [`learner_cognitive_state_architecture.md`](docs/architecture/learner_cognitive_state_architecture.md) — Cognitive state modeling.
-  - [`model_dataset_architecture_report.md`](docs/architecture/model_dataset_architecture_report.md) — Dataset and neural model architecture.
-  - [`rag_memory.md`](docs/architecture/rag_memory.md) — System work log and gotchas.
-  - [`WINI_ROSLESS_PLATFORM_PLAN.md`](docs/architecture/WINI_ROSLESS_PLATFORM_PLAN.md) — Hardware platform architecture.
+- **Normative Architecture & Contracts** ([`docs/architecture/`](docs/architecture/)):
+  - [`WINI_ARCHITECTURE.md`](docs/architecture/WINI_ARCHITECTURE.md) — System architecture, layer boundaries, and invariants.
+  - [`SAFETY_ROUTE_TAXONOMY.md`](docs/architecture/SAFETY_ROUTE_TAXONOMY.md) — Child safety risk taxonomy, detection architecture, and routing.
+  - [`PERSONAL_DATA_CONTRACT.md`](docs/architecture/PERSONAL_DATA_CONTRACT.md) — Personal data detection, exact-match redaction, and sink contracts.
+  - [`AUDIO_END_TO_END_FLOW.md`](docs/architecture/AUDIO_END_TO_END_FLOW.md) — End-to-end audio capture, intake, and streaming pipeline.
+  - [`CODEBASE_ARCHITECTURE_AND_COUPLING_REPORT.md`](docs/architecture/CODEBASE_ARCHITECTURE_AND_COUPLING_REPORT.md) — Measured coupling metrics and dependency matrix.
 - **Runbooks & Operational Guides** ([`docs/runbooks/`](docs/runbooks/)):
-  - [`NEW_MACHINE_SETUP.md`](docs/runbooks/NEW_MACHINE_SETUP.md) — Environment bootstrap guide.
-  - [`JETSON_PIPELINE_RUNBOOK.md`](docs/runbooks/JETSON_PIPELINE_RUNBOOK.md) — Pipeline runbook.
-  - [`CLOUD_VOICE_STATUS_AND_GOTCHAS.md`](docs/runbooks/CLOUD_VOICE_STATUS_AND_GOTCHAS.md) — Voice deployment notes.
-- **Historical Sprint Plans & Research** ([`docs/archive/`](docs/archive/)):
-  - Past milestone plans (Parts 11–15), RAG research, and audit logs.
+  - [`NEW_MACHINE_SETUP.md`](docs/runbooks/NEW_MACHINE_SETUP.md) — Environment bootstrap guide for dev and device.
+  - [`JETSON_PIPELINE_RUNBOOK.md`](docs/runbooks/JETSON_PIPELINE_RUNBOOK.md) — Jetson thin client reference guide.
+  - [`CLOUD_VOICE_STATUS_AND_GOTCHAS.md`](docs/runbooks/CLOUD_VOICE_STATUS_AND_GOTCHAS.md) — Cloud voice streaming deployment notes.
+- **Architecture Decision Records** ([`docs/adr/`](docs/adr/)):
+  - [`0001-delete-deterministic-intent-cues.md`](docs/adr/0001-delete-deterministic-intent-cues.md) — Deletion of obsolete deterministic intent cues.
+- **Historical Archives** ([`docs/archive/`](docs/archive/)):
+  - Archived research, legacy sprint plans (Parts 11–15), RAG research, and duplicate runtime disposition (`DUPLICATE_RUNTIME_DISPOSITION.md`).
 
 ---
 
 ## 🧪 Verification & Testing
 
 ```powershell
-# Run the full modular tutor runtime test suite (138+ tests)
+# Run the full modular tutor runtime test suite (529+ tests)
 $env:PYTHONPATH="cloud_run_service;."
-pytest cloud_run_service/test_p0_evidence.py cloud_run_service/runtime/ cloud_run_service/interaction_control/ cloud_run_service/pedagogy/ cloud_run_service/retrieval/ cloud_run_service/assessment_evidence/ cloud_run_service/response_planning/ cloud_run_service/response_generation/ cloud_run_service/state_and_persistence/ cloud_run_service/baseline_oracle/ cloud_run_service/perception/tests/ -v
+pytest cloud_run_service/
 
 # Run the Board Buddy and response layer test suite
 python cloud_run_service/response_layer/run_tests.py

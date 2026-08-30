@@ -26,8 +26,8 @@ One box can be both (the Jetson currently is). Written 2026-07-04.
 ## 1. Clone + Python environment (both profiles)
 
 ```bash
-git clone https://github.com/jainprathwi-stack/cloud-CLI.git "cloud CLI"
-cd "cloud CLI"
+git clone https://github.com/rijish739/wini_tabletop.git
+cd wini_tabletop
 python -m venv .venv
 # Windows: .venv\Scripts\activate      Linux: source .venv/bin/activate
 pip install -r requirements.txt              # core: genai, numpy, faiss, networkx, ...
