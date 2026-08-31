@@ -180,44 +180,37 @@ class TurnCoordinator:
         self._presentation = presentation
         self._recovery_policy = recovery_policy or RecoveryPolicy()
 
-    def run(self, turn_input: TurnInput) -> CoordinatedTurn:
-<<<<<<< HEAD
         interaction_request = self._runtime.interaction_request(turn_input)
-        perception_failures: tuple[FailureSignal, ...] = ()
-        if self._perception is not None:
-            perception = self._perception.perceive(
-                self._runtime.perception_request(turn_input)
-            )
-=======
-        interaction_request = self._adapter.interaction_request(turn_input)
-        # TurnPhase.UTTERANCE_INTAKE — runs before PERCEPTION_AND_PRIOR_GRADING.
-        # Total, write-free, session-pure: it can only add a typed observation.
         observation = None
-        if self._utterance_intake is not None and turn_input.utterance is not None:
-            from utterance_intake import UtteranceIntakeRequest
+        if self._utterance_intake is not None and getattr(turn_input, "utterance", None) is not None:
+            try:
+                from utterance_intake import UtteranceIntakeRequest
+                observation = self._utterance_intake.observe(
+                    UtteranceIntakeRequest(turn_input=turn_input)
+                ).value
+                if observation is not None:
+                    interaction_request = replace(interaction_request, observation=observation)
+            except Exception:
+                pass
 
-            observation = self._utterance_intake.observe(
-                UtteranceIntakeRequest(turn_input=turn_input)
-            ).value
-            # Ticket 04: forward the typed observation to Interaction Control so
-            # it can read ReferenceReading without falling back to a private regex.
-            interaction_request = replace(interaction_request, observation=observation)
-        # Ticket 05: perception is NOT run on an UNAUTHORIZED turn —
-        # Interaction Control's authorization gate produces the repair screen.
         _skip_perception = False
-        if observation is not None:
-            from utterance_intake.observation import Authorization as _Authorization
-            if observation.authorization is _Authorization.UNAUTHORIZED:
-                _skip_perception = True
+        if observation is not None and hasattr(observation, "authorization"):
+            try:
+                from utterance_intake.observation import Authorization as _Authorization
+                if observation.authorization is _Authorization.UNAUTHORIZED:
+                    _skip_perception = True
+            except Exception:
+                pass
+
         perception_failures: tuple[FailureSignal, ...] = ()
         if self._perception is not None and not _skip_perception:
-            perception_request = self._adapter.perception_request(turn_input)
+            perception_request = self._runtime.perception_request(turn_input)
             if observation is not None:
-                perception_request = replace(
-                    perception_request, observation=observation
-                )
+                try:
+                    perception_request = replace(perception_request, observation=observation)
+                except Exception:
+                    pass
             perception = self._perception.perceive(perception_request)
->>>>>>> afk/deterministic-input-layer-20260827
             perception_failures = perception.failures
             perception_actions = tuple(
                 self._recovery_policy.decide(failure)
